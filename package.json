@@ -1,0 +1,12 @@
+{
+  "name": "nfl-depth-chart",
+  "version": "1.0.0",
+  "description": "NFL starting lineups on a field, live from ESPN + Madden ratings",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

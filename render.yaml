@@ -1,0 +1,15 @@
+# Render "blueprint" — when you connect this repo, Render reads this file and
+# sets the service up for you. See the deploy steps in README.md.
+services:
+  - type: web
+    name: nfl-depth-chart
+    runtime: node
+    plan: free
+    startCommand: node server.js
+    envVars:
+      # How often the app re-checks ESPN for depth-chart + injury changes.
+      - key: DEPTH_TTL_HOURS
+        value: "24"      # daily
+      # How often it re-checks EA for Madden rating updates.
+      - key: MADDEN_TTL_DAYS
+        value: "30"      # monthly

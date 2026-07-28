@@ -1,0 +1,345 @@
+/* style.css — the look of the app */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0b1f12;
+  color: #f5f7f5;
+}
+
+/* ---------- Top bar / controls ---------- */
+.topbar {
+  padding: 16px 20px 12px;
+  background: #10261a;
+  border-bottom: 3px solid #1c4a2e;
+}
+.topbar h1 { margin: 0 0 4px; font-size: 22px; }
+.tagline { margin: 0 0 12px; color: #a9c3b3; font-size: 14px; }
+
+/* Controls are stacked in rows: Offense, then Defense, then the buttons. */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.control-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.row-tag {
+  align-self: center;
+  min-width: 70px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.offense-row .row-tag { background: #d98a0026; color: #ffcf7a; border-left: 3px solid #d98a00; }
+.defense-row .row-tag { background: #1f7ad926; color: #9cd2ff; border-left: 3px solid #1f7ad9; }
+
+.controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 160px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #a9c3b3;
+}
+.controls select {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid #2c5a3c;
+  background: #eefaf1;
+  color: #10261a;
+  font-size: 15px;
+  font-weight: 600;
+}
+#refresh,
+#reset {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  background: #2e7d46;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+#refresh:hover,
+#reset:hover { background: #379a55; }
+#reset { background: #3a4a41; }
+#reset:hover { background: #4a5d52; }
+
+.legend {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #a9c3b3;
+}
+
+/* ---------- Status line ---------- */
+.status {
+  text-align: center;
+  padding: 8px;
+  margin: 0;
+  min-height: 20px;
+  color: #ffd47a;
+  font-size: 14px;
+}
+
+/* ---------- The field ---------- */
+/* On narrow screens the field is wider than the viewport, so it scrolls
+   sideways inside this wrapper instead of squishing the players together. */
+.field-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.field {
+  position: relative;
+  max-width: 900px;
+  margin: 8px auto 40px;
+  border: 4px solid #ffffff33;
+  border-radius: 10px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      #1f7a3d 0px,
+      #1f7a3d 48px,
+      #1b6e37 48px,
+      #1b6e37 96px
+    );
+}
+.field-half {
+  position: relative;
+  height: 300px;
+}
+.formation-label {
+  position: absolute;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 8px;
+  background: #00000088;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #ffffff;
+  text-shadow: 0 1px 2px #000000cc;
+  z-index: 3;
+}
+.formation-label img { height: 26px; width: 26px; object-fit: contain; }
+.formation-label .updated { font-weight: 500; opacity: 0.85; font-size: 11px; }
+/* Defense sits on top of the field, offense on the bottom, so their labels
+   hug the outer edges (away from the line of scrimmage in the middle). */
+.defense-half .formation-label { top: 10px; }
+.offense-half .formation-label { bottom: 10px; }
+
+/* A faint wash of the team's color over each half. */
+.tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+
+/* container that holds absolutely-positioned player chips */
+.players { position: absolute; inset: 0; z-index: 2; }
+
+/* the line of scrimmage in the middle */
+.midline {
+  position: relative;
+  height: 0;
+  border-top: 3px dashed #ffffffaa;
+  text-align: center;
+}
+.midline span {
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  transform: translateX(-50%);
+  background: #0b1f12;
+  padding: 0 10px;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: #ffffffaa;
+}
+
+/* ---------- Player chips ---------- */
+.chip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 84px;
+  padding: 4px 5px 5px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #10261a;
+  text-align: center;
+  cursor: grab;
+  box-shadow: 0 2px 6px #00000055;
+  border: 2px solid transparent;
+  transition: border-color 0.08s ease, box-shadow 0.08s ease;
+  /* let us drag with touch/mouse without the page scrolling or selecting text */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.chip:hover { border-color: #ffd47a; }
+/* while being dragged, lift it above the others and show the grabbing cursor */
+.chip.dragging {
+  cursor: grabbing;
+  z-index: 20;
+  box-shadow: 0 6px 16px #000000aa;
+  border-color: #ffd47a;
+}
+.offense-half .chip { border-top: 4px solid #d98a00; }
+.defense-half .chip { border-top: 4px solid #1f7ad9; }
+
+.chip .pos {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #4a6a56;
+}
+.chip .name {
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.12;
+  margin-top: 1px;
+}
+.chip .depth-count {
+  font-size: 8.5px;
+  color: #7a8f83;
+  margin-top: 2px;
+}
+
+/* ---------- Injury badges ---------- */
+.badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #10261a;
+}
+.badge.out { background: #ff6b6b; color: #fff; }
+.badge.questionable { background: #ffd166; }
+.badge.other { background: #c7d3cc; }
+.chip .badge { margin-top: 3px; }
+
+/* ---------- Depth chart popover ---------- */
+.popover {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #10261a;
+  border: 2px solid #2e7d46;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #000000aa;
+  z-index: 50;
+}
+.popover.hidden { display: none; }
+.popover-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #2c5a3c;
+  font-weight: 800;
+}
+#popover-close {
+  background: none;
+  border: none;
+  color: #a9c3b3;
+  font-size: 18px;
+  cursor: pointer;
+}
+.popover ol { margin: 0; padding: 8px 0; list-style: none; }
+.popover li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+}
+.popover li.starter { background: #16351f; }
+.popover .rank {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #2e7d46;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.popover li.starter .rank { background: #ffd166; color: #10261a; }
+.popover .p-num { color: #a9c3b3; font-size: 12px; width: 30px; }
+.popover .p-name { flex: 1; font-weight: 600; }
+.popover .p-ovr {
+  color: #10261a;
+  background: #ffd166;
+  font-weight: 800;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  min-width: 46px;
+  text-align: center;
+}
+.popover .p-age { color: #a9c3b3; font-size: 12px; min-width: 42px; text-align: right; }
+.popover-note {
+  padding: 8px 14px 12px;
+  font-size: 10px;
+  color: #7a8f83;
+  border-top: 1px solid #2c5a3c;
+}
+
+/* click-catcher behind the popover */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: #00000066;
+  z-index: 40;
+}
+.backdrop.hidden { display: none; }
+
+/* ---------- Mobile ---------- */
+@media (max-width: 760px) {
+  .topbar { padding: 12px 14px 10px; }
+  .topbar h1 { font-size: 18px; }
+  .tagline { font-size: 13px; margin-bottom: 10px; }
+
+  /* Two controls per row on phones; the row tag sits on its own line. */
+  .row-tag { flex-basis: 100%; min-width: 0; }
+  .controls label { flex: 1 1 130px; }
+  .control-row.actions button { flex: 1 1 auto; }
+
+  /* Keep the field readable by giving it a fixed width and letting the wrapper
+     scroll sideways. A hint shadow tells the user there's more to the sides. */
+  .field {
+    min-width: 660px;
+    margin: 8px 12px 24px;
+  }
+  .field-half { height: 260px; }
+
+  /* Smaller chips so more of the field fits before you need to scroll. */
+  .chip { width: 74px; }
+  .chip .name { font-size: 11px; }
+
+  /* Popover fills more of a small screen. */
+  .popover { width: 94vw; }
+}
