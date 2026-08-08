@@ -6,6 +6,7 @@ services:
     runtime: node
     plan: free
     startCommand: node server.js
+    healthCheckPath: /healthz
     envVars:
       # How often the app re-checks ESPN for depth-chart + injury changes.
       - key: DEPTH_TTL_HOURS

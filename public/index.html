@@ -64,6 +64,10 @@
         <div class="control-row actions">
           <button id="refresh" title="Fetch the latest data from ESPN">↻ Refresh</button>
           <button id="reset" title="Put players back to their starting spots">↺ Reset positions</button>
+          <div class="view-toggle" role="group" aria-label="View">
+            <button data-view="field" aria-pressed="true">Field</button>
+            <button data-view="list" aria-pressed="false">List</button>
+          </div>
         </div>
       </div>
 
@@ -75,8 +79,8 @@
       </div>
     </header>
 
-    <!-- Status line for loading / errors -->
-    <p id="status" class="status"></p>
+    <!-- Status line for loading / errors (announced to screen readers) -->
+    <p id="status" class="status" role="status" aria-live="polite"></p>
 
     <!-- The football field. app.js fills in the two halves.
          Defense is on top, offense on the bottom (they meet at the line of scrimmage).
@@ -98,12 +102,19 @@
       </div>
     </main>
     </div>
+    <!-- Only shown on phones in field view: the field is wider than the screen. -->
+    <p id="scroll-hint" class="scroll-hint">← swipe the field sideways to see every player →</p>
 
-    <!-- Popover that shows the full depth chart when you click a position. -->
-    <div id="depth-popover" class="popover hidden">
+    <!-- List view (used on phones and as a keyboard/screen-reader friendly
+         alternative to the field). app.js fills it in. -->
+    <div id="list-view" class="list-view hidden"></div>
+
+    <!-- Popover that shows the full depth chart when you click a position.
+         It's a modal dialog: focus moves in, is trapped, and returns on close. -->
+    <div id="depth-popover" class="popover hidden" role="dialog" aria-modal="true" aria-labelledby="popover-title">
       <div class="popover-head">
         <span id="popover-title"></span>
-        <button id="popover-close" aria-label="Close">✕</button>
+        <button id="popover-close" aria-label="Close depth chart">✕</button>
       </div>
       <ol id="popover-list"></ol>
       <div class="popover-note">OVR = Madden NFL overall rating (EA) · Age via ESPN</div>

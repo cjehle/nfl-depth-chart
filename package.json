@@ -4,7 +4,8 @@
   "description": "NFL starting lineups on a field, live from ESPN + Madden ratings",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"

@@ -47,12 +47,28 @@ const NFL_TEAMS = [
 // Buffalo is the default team for both dropdowns.
 const DEFAULT_TEAM_ID = 2;
 
+// Season boundaries, defined ONCE and shared by the server and the browser so
+// they never drift apart:
+//   OLDEST          — how far back the season dropdowns go.
+//   NEW_FORMAT_FROM — first season that uses nflverse's newer (ESPN-shaped) data.
+const SEASON = { OLDEST: 2020, NEW_FORMAT_FROM: 2025 };
+
+// Which NFL season we're in right now. A season labelled Y runs Sep Y .. Feb Y+1,
+// so Jan/Feb still belong to the prior year's season; from March on we point at
+// the upcoming season. This avoids hardcoding "2026".
+function currentNflSeason(now) {
+  const d = now || new Date();
+  return d.getMonth() < 2 ? d.getFullYear() - 1 : d.getFullYear();
+}
+
 // Export for Node (the server) if module.exports exists...
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { NFL_TEAMS, DEFAULT_TEAM_ID };
+  module.exports = { NFL_TEAMS, DEFAULT_TEAM_ID, SEASON, currentNflSeason };
 }
 // ...and expose to the browser page as a global.
 if (typeof window !== "undefined") {
   window.NFL_TEAMS = NFL_TEAMS;
   window.DEFAULT_TEAM_ID = DEFAULT_TEAM_ID;
+  window.SEASON = SEASON;
+  window.currentNflSeason = currentNflSeason;
 }

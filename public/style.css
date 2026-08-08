@@ -9,6 +9,16 @@ body {
   color: #f5f7f5;
 }
 
+.hidden { display: none !important; }
+
+/* Respect users who prefer less motion. */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+/* Clear keyboard-focus outline everywhere interactive. */
+:focus-visible { outline: 3px solid #ffd47a; outline-offset: 2px; }
+
 /* ---------- Top bar / controls ---------- */
 .topbar {
   padding: 16px 20px 12px;
@@ -217,7 +227,7 @@ body {
 }
 .chip .depth-count {
   font-size: 8.5px;
-  color: #7a8f83;
+  color: #566b60; /* darker for readable contrast on the white chip */
   margin-top: 2px;
 }
 
@@ -230,7 +240,7 @@ body {
   font-weight: 700;
   color: #10261a;
 }
-.badge.out { background: #ff6b6b; color: #fff; }
+.badge.out { background: #d1382f; color: #fff; } /* darker red -> passes WCAG AA */
 .badge.questionable { background: #ffd166; }
 .badge.other { background: #c7d3cc; }
 .chip .badge { margin-top: 3px; }
@@ -262,10 +272,14 @@ body {
 #popover-close {
   background: none;
   border: none;
-  color: #a9c3b3;
+  color: #cfe0d6;
   font-size: 18px;
   cursor: pointer;
+  min-width: 44px;   /* comfortable tap target */
+  min-height: 44px;
+  border-radius: 8px;
 }
+#popover-close:hover { background: #ffffff1a; }
 .popover ol { margin: 0; padding: 8px 0; list-style: none; }
 .popover li {
   display: flex;
@@ -317,6 +331,71 @@ body {
 }
 .backdrop.hidden { display: none; }
 
+/* ---------- View toggle (Field / List) ---------- */
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid #2c5a3c;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.view-toggle button {
+  border: none;
+  background: #16351f;
+  color: #cfe0d6;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+.view-toggle button.active { background: #2e7d46; color: #fff; }
+
+/* ---------- Scroll hint (mobile field view) ---------- */
+.scroll-hint {
+  display: none;
+  text-align: center;
+  margin: -4px 12px 12px;
+  font-size: 12px;
+  color: #a9c3b3;
+}
+
+/* ---------- List view ---------- */
+.list-view { max-width: 640px; margin: 8px auto 40px; padding: 0 12px; }
+.list-section { margin-bottom: 18px; }
+.list-section h2 {
+  font-size: 14px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #16351f;
+}
+.list-section.offense h2 { border-left: 4px solid #d98a00; }
+.list-section.defense h2 { border-left: 4px solid #1f7ad9; }
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  border: 1px solid #2c5a3c;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #10261a;
+  font-size: 14px;
+  cursor: pointer;
+}
+.list-row:hover { border-color: #ffd47a; }
+.list-row .list-pos {
+  font-size: 11px;
+  font-weight: 800;
+  color: #4a6a56;
+  min-width: 52px;
+}
+.list-row .list-name { flex: 1; font-weight: 700; }
+.list-row .list-num { color: #566b60; font-weight: 500; font-size: 12px; }
+.list-row .list-depth { color: #566b60; font-size: 12px; }
+
 /* ---------- Mobile ---------- */
 @media (max-width: 760px) {
   .topbar { padding: 12px 14px 10px; }
@@ -327,17 +406,20 @@ body {
   .row-tag { flex-basis: 100%; min-width: 0; }
   .controls label { flex: 1 1 130px; }
   .control-row.actions button { flex: 1 1 auto; }
+  .view-toggle { flex: 1 1 100%; }
+  .view-toggle button { flex: 1; }
 
   /* Keep the field readable by giving it a fixed width and letting the wrapper
-     scroll sideways. A hint shadow tells the user there's more to the sides. */
+     scroll sideways; the hint tells the user there's more to the sides. */
   .field {
     min-width: 660px;
-    margin: 8px 12px 24px;
+    margin: 8px 12px 8px;
   }
   .field-half { height: 260px; }
+  .scroll-hint:not(.hidden) { display: block; }
 
-  /* Smaller chips so more of the field fits before you need to scroll. */
-  .chip { width: 74px; }
+  /* Slightly smaller but still tappable chips. */
+  .chip { width: 74px; min-height: 44px; }
   .chip .name { font-size: 11px; }
 
   /* Popover fills more of a small screen. */
