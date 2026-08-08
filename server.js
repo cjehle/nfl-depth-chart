@@ -662,20 +662,24 @@ const MIME = {
   ".json": "application/json; charset=utf-8",
 };
 
+const TEAMS_FILE = path.join(__dirname, "teams.js"); // shared with the server, one level up
+
 function serveStatic(req, res) {
   // "/" means "give me the home page".
   let urlPath = req.url.split("?")[0];
   if (urlPath === "/") urlPath = "/index.html";
 
-  // teams.js lives one level up (shared with the server) — let the page load it.
+  // Build the target path and collapse any "../" so it can't escape the folder.
   const filePath =
     urlPath === "/teams.js"
-      ? path.join(__dirname, "teams.js")
-      : path.join(PUBLIC_DIR, urlPath);
+      ? TEAMS_FILE
+      : path.normalize(path.join(PUBLIC_DIR, urlPath));
 
-  // Safety: never serve files outside our project folders.
-  if (!filePath.startsWith(__dirname)) {
-    res.writeHead(403).end("Forbidden");
+  // Safety: only ever serve files inside /public (plus the shared teams.js).
+  // This blocks path-traversal like GET /../server.js.
+  const allowed = filePath === TEAMS_FILE || filePath.startsWith(PUBLIC_DIR + path.sep);
+  if (!allowed) {
+    res.writeHead(403, { "Content-Type": "text/plain" }).end("Forbidden");
     return;
   }
 

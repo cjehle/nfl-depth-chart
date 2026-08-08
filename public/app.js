@@ -68,6 +68,13 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+// Escape text before dropping it into HTML (player names come from outside APIs).
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
+
 // Turn an injury status string into a CSS badge class.
 function injuryClass(status) {
   if (!status) return null;
@@ -264,14 +271,14 @@ function makeChip(posAbbr, players, sideLabel) {
 
   const badgeClass = injuryClass(starter.injury);
   const badgeHtml = badgeClass
-    ? `<span class="badge ${badgeClass}">${starter.injury}</span>`
+    ? `<span class="badge ${badgeClass}">${esc(starter.injury)}</span>`
     : "";
   const depthCount = players.length - 1;
   const depthHtml = depthCount > 0 ? `<div class="depth-count">+${depthCount} behind</div>` : "";
 
   chip.innerHTML = `
-    <div class="pos">${posAbbr} · #${starter.jersey || "--"}</div>
-    <div class="name">${starter.name}</div>
+    <div class="pos">${esc(posAbbr)} · #${esc(starter.jersey || "--")}</div>
+    <div class="name">${esc(starter.name)}</div>
     ${badgeHtml}
     ${depthHtml}
   `;
@@ -389,7 +396,7 @@ function openDepth(title, players) {
     const li = document.createElement("li");
     if (i === 0) li.className = "starter"; // highlight the starter
     const badgeClass = injuryClass(p.injury);
-    const badge = badgeClass ? `<span class="badge ${badgeClass}">${p.injury}</span>` : "";
+    const badge = badgeClass ? `<span class="badge ${badgeClass}">${esc(p.injury)}</span>` : "";
     const ageKey = `${p.id}:${p.season || ""}`;
     // Past seasons already include age; current season fetches it lazily.
     const knownAge = p.age != null ? p.age
@@ -398,10 +405,10 @@ function openDepth(title, players) {
     const ovrText = p.overall != null ? `${p.overall} OVR` : "—";
     li.innerHTML = `
       <span class="rank">${i + 1}</span>
-      <span class="p-num">#${p.jersey || "--"}</span>
-      <span class="p-name">${p.name}</span>
+      <span class="p-num">#${esc(p.jersey || "--")}</span>
+      <span class="p-name">${esc(p.name)}</span>
       <span class="p-ovr">${ovrText}</span>
-      <span class="p-age" data-id="${p.id || ""}">${ageText}</span>
+      <span class="p-age" data-id="${esc(p.id || "")}">${ageText}</span>
       ${badge}
     `;
     popoverList.appendChild(li);
