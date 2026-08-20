@@ -2,7 +2,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert");
 const {
-  splitCsvLine, parseCsv, normName, ageFromDob, offenseKey, defenseCat, groupBy, splitIntoSpots,
+  splitCsvLine, parseCsv, normName, ageFromDob, offenseKey, defenseCat, groupBy, splitIntoSpots, assembleUnit,
 } = require("../lib/util.js");
 
 test("splitCsvLine handles quotes, embedded commas, and trailing CR", () => {
@@ -70,6 +70,34 @@ test("groupBy groups and drops falsy keys", () => {
   assert.strictEqual(g.get("a").length, 2);
   assert.strictEqual(g.get("b").length, 1);
   assert.ok(!g.has(null));
+});
+
+test("assembleUnit offense: one key, multiple slots, starter-first", () => {
+  const entries = [
+    { key: "wr", abbr: "WR", slot: 1, rank: 1, player: { name: "WR1a" } },
+    { key: "wr", abbr: "WR", slot: 2, rank: 2, player: { name: "WR1b" } },
+    { key: "wr", abbr: "WR", slot: 1, rank: 4, player: { name: "WR2a" } }, // depth behind slot 1
+    { key: "qb", abbr: "QB", slot: 9, rank: 1, player: { name: "QB1" } },
+  ];
+  const pos = assembleUnit(entries, "offense");
+  assert.strictEqual(pos.wr.spots.length, 2, "two WR slots -> two spots");
+  assert.strictEqual(pos.wr.spots[0].players[0].name, "WR1a");
+  assert.strictEqual(pos.wr.spots[0].players[1].name, "WR2a", "slot depth sorted by rank");
+  assert.strictEqual(pos.qb.spots.length, 1);
+});
+
+test("assembleUnit defense: one position per starter, cat-tagged", () => {
+  const entries = [
+    { key: "dt", abbr: "DT", slot: 1, rank: 1, player: { name: "DT1" } },
+    { key: "dt", abbr: "DT", slot: 1, rank: 2, player: { name: "DT1 backup" } },
+    { key: "dt", abbr: "DT", slot: 2, rank: 1, player: { name: "DT2" } },
+    { key: "ncb", abbr: "NCB", slot: 1, rank: 1, player: { name: "Nickel" } },
+  ];
+  const pos = assembleUnit(entries, "defense");
+  assert.strictEqual(Object.keys(pos).length, 3, "two DT starters + one NCB = 3 positions");
+  assert.strictEqual(pos["dt__1"].cat, "DL");
+  assert.strictEqual(pos["dt__1"].spots[0].players.length, 2, "starter + backup in one spot");
+  assert.strictEqual(pos["ncb__1"].cat, "NB", "NCB bucketed as nickel, not corner");
 });
 
 test("splitIntoSpots splits multi-starter groups into columns", () => {

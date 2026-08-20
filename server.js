@@ -23,7 +23,7 @@ const zlib = require("zlib");
 const crypto = require("crypto");
 const { NFL_TEAMS, SEASON, currentNflSeason } = require("./teams.js");
 const {
-  parseCsv, splitCsvLine, normName, ageFromDob, offenseKey, defenseCat, groupBy, splitIntoSpots,
+  parseCsv, splitCsvLine, normName, ageFromDob, offenseKey, defenseCat, groupBy, splitIntoSpots, assembleUnit,
 } = require("./lib/util.js");
 
 const PORT = process.env.PORT || 3000;
@@ -139,30 +139,6 @@ const athleteIdFromRef = (ref) => (/athletes\/(\d+)/.exec(ref || "") || [])[1] |
 // one position per on-field starter (so each shows up as its own chip) and
 // tags it with its bucket (DL/LB/CB/S/NB) so the client never has to guess.
 // ---------------------------------------------------------------------------
-function assembleUnit(entries, kind) {
-  const positions = {};
-  if (kind === "offense") {
-    for (const [key, es] of groupBy(entries, (e) => e.key)) {
-      const spots = [];
-      for (const [slot, ses] of groupBy(es, (e) => String(e.slot))) {
-        ses.sort((a, b) => a.rank - b.rank);
-        spots.push({ slot: Number(slot), players: ses.map((e) => e.player) });
-      }
-      spots.sort((a, b) => a.slot - b.slot);
-      positions[key] = { abbr: es[0].abbr, spots };
-    }
-  } else {
-    for (const [k, es] of groupBy(entries, (e) => `${e.key}__${e.slot}`)) {
-      es.sort((a, b) => a.rank - b.rank);
-      const abbr = es[0].abbr;
-      const cat = defenseCat(abbr) || defenseCat(es[0].key);
-      if (!cat) continue;
-      positions[k] = { abbr, cat, spots: [{ slot: 1, players: es.map((e) => e.player) }] };
-    }
-  }
-  return positions;
-}
-
 function makeEnvelope(team, season, entries) {
   const off = entries.filter((e) => e.unit === "offense");
   const def = entries.filter((e) => e.unit === "defense");
