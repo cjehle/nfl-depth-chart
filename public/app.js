@@ -24,6 +24,13 @@ const DEFENSE_FORMATION = {
 };
 const DEFENSE_FORMATION_ORDER = ["base", "nickel", "dime", "quarter", "goalline"];
 
+// Special-teams position labels + the order we like to list them in.
+const ST_LABELS = {
+  pk: "Kicker", k: "Kicker", p: "Punter", ls: "Long Snapper", h: "Holder",
+  kr: "Kick Returner", pr: "Punt Returner",
+};
+const ST_ORDER = ["pk", "k", "p", "ls", "h", "kr", "pr"];
+
 // ---------------------------------------------------------------------------
 // FIELD COORDINATES (all in one place). x = 0 (left)..100 (right). y means
 // "closer to the line of scrimmage as y goes up"; renderSide flips with 100 - y.
@@ -338,6 +345,56 @@ function listSection(title, chips, sideName) {
 }
 
 // ---------------------------------------------------------------------------
+// RENDER — special teams (both selected teams' kicking units)
+// ---------------------------------------------------------------------------
+function renderSpecialTeams(offData, defData) {
+  const el = document.getElementById("st-view");
+  el.innerHTML = "";
+  el.appendChild(stSection(offData));
+  if (defData.teamAbbr !== offData.teamAbbr || defData.season !== offData.season) {
+    el.appendChild(stSection(defData));
+  }
+}
+function stSection(data) {
+  const sec = document.createElement("section");
+  sec.className = "list-section";
+  const h = document.createElement("h2");
+  h.textContent = `${data.team} — Special Teams (${data.season})`;
+  sec.appendChild(h);
+  const unit = data.specialTeams;
+  if (!unit || !Object.keys(unit.positions).length) {
+    const p = document.createElement("p");
+    p.className = "status";
+    p.textContent = "No special-teams data for this team/season.";
+    sec.appendChild(p);
+    return sec;
+  }
+  const P = unit.positions;
+  const keys = [
+    ...ST_ORDER.filter((k) => P[k]),
+    ...Object.keys(P).filter((k) => !ST_ORDER.includes(k)),
+  ];
+  for (const k of keys) {
+    const players = flatten(P[k]); // starter first, then depth
+    if (!players.length) continue;
+    const label = ST_LABELS[k] || P[k].abbr;
+    const p = players[0];
+    const btn = document.createElement("button");
+    btn.className = "list-row";
+    btn.setAttribute("aria-label", `${p.name}, ${label}. Open depth chart.`);
+    const depth = players.length - 1 > 0 ? `<span class="list-depth">+${players.length - 1}</span>` : "";
+    btn.innerHTML = `
+      <span class="list-pos">${esc(label)}</span>
+      <span class="list-name">${esc(p.name)} <span class="list-num">#${esc(p.jersey || "--")}</span></span>
+      ${depth}
+    `;
+    btn.addEventListener("click", () => openDepth(`${data.teamAbbr} ST — ${label}`, players));
+    sec.appendChild(btn);
+  }
+  return sec;
+}
+
+// ---------------------------------------------------------------------------
 // THE DEPTH-CHART POPOVER (a real modal dialog)
 // ---------------------------------------------------------------------------
 const popover = document.getElementById("depth-popover");
@@ -382,13 +439,19 @@ function openDepth(title, players) {
     const knownAge = p.age != null ? p.age : (p.id && ageCache.has(key) ? ageCache.get(key) : undefined);
     const ageText = knownAge != null ? `${knownAge} yrs` : "—";
     const ovrText = p.overall != null ? `${p.overall} OVR` : "—";
+    const bioParts = [p.height, p.weight, p.college].filter(Boolean);
+    if (p.exp != null) bioParts.push(p.exp === 0 ? "Rookie" : `${p.exp} yr${p.exp === 1 ? "" : "s"} exp`);
+    const bio = bioParts.map(esc).join(" · ");
     li.innerHTML = `
-      <span class="rank">${i + 1}</span>
-      <span class="p-num">#${esc(p.jersey || "--")}</span>
-      <span class="p-name">${esc(p.name)}</span>
-      <span class="p-ovr">${ovrText}</span>
-      <span class="p-age" data-id="${esc(p.id || "")}">${ageText}</span>
-      ${badge}
+      <div class="p-main">
+        <span class="rank">${i + 1}</span>
+        <span class="p-num">#${esc(p.jersey || "--")}</span>
+        <span class="p-name">${esc(p.name)}</span>
+        <span class="p-ovr">${ovrText}</span>
+        <span class="p-age" data-id="${esc(p.id || "")}">${ageText}</span>
+        ${badge}
+      </div>
+      ${bio ? `<div class="p-bio">${bio}</div>` : ""}
     `;
     popoverList.appendChild(li);
   });
@@ -504,6 +567,7 @@ async function render(fresh) {
     renderSide(document.getElementById("defense-players"), defChips, `${defData.teamAbbr} D`, defSig, defColor);
     renderSide(document.getElementById("offense-players"), offChips, `${offData.teamAbbr} O`, offSig, offColor);
     renderList(offChips, defChips, offTitle, defTitle);
+    renderSpecialTeams(offData, defData);
     render._sigs = [offSig, defSig];
 
     statusEl.textContent = "";
@@ -519,6 +583,7 @@ function applyView() {
   document.querySelector(".field-scroll").classList.toggle("hidden", viewMode !== "field");
   document.getElementById("scroll-hint").classList.toggle("hidden", viewMode !== "field");
   document.getElementById("list-view").classList.toggle("hidden", viewMode !== "list");
+  document.getElementById("st-view").classList.toggle("hidden", viewMode !== "special");
   document.querySelectorAll(".view-toggle button").forEach((b) => {
     const on = b.dataset.view === viewMode;
     b.classList.toggle("active", on);
@@ -548,7 +613,7 @@ function readState() {
   setSel(defenseSelect, get("dt")); setSel(formationSelect, get("df")); setSel(defenseSeasonSelect, get("ds"));
   const v = get("v");
   // Phones default to List (no sideways scrolling); desktop defaults to Field.
-  viewMode = v === "field" || v === "list" ? v : (window.matchMedia("(max-width: 760px)").matches ? "list" : "field");
+  viewMode = ["field", "list", "special"].includes(v) ? v : (window.matchMedia("(max-width: 760px)").matches ? "list" : "field");
 }
 
 // ---------------------------------------------------------------------------

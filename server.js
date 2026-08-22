@@ -140,8 +140,8 @@ const athleteIdFromRef = (ref) => (/athletes\/(\d+)/.exec(ref || "") || [])[1] |
 // tags it with its bucket (DL/LB/CB/S/NB) so the client never has to guess.
 // ---------------------------------------------------------------------------
 function makeEnvelope(team, season, entries) {
-  const off = entries.filter((e) => e.unit === "offense");
-  const def = entries.filter((e) => e.unit === "defense");
+  const pick = (u) => entries.filter((e) => e.unit === u);
+  const off = pick("offense"), def = pick("defense"), st = pick("st");
   return {
     team: team.name,
     teamAbbr: team.abbr,
@@ -149,6 +149,8 @@ function makeEnvelope(team, season, entries) {
     fetchedAt: new Date().toISOString(),
     offense: off.length ? { formation: "Offense", positions: assembleUnit(off, "offense") } : null,
     defense: def.length ? { formation: "Defense", positions: assembleUnit(def, "defense") } : null,
+    // Special teams shape like offense (one key per position, ordered by slot).
+    specialTeams: st.length ? { formation: "Special Teams", positions: assembleUnit(st, "offense") } : null,
   };
 }
 
@@ -166,6 +168,10 @@ function buildRosterMap(roster, maddenMap) {
         jersey: a.jersey || "",
         injury: injuries.length ? injuries[0].status : null,
         overall: maddenMap ? maddenMap.get(normName(name)) ?? null : null,
+        height: a.displayHeight || "",
+        weight: a.displayWeight || "",
+        college: (a.college && a.college.name) || "",
+        exp: a.experience && typeof a.experience.years === "number" ? a.experience.years : null,
       });
     }
   }
@@ -173,8 +179,8 @@ function buildRosterMap(roster, maddenMap) {
 }
 
 function espnGroupEntries(group, knownById, season) {
-  if (/Special/i.test(group.name)) return [];
-  const unit = /\bD\b/.test(group.name) ? "defense" : "offense";
+  const isSt = /Special/i.test(group.name);
+  const unit = isSt ? "st" : /\bD\b/.test(group.name) ? "defense" : "offense";
   const entries = [];
   for (const [posKey, posData] of Object.entries(group.positions || {})) {
     const abbr = (posData.position && posData.position.abbreviation) || posKey.toUpperCase();
@@ -185,7 +191,11 @@ function espnGroupEntries(group, knownById, season) {
       if (!known.name) continue;
       entries.push({
         unit, key, abbr, slot: a.slot, rank: a.rank,
-        player: { rank: a.rank, id: id || null, season, name: known.name, jersey: known.jersey || "", injury: known.injury || null, overall: known.overall ?? null },
+        player: {
+          rank: a.rank, id: id || null, season, name: known.name, jersey: known.jersey || "",
+          injury: known.injury || null, overall: known.overall ?? null,
+          height: known.height || "", weight: known.weight || "", college: known.college || "", exp: known.exp ?? null,
+        },
       });
     }
   }
@@ -233,7 +243,7 @@ async function oldFormatSource(team, year) {
   const mkPlayer = (r, rank) => {
     const m = meta.get(r.gsis_id) || {};
     const name = r.full_name || `${r.first_name} ${r.last_name}`.trim() || "—";
-    return { rank, id: m.espn_id || null, season: year, name, jersey: r.jersey_number || m.jersey || "", injury: null, overall: ovrFromMadden(madden, name, nick), age: ageFromDob(m.dob, year) };
+    return { rank, id: m.espn_id || null, season: year, name, jersey: r.jersey_number || m.jersey || "", injury: null, overall: ovrFromMadden(madden, name, nick), age: ageFromDob(m.dob, year), height: m.height || "", weight: m.weight || "", college: m.college || "", exp: m.rookieSeason ? Math.max(0, year - m.rookieSeason) : null };
   };
 
   const entries = [];
@@ -245,6 +255,10 @@ async function oldFormatSource(team, year) {
     if (!defenseCat(code)) continue;
     splitIntoSpots(group, mkPlayer).forEach((sp) =>
       sp.players.forEach((pl) => entries.push({ unit: "defense", key: code.toLowerCase(), abbr: code.trim().toUpperCase(), slot: sp.slot, rank: pl.rank, player: pl })));
+  }
+  for (const [code, group] of groupBy(wk.filter((r) => r.formation === "Special Teams"), (r) => r.depth_position)) {
+    splitIntoSpots(group, mkPlayer).forEach((sp) =>
+      sp.players.forEach((pl) => entries.push({ unit: "st", key: code.toLowerCase(), abbr: code.trim().toUpperCase(), slot: sp.slot, rank: pl.rank, player: pl })));
   }
   return { entries, usedYear: year };
 }
@@ -310,13 +324,13 @@ async function newFormatSource(team, year) {
 
   const mk = (r) => {
     const m = meta.get(r.gsis_id) || {};
-    return { rank: Number(r.pos_rank) || 1, id: r.espn_id || m.espn_id || null, season: year, name: r.player_name || "—", jersey: m.jersey || "", injury: null, overall: ovrFromMadden(madden, r.player_name, nick), age: ageFromDob(m.dob, year) };
+    return { rank: Number(r.pos_rank) || 1, id: r.espn_id || m.espn_id || null, season: year, name: r.player_name || "—", jersey: m.jersey || "", injury: null, overall: ovrFromMadden(madden, r.player_name, nick), age: ageFromDob(m.dob, year), height: m.height || "", weight: m.weight || "", college: m.college || "", exp: m.rookieSeason ? Math.max(0, year - m.rookieSeason) : null };
   };
 
   const entries = [];
   for (const r of teamRows) {
-    if (/Special/i.test(r.pos_grp)) continue;
-    const unit = /\bD\b/.test(r.pos_grp) ? "defense" : "offense";
+    const isSt = /Special/i.test(r.pos_grp);
+    const unit = isSt ? "st" : /\bD\b/.test(r.pos_grp) ? "defense" : "offense";
     const abbr = r.pos_abb || "";
     const key = unit === "offense" ? offenseKey(abbr) || abbr.toLowerCase() : abbr.toLowerCase();
     if (!key) continue;
@@ -329,12 +343,26 @@ async function newFormatSource(team, year) {
 // nflverse players.csv -> birthdays + espn ids + jerseys, keyed by gsis id.
 // ---------------------------------------------------------------------------
 const playersMetaStore = new Map();
+function fmtHeight(inches) {
+  const n = Number(inches);
+  if (!n || isNaN(n)) return "";
+  return `${Math.floor(n / 12)}' ${n % 12}"`;
+}
 function getPlayersMeta() {
   return cached(playersMetaStore, "v", Infinity, async () => {
     const url = "https://github.com/nflverse/nflverse-data/releases/download/players/players.csv";
-    const rows = parseCsv(await fetchText(url, { timeout: 45000 }), ["gsis_id", "birth_date", "espn_id", "jersey_number"]);
+    const cols = ["gsis_id", "birth_date", "espn_id", "jersey_number", "height", "weight", "college_name", "rookie_season"];
+    const rows = parseCsv(await fetchText(url, { timeout: 45000 }), cols);
     const map = new Map();
-    for (const r of rows) if (r.gsis_id) map.set(r.gsis_id, { dob: r.birth_date || null, espn_id: r.espn_id || null, jersey: r.jersey_number || "" });
+    for (const r of rows) if (r.gsis_id) map.set(r.gsis_id, {
+      dob: r.birth_date || null,
+      espn_id: r.espn_id || null,
+      jersey: r.jersey_number || "",
+      height: fmtHeight(r.height),
+      weight: r.weight ? `${r.weight} lbs` : "",
+      college: (r.college_name || "").split(/[;,]/)[0].trim(), // first school only
+      rookieSeason: r.rookie_season ? Number(r.rookie_season) : null,
+    });
     return map;
   });
 }

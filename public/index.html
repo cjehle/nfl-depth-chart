@@ -43,9 +43,10 @@
 
       <div class="view-toggle-row">
         <span class="view-label">View</span>
-        <div class="view-toggle" role="group" aria-label="Field or list view">
+        <div class="view-toggle" role="group" aria-label="View">
           <button data-view="field" aria-pressed="false">🏟️ Field</button>
           <button data-view="list" aria-pressed="false">☰ List</button>
+          <button data-view="special" aria-pressed="false" title="Special teams">Special</button>
         </div>
       </div>
 
@@ -123,6 +124,9 @@
     <!-- List view (used on phones and as a keyboard/screen-reader friendly
          alternative to the field). app.js fills it in. -->
     <div id="list-view" class="list-view hidden"></div>
+
+    <!-- Special teams view: kickers, punters, returners, etc. for both teams. -->
+    <div id="st-view" class="list-view hidden"></div>
 
     <!-- Popover that shows the full depth chart when you click a position.
          It's a modal dialog: focus moves in, is trapped, and returns on close. -->

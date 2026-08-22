@@ -283,10 +283,12 @@ body {
 .popover ol { margin: 0; padding: 8px 0; list-style: none; }
 .popover li {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 3px;
   padding: 8px 14px;
 }
+.popover .p-main { display: flex; align-items: center; gap: 8px; }
+.popover .p-bio { font-size: 11px; color: #8fb0a0; padding-left: 28px; } /* height · weight · college · exp */
 .popover li.starter { background: #16351f; }
 .popover .rank {
   width: 20px;
