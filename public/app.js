@@ -215,13 +215,14 @@ function persistChip(sig, chipKey, chip) {
 // ---------------------------------------------------------------------------
 // A CLICKABLE, KEYBOARD-ACCESSIBLE PLAYER CHIP
 // ---------------------------------------------------------------------------
-function makeChip(posAbbr, players, sideLabel, onMoved) {
+function makeChip(posAbbr, players, sideLabel, onMoved, teamColor) {
   const starter = players[0];
   const chip = document.createElement("div");
   chip.className = "chip";
   chip.tabIndex = 0;
   chip.setAttribute("role", "button");
   chip.setAttribute("aria-label", `${starter.name}, ${posAbbr}. Open depth chart.`);
+  if (teamColor) chip.style.borderTopColor = teamColor; // team-colored accent bar
 
   const badgeClass = injuryClass(starter.injury);
   const badgeHtml = badgeClass ? `<span class="badge ${badgeClass}">${esc(starter.injury)}</span>` : "";
@@ -276,7 +277,7 @@ function makeDraggable(chip, onClick, onMoved) {
 // ---------------------------------------------------------------------------
 // RENDER — field view
 // ---------------------------------------------------------------------------
-function renderSide(container, chips, sideLabel, sig) {
+function renderSide(container, chips, sideLabel, sig, teamColor) {
   container.innerHTML = "";
   if (!chips.length) {
     container.innerHTML = `<p class="status">No lineup available for this team/season.</p>`;
@@ -285,7 +286,7 @@ function renderSide(container, chips, sideLabel, sig) {
   const saved = layouts[sig] || {};
   chips.forEach((ch, i) => {
     const chipKey = `${ch.label}#${i}`;
-    const chip = makeChip(ch.label, ch.players, sideLabel, () => persistChip(sig, chipKey, chip));
+    const chip = makeChip(ch.label, ch.players, sideLabel, () => persistChip(sig, chipKey, chip), teamColor);
     chip.style.left = ch.x + "%";
     chip.style.top = 100 - ch.y + "%";
     const pos = saved[chipKey];
@@ -498,8 +499,10 @@ async function render(fresh) {
 
     const offSig = `off:${offenseId}:${offData.season}:${personnel}`;
     const defSig = `def:${defenseId}:${defData.season}:${formation}`;
-    renderSide(document.getElementById("defense-players"), defChips, `${defData.teamAbbr} D`, defSig);
-    renderSide(document.getElementById("offense-players"), offChips, `${offData.teamAbbr} O`, offSig);
+    const offColor = (TEAM_BY_ID.get(offenseId) || {}).color;
+    const defColor = (TEAM_BY_ID.get(defenseId) || {}).color;
+    renderSide(document.getElementById("defense-players"), defChips, `${defData.teamAbbr} D`, defSig, defColor);
+    renderSide(document.getElementById("offense-players"), offChips, `${offData.teamAbbr} O`, offSig, offColor);
     renderList(offChips, defChips, offTitle, defTitle);
     render._sigs = [offSig, defSig];
 
