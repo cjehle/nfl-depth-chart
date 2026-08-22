@@ -30,6 +30,14 @@
         <strong>drag</strong> players around (they can't cross the line of scrimmage).
       </p>
 
+      <div class="view-toggle-row">
+        <span class="view-label">View</span>
+        <div class="view-toggle" role="group" aria-label="Field or list view">
+          <button data-view="field" aria-pressed="false">🏟️ Field</button>
+          <button data-view="list" aria-pressed="false">☰ List</button>
+        </div>
+      </div>
+
       <div class="controls">
         <div class="control-row offense-row">
           <span class="row-tag">Offense</span>
@@ -64,10 +72,6 @@
         <div class="control-row actions">
           <button id="refresh" title="Fetch the latest data from ESPN">↻ Refresh</button>
           <button id="reset" title="Put players back to their starting spots">↺ Reset positions</button>
-          <div class="view-toggle" role="group" aria-label="View">
-            <button data-view="field" aria-pressed="true">Field</button>
-            <button data-view="list" aria-pressed="false">List</button>
-          </div>
         </div>
       </div>
 

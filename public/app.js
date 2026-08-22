@@ -547,8 +547,8 @@ function readState() {
   setSel(offenseSelect, get("ot")); setSel(personnelSelect, get("op")); setSel(offenseSeasonSelect, get("os"));
   setSel(defenseSelect, get("dt")); setSel(formationSelect, get("df")); setSel(defenseSeasonSelect, get("ds"));
   const v = get("v");
-  // Default to the field on every device; only use List if the user picked it.
-  viewMode = v === "field" || v === "list" ? v : "field";
+  // Phones default to List (no sideways scrolling); desktop defaults to Field.
+  viewMode = v === "field" || v === "list" ? v : (window.matchMedia("(max-width: 760px)").matches ? "list" : "field");
 }
 
 // ---------------------------------------------------------------------------
