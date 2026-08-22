@@ -547,7 +547,8 @@ function readState() {
   setSel(offenseSelect, get("ot")); setSel(personnelSelect, get("op")); setSel(offenseSeasonSelect, get("os"));
   setSel(defenseSelect, get("dt")); setSel(formationSelect, get("df")); setSel(defenseSeasonSelect, get("ds"));
   const v = get("v");
-  viewMode = v === "field" || v === "list" ? v : (window.matchMedia("(max-width: 760px)").matches ? "list" : "field");
+  // Default to the field on every device; only use List if the user picked it.
+  viewMode = v === "field" || v === "list" ? v : "field";
 }
 
 // ---------------------------------------------------------------------------
