@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#12351f"/><stop offset="1" stop-color="#0b1f12"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g stroke="#ffffff" stroke-opacity="0.06" stroke-width="2">
+    <line x1="0" y1="120" x2="1200" y2="120"/><line x1="0" y1="240" x2="1200" y2="240"/>
+    <line x1="0" y1="360" x2="1200" y2="360"/><line x1="0" y1="480" x2="1200" y2="480"/></g>
+  <rect x="0" y="0" width="1200" height="14" fill="#00338d"/>
+  <text x="80" y="270" font-size="92" fill="#ffffff" font-family="Helvetica,Arial,sans-serif" font-weight="bold">🏈 Bills Depth Chart</text>
+  <text x="84" y="350" font-size="40" fill="#a9c3b3" font-family="Helvetica,Arial,sans-serif">Starting offense vs defense, on the field — live from ESPN</text>
+  <text x="84" y="560" font-size="36" fill="#ffcf7a" font-family="Helvetica,Arial,sans-serif" font-weight="bold">billsdepthchart.com</text>
+</svg>
