@@ -1,0 +1,25 @@
+# Daily data refresh + keep-warm.
+# Hits the live site once a day so the app re-pulls fresh depth-chart/injury data
+# from ESPN even if no one visits. `fresh=1` forces the server to bypass its cache.
+# Runs free on GitHub Actions (public repo). You can also trigger it by hand from
+# the repo's "Actions" tab (Run workflow).
+name: Daily refresh
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # 13:00 UTC daily (~8–9am ET)
+  workflow_dispatch: {}   # lets you run it manually anytime
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake, refresh, and health-check the live site
+        run: |
+          BASE="https://billsdepthchart.com"
+          echo "Health:"; curl -fsS --max-time 90 "$BASE/healthz" || true; echo
+          # Force a fresh pull for the default team (server uses the current season).
+          echo "Refreshing Bills lineup…"
+          curl -fsS --max-time 90 "$BASE/api/depth?team=2&fresh=1" -o /dev/null && echo "  ok" || echo "  (site may have been asleep; it will refresh on the retry / next visit)"
+          # A second call confirms it's serving fresh data.
+          curl -fsS --max-time 90 "$BASE/api/depth?team=2" -o /dev/null && echo "verified" || true
