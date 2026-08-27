@@ -80,7 +80,7 @@ const SECURITY_HEADERS = {
   "Content-Security-Policy": [
     "default-src 'self'",
     "img-src 'self' data: https://*.espncdn.com",
-    "style-src 'self'", "script-src 'self'", "connect-src 'self'",
+    "style-src 'self'", "script-src 'self' https://static.cloudflareinsights.com", "connect-src 'self' https://cloudflareinsights.com",
     "base-uri 'none'", "frame-ancestors 'none'", "form-action 'none'",
   ].join("; "),
 };
@@ -112,7 +112,54 @@ function serveFile(req, res, filePath) {
   if (req.headers["if-none-match"] === entry.etag) { res.writeHead(304, { ETag: entry.etag, ...SECURITY_HEADERS }); return res.end(); }
   respond(req, res, 200, entry.body, entry.mime, { ETag: entry.etag, "Cache-Control": "public, max-age=0, must-revalidate" });
 }
-const servePage = (req, res, rel) => serveFile(req, res, path.join(PUBLIC_DIR, rel));
+// ---- Per-route <head> injection: social share cards, icons, PWA, analytics ----
+const SITE = process.env.SITE_URL || "https://billsdepthchart.com";
+const escHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const OG = {
+  home: { title: "Depth Charts — every team's starting lineup", desc: "Starting lineups across the NFL, college football, NBA, college hoops, NHL & MLS — click any player for the full depth chart.", img: "/og/home.png", path: "/all" },
+  nfl: { title: "NFL Depth Charts — starters on the field", desc: "Any NFL team's starting offense vs defense on a field. Personnel, formations, past seasons, Madden ratings. Live from ESPN.", img: "/og/nfl.png", path: "/nfl" },
+  nhl: { title: "NHL Starting Lineups on the Ice", desc: "Two teams' starting lines on the rink — click any player for the depth chart. Live from ESPN.", img: "/og/nhl.png", path: "/nhl" },
+  nba: { title: "NBA Starting Fives on the Court", desc: "Two teams' starting fives + full depth chart at every position. Live from ESPN.", img: "/og/nba.png", path: "/nba" },
+  mls: { title: "MLS Starting XIs on the Pitch", desc: "Each team's real starting XI in its most recent formation. Live from ESPN.", img: "/og/mls.png", path: "/mls" },
+  cfb: { title: "College Football Rosters on the Field", desc: "Big Ten, SEC, Big 12, MAC (+ Pac-12) — one team's offense vs another's defense, by position.", img: "/og/cfb.png", path: "/cfb" },
+  cbb: { title: "College Basketball Rosters on the Court", desc: "Big Ten, SEC, Big 12, MAC rosters by position on the court.", img: "/og/cbb.png", path: "/cbb" },
+};
+const FAVICON = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8F%9F%EF%B8%8F</text></svg>";
+function headFor(key) {
+  const o = OG[key] || OG.home;
+  const t = escHtml(o.title), d = escHtml(o.desc), img = SITE + o.img;
+  const parts = [
+    `<meta property="og:title" content="${t}">`,
+    `<meta property="og:description" content="${d}">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:url" content="${SITE}${o.path}">`,
+    `<meta property="og:image" content="${img}">`,
+    `<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:title" content="${t}"><meta name="twitter:description" content="${d}"><meta name="twitter:image" content="${img}">`,
+    `<link rel="icon" href="${FAVICON}">`,
+    `<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">`,
+    `<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">`,
+    `<link rel="manifest" href="/manifest.webmanifest">`,
+  ];
+  if (process.env.ANALYTICS_TOKEN) parts.push(`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${process.env.ANALYTICS_TOKEN}"}'></script>`);
+  return parts.join("\n    ");
+}
+const pageCache = new Map();
+function renderPage(req, res, rel, ogKey) {
+  const filePath = path.join(PUBLIC_DIR, rel);
+  let stat; try { stat = fs.statSync(filePath); } catch { return respond(req, res, 404, "Not found", "text/plain"); }
+  const cacheKey = rel + "|" + ogKey;
+  let entry = pageCache.get(cacheKey);
+  if (!entry || entry.mtimeMs !== stat.mtimeMs) {
+    const html = fs.readFileSync(filePath, "utf8").replace("<!--HEAD-->", headFor(ogKey));
+    const body = Buffer.from(html);
+    entry = { body, mtimeMs: stat.mtimeMs, etag: '"' + crypto.createHash("sha1").update(body).digest("hex").slice(0, 16) + '"' };
+    pageCache.set(cacheKey, entry);
+  }
+  if (req.headers["if-none-match"] === entry.etag) { res.writeHead(304, { ETag: entry.etag, ...SECURITY_HEADERS }); return res.end(); }
+  respond(req, res, 200, entry.body, MIME[".html"], { ETag: entry.etag, "Cache-Control": "public, max-age=0, must-revalidate" });
+}
 
 const buckets = new Map();
 function rateLimited(ip) {
@@ -124,7 +171,12 @@ function rateLimited(ip) {
 }
 const isNumericId = (s) => /^\d+$/.test(s || "");
 // Home is the all-sports hub; each sport has its own route. (/all kept as an alias.)
-const PAGE_ROUTES = { "/": "index.html", "/all": "index.html", "/nfl": "nfl/index.html", "/nhl": "surface/index.html", "/nba": "surface/index.html", "/mls": "surface/index.html", "/cfb": "surface/index.html", "/cbb": "surface/index.html" };
+const PAGE_ROUTES = {
+  "/": { rel: "index.html", og: "home" }, "/all": { rel: "index.html", og: "home" },
+  "/nfl": { rel: "nfl/index.html", og: "nfl" },
+  "/nhl": { rel: "surface/index.html", og: "nhl" }, "/nba": { rel: "surface/index.html", og: "nba" }, "/mls": { rel: "surface/index.html", og: "mls" },
+  "/cfb": { rel: "surface/index.html", og: "cfb" }, "/cbb": { rel: "surface/index.html", og: "cbb" },
+};
 
 const server = http.createServer(async (req, res) => {
   const t0 = Date.now();
@@ -175,13 +227,32 @@ const server = http.createServer(async (req, res) => {
         try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit)); return done(200); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }
+      // Temporary diagnostic: can this server reach ESPN's real CFB depth feed
+      // (proxy-blocked on the dev machine) to later upgrade /cfb to verified depth?
+      if (urlPath === "/api/cfbprobe") {
+        let team = params.get("team"); if (!isNumericId(team)) team = "333";
+        const urls = [
+          `https://cdn.espn.com/core/college-football/team/depth?xhr=1&id=${team}`,
+          `https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/2025/teams/${team}/depthcharts`,
+        ];
+        const out = [];
+        for (const u of urls) {
+          try {
+            const r = await fetch(u, { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
+            const t = await r.text();
+            out.push({ url: u, status: r.status, len: t.length, sample: t.slice(0, 400) });
+          } catch (e) { out.push({ url: u, err: String(e) }); }
+        }
+        sendJson(req, res, 200, { probe: out }); return done(200);
+      }
+
       sendJson(req, res, 404, { error: "Not found" }); return done(404);
     }
 
     if (req.method !== "GET" && req.method !== "HEAD") { respond(req, res, 405, "Method not allowed", "text/plain"); return done(405); }
 
     // Page routes vs static assets
-    if (PAGE_ROUTES[urlPath]) { servePage(req, res, PAGE_ROUTES[urlPath]); return done(res.statusCode); }
+    if (PAGE_ROUTES[urlPath]) { renderPage(req, res, PAGE_ROUTES[urlPath].rel, PAGE_ROUTES[urlPath].og); return done(res.statusCode); }
     serveFile(req, res, path.normalize(path.join(PUBLIC_DIR, urlPath)));
     done(res.statusCode);
   } catch (err) {

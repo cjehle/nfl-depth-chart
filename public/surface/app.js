@@ -38,6 +38,14 @@ function bioLine(p) {
   if (e) parts.push(e);
   return parts.map(esc).join(" · ");
 }
+function relTime(iso) {
+  if (!iso) return "just now";
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} hr ago`;
+  return `${Math.round(s / 86400)} d ago`;
+}
 
 // ---------------------------------------------------------------------------
 // FETCH (per-side cache: switching the view never refetches a team)
@@ -161,7 +169,9 @@ function decorateBand(bandEl, tintEl, data, mirror) {
     bandEl.appendChild(img);
   }
   const span = document.createElement("span");
-  span.textContent = `${t.name} · ${data.subtitle || ""}`;
+  const rank = t.rank ? `#${t.rank} ` : "";
+  const rec = t.record && !/^0-0/.test(t.record) ? ` (${t.record})` : "";
+  span.textContent = `${rank}${t.name}${rec} · ${data.subtitle || ""}`;
   bandEl.appendChild(span);
   bandEl.style.background = hexToRgba(t.color, 0.92);
   tintEl.style.background = `linear-gradient(${mirror ? 0 : 180}deg, ${hexToRgba(t.color, 0.32)}, ${hexToRgba(t.color, 0.08)})`;
@@ -285,7 +295,8 @@ const statusEl = document.getElementById("status");
 async function render(fresh) {
   const gen = ++renderGen;
   closeDepth();
-  statusEl.textContent = fresh ? "Refreshing…" : "Loading lineups…";
+  statusEl.textContent = fresh ? "⟳ Refreshing…" : "⟳ Loading lineups…";
+  document.getElementById("surface").classList.add("loading");
   const idA = teamASelect.value, idB = teamBSelect.value;
   writeState();
   try {
@@ -300,8 +311,16 @@ async function render(fresh) {
     renderList(dataA, dataB);
     render._sigs = [sigA, sigB];
     statusEl.textContent = "";
+    const u = document.getElementById("updated");
+    if (u) u.textContent = "Updated " + relTime(dataA.updated || dataB.updated);
   } catch (err) {
-    statusEl.textContent = "Could not load data: " + err.message;
+    statusEl.textContent = "Couldn't load right now. ";
+    const b = document.createElement("button");
+    b.className = "retry"; b.textContent = "Retry";
+    b.addEventListener("click", () => render(true));
+    statusEl.appendChild(b);
+  } finally {
+    document.getElementById("surface").classList.remove("loading");
   }
 }
 
@@ -378,6 +397,15 @@ function fillTeams(sel) {
   readState();
   applyView();
   render();
+
+  // Keep the page live: quietly re-pull every 4 min (skips when the tab is
+  // hidden, a depth chart is open, or a chip is mid-drag).
+  setInterval(() => {
+    if (document.visibilityState !== "visible") return;
+    if (!popover.classList.contains("hidden")) return;
+    if (document.querySelector(".chip.dragging")) return;
+    render(true);
+  }, 240000);
 })();
 
 function surfaceWord(s) { return s === "court" ? "Court" : s === "pitch" ? "Pitch" : s === "rink" ? "Ice" : "Field"; }
