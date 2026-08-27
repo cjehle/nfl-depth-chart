@@ -21,15 +21,18 @@ module.exports = {
   // The 9 fielders arranged as a diamond: outfield up top, infield around the
   // bases, battery (P/C) down the middle toward the center. (DH bats only, so
   // it's not shown on the field — it's still in the List view / depth chart.)
+  // Real diamond shape: outfield fan up top, middle infielders flanking second,
+  // corners lower, pitcher on the mound, catcher at home (toward center). Short
+  // labels keep the chips single-line so they don't overlap.
   layout: [
-    { key: "CF", label: "Center Field", posKey: "cf", group: "Outfield", x: 50, y: 7 },
-    { key: "LF", label: "Left Field", posKey: "lf", group: "Outfield", x: 15, y: 14 },
-    { key: "RF", label: "Right Field", posKey: "rf", group: "Outfield", x: 85, y: 14 },
-    { key: "SS", label: "Shortstop", posKey: "ss", group: "Infield", x: 37, y: 25 },
-    { key: "2B", label: "Second Base", posKey: "2b", group: "Infield", x: 63, y: 25 },
-    { key: "P", label: "Pitcher", posKey: "p", group: "Battery", x: 50, y: 34 },
-    { key: "3B", label: "Third Base", posKey: "3b", group: "Infield", x: 18, y: 36 },
-    { key: "1B", label: "First Base", posKey: "1b", group: "Infield", x: 82, y: 36 },
-    { key: "C", label: "Catcher", posKey: "c", group: "Battery", x: 50, y: 47 },
+    { key: "CF", label: "CF", posKey: "cf", group: "Outfield", x: 50, y: 7 },
+    { key: "LF", label: "LF", posKey: "lf", group: "Outfield", x: 17, y: 14 },
+    { key: "RF", label: "RF", posKey: "rf", group: "Outfield", x: 83, y: 14 },
+    { key: "SS", label: "SS", posKey: "ss", group: "Infield", x: 39, y: 27 },
+    { key: "2B", label: "2B", posKey: "2b", group: "Infield", x: 61, y: 27 },
+    { key: "3B", label: "3B", posKey: "3b", group: "Infield", x: 26, y: 38 },
+    { key: "1B", label: "1B", posKey: "1b", group: "Infield", x: 74, y: 38 },
+    { key: "P", label: "P", posKey: "p", group: "Battery", x: 50, y: 39 },
+    { key: "C", label: "C", posKey: "c", group: "Battery", x: 50, y: 49 },
   ],
 };

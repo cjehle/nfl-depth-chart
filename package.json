@@ -9,6 +9,7 @@
     "dev": "node server.js",
     "test": "node --test",
     "gen-teams": "node scripts/gen-teams.js",
-    "gen-seeds": "node scripts/gen-seeds.js"
+    "gen-seeds": "node scripts/gen-seeds.js",
+    "gen-ratings": "node scripts/gen-ratings.js"
   }
 }

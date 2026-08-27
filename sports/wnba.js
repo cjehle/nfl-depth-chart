@@ -7,13 +7,15 @@ module.exports = {
   key: "wnba",
   name: "WNBA",
   emoji: "🏀",
-  title: "WNBA Rosters on the Court",
-  tagline: "A team's roster by position on the court — click any spot for everyone there. Roster order, not verified starters.",
+  title: "WNBA Starting Fives on the Court",
+  tagline: "Each team's typical starting five from recent box scores — click any spot for the full depth there.",
   surface: "court",
   espn: { sport: "basketball", league: "wnba" },
-  kind: "roster",
+  // Typical starting five from recent box scores (ESPN has no WNBA depth chart);
+  // falls back to roster-by-position if box data is unavailable.
+  kind: "boxstart",
   rosterLabel: "roster by position",
-  note: "Roster by position · not a verified depth chart · via ESPN",
+  note: "Typical starting five (recent games) · via ESPN",
   defaults: { a: "19", b: "5" }, // Chicago Sky vs Indiana Fever
   teams: TEAMS,
   bucket: (pos) => { const a = (pos || "").toUpperCase(); if (a === "C") return "center"; if (a === "G" || a.endsWith("G")) return "guard"; return "forward"; },

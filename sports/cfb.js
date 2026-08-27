@@ -23,7 +23,7 @@ module.exports = {
   units: ["offense", "defense"],
   unitLabels: ["Offense", "Defense"],
   note: "Roster by class (seniors first) · not a verified depth chart · via ESPN",
-  defaults: { a: "193", b: "193" }, // Miami (OH) offense vs Miami (OH) defense
+  defaults: { a: "193", b: "195" }, // Miami (OH) offense vs Ohio (Bobcats) defense
   teams: TEAMS,
   bucket: (pos) => {
     const a = (pos || "").toUpperCase();

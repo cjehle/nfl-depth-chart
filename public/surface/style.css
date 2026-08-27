@@ -196,6 +196,11 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 .chip .name { font-size: 12px; font-weight: 700; line-height: 1.15; margin-top: 1px; }
 .chip .depth-count { font-size: 9px; color: #7fd4a1; margin-top: 2px; }
 .chip .badge { position: absolute; top: -8px; right: -6px; }
+/* Video-game overall rating (Madden/EA FC/The Show), like a card OVR. */
+.chip .chip-ovr { position: absolute; top: -8px; left: -7px; min-width: 20px; height: 20px; padding: 0 3px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; color: #241a00; background: linear-gradient(180deg, #ffd85a, #e8b500); border: 1px solid #b98f00; border-radius: 6px; box-shadow: 0 1px 3px #0006; }
+.empty-lineup { display: flex; flex-direction: column; gap: 6px; max-width: 340px; margin: 40px auto; padding: 18px 20px; text-align: center; background: #0c2416cc; border: 1px solid #2c5c3d; border-radius: 12px; }
+.empty-lineup strong { font-size: 15px; color: var(--ink); }
+.empty-lineup span { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
 
 .scroll-hint { text-align: center; color: var(--muted); font-size: 11px; margin: 8px 0 20px; }
 @media (min-width: 620px) { .scroll-hint { display: none; } }
@@ -214,6 +219,7 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 .list-name { flex: 1; font-size: 14px; font-weight: 600; }
 .list-num { color: var(--muted); font-weight: 500; font-size: 12px; }
 .list-depth { font-size: 11px; color: #7fd4a1; }
+.list-ovr { font-size: 12px; font-weight: 900; color: #241a00; background: linear-gradient(180deg, #ffd85a, #e8b500); padding: 1px 7px; border-radius: 6px; border: 1px solid #b98f00; }
 
 /* ---- popover (modal) ---- */
 .backdrop { position: fixed; inset: 0; background: #000a; z-index: 100; }
@@ -235,10 +241,17 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 .popover .p-name { flex: 1; font-size: 14px; font-weight: 700; }
 .popover .p-pos { font-size: 10px; font-weight: 800; color: #06140b; background: #7fd4a1; padding: 1px 6px; border-radius: 6px; }
 .popover .p-age { font-size: 12px; color: var(--muted); }
+.popover .p-ovr { display: inline-flex; align-items: baseline; gap: 2px; font-size: 14px; font-weight: 900; color: #241a00; background: linear-gradient(180deg, #ffd85a, #e8b500); padding: 1px 7px; border-radius: 7px; border: 1px solid #b98f00; }
+.popover .p-ovr i { font-style: normal; font-size: 8px; font-weight: 800; opacity: 0.75; }
 .popover .p-bio { font-size: 11px; color: #8fb0a0; padding-left: 24px; }
 .popover-note { padding: 6px 16px 14px; font-size: 11px; color: var(--muted); }
 
 @media (max-width: 620px) {
   .control-row select { min-width: 150px; flex: 1; }
   .surface { min-width: 480px; }
+}
+
+/* Respect users who prefer less motion: drop transitions/animations. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
 }

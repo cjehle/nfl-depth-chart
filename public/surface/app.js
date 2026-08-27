@@ -9,6 +9,7 @@ const sideCache = { A: { key: null, data: null }, B: { key: null, data: null } }
 let popoverGen = 0, renderGen = 0, lastFocused = null;
 let viewMode = "field";
 let CROSS_OK = true; // can pills be dragged across the center line? (false for CFB's field)
+let ratingLabel = null; // video-game ratings source for this sport (e.g. "EA FC"), or null
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -142,10 +143,11 @@ function makeChip(chipData, teamAbbr, teamColor, onMoved) {
   const badge = badgeClass ? `<span class="badge ${badgeClass}">${esc(face.injury)}</span>` : "";
   const depth = chipData.players.length - 1;
   const depthHtml = depth > 0 ? `<div class="depth-count">+${depth} behind</div>` : "";
+  const ovr = face.overall != null ? `<div class="chip-ovr" title="${esc(ratingLabel || "")} overall rating">${face.overall}</div>` : "";
   chip.innerHTML = `
     <div class="pos">${esc(chipData.label)} · #${esc(face.jersey || "--")}</div>
     <div class="name">${esc(face.name)}</div>
-    ${badge}${depthHtml}
+    ${ovr}${badge}${depthHtml}
   `;
   const open = () => openDepth(`${teamAbbr} — ${chipData.label}`, chipData.players);
   chip.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
@@ -160,7 +162,8 @@ function renderTeamOnSurface(containerId, data, mirror, sig) {
   const container = document.getElementById(containerId);
   container.innerHTML = "";
   if (!data.chips || !data.chips.length) {
-    container.innerHTML = `<p class="status">No lineup available.</p>`;
+    container.innerHTML = `<div class="empty-lineup"><strong>No lineup published yet</strong>
+      <span>${esc(data.team && data.team.name || "This team")} isn't posted by our data source right now — it usually fills in closer to game day. This page updates itself, so check back.</span></div>`;
     return;
   }
   const saved = layouts[sig] || {};
@@ -229,10 +232,11 @@ function listTeam(data) {
       const badgeClass = injuryClass(face.injury);
       const badge = badgeClass ? `<span class="badge ${badgeClass}">${esc(face.injury)}</span>` : "";
       const depth = ch.players.length - 1 > 0 ? `<span class="list-depth">+${ch.players.length - 1}</span>` : "";
+      const ovr = face.overall != null ? `<span class="list-ovr" title="${esc(ratingLabel || "")} overall rating">${face.overall}</span>` : "";
       btn.innerHTML = `
         <span class="list-pos">${esc(ch.label)}</span>
         <span class="list-name">${esc(face.name)} <span class="list-num">#${esc(face.jersey || "--")}</span></span>
-        ${badge}${depth}`;
+        ${ovr}${badge}${depth}`;
       btn.addEventListener("click", () => openDepth(`${data.team.abbr} — ${ch.label}`, ch.players));
       sec.appendChild(btn);
     }
@@ -271,6 +275,7 @@ function openDepth(title, players) {
     const badge = badgeClass ? `<span class="badge ${badgeClass}">${esc(p.injury)}</span>` : "";
     const age = p.classYear ? p.classYear : (p.age != null ? `${p.age} yrs` : "");
     const bio = bioLine(p);
+    const ovr = p.overall != null ? `<span class="p-ovr" title="${esc(ratingLabel || "")} overall rating">${p.overall}<i>OVR</i></span>` : "";
     li.innerHTML = `
       <div class="p-main">
         <span class="rank">${i + 1}</span>
@@ -278,6 +283,7 @@ function openDepth(title, players) {
         <span class="p-name">${esc(p.name)}</span>
         ${p.pos ? `<span class="p-pos">${esc(p.pos)}</span>` : ""}
         <span class="p-age">${age}</span>
+        ${ovr}
         ${badge}
       </div>
       ${bio ? `<div class="p-bio">${bio}</div>` : ""}`;
@@ -319,6 +325,7 @@ async function render(fresh) {
     const unitA = CONFIG.dualUnit ? CONFIG.units[0] : null, unitB = CONFIG.dualUnit ? CONFIG.units[1] : null;
     const [dataA, dataB] = await Promise.all([getSide("A", idA, fresh, unitA), getSide("B", idB, fresh, unitB)]);
     if (gen !== renderGen) return;
+    ratingLabel = dataA.ratingLabel || dataB.ratingLabel || null;
     const sigA = `${CONFIG.sport}:A:${idA}`, sigB = `${CONFIG.sport}:B:${idB}`;
     decorateBand(document.getElementById("bandA"), document.getElementById("tintA"), dataA, false);
     decorateBand(document.getElementById("bandB"), document.getElementById("tintB"), dataB, true);

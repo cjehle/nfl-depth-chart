@@ -37,10 +37,22 @@ every 4 minutes while open, and the daily Action warms every sport.
 
 ## Sports (9)
 NFL · MLB · NBA · NHL · MLS · WNBA · College Football · College Basketball · College Hockey.
-NFL uses ESPN's real depth chart (+ nflverse history + Madden). NBA/MLB use ESPN's real
-depth chart. MLS uses each team's last-match XI. NHL projects lines from last season's
-production. College + WNBA show real rosters by position (ESPN has no depth chart for
-those). See the per-sport notes in the code.
+NFL uses ESPN's real depth chart (+ nflverse history + Madden). MLB uses ESPN's real
+depth chart. **NBA/WNBA/CBB build a "typical starting five" from recent box scores**
+(who starts most, last-5 weighted; drops off-roster players; falls back to the ESPN
+depth chart for NBA or roster-by-class for WNBA/CBB when box data is thin). **MLS builds
+a "typical XI" from the last ~8 matches** (most common formation, most-frequent starters)
+so one rotated/cup game can't distort it. NHL projects lines from last season's
+production. College football + hockey show rosters by position/class. See the per-sport
+notes in the code.
+
+## Video-game ratings
+Each player's overall shows in the popover like the NFL page's Madden OVR: **MLS → EA
+Sports FC, MLB → MLB The Show** (NFL → Madden, in `lib/nfl.js`). To avoid hammering
+EA/Sony from the live server, ratings live in committed maps (`data/ratings/*.json`)
+built by `npm run gen-ratings`; the server only reads them. NBA/WNBA (2K) and NHL/CFB
+have no publicly accessible ratings feed, so they show no badge. Refresh occasionally:
+`npm run gen-ratings` then commit `data/ratings/`.
 
 ## Self-updating (no one has to touch it)
 - **Data updates itself.** Every page load pulls fresh data (coalesced to ≤1 upstream
@@ -72,8 +84,10 @@ Nothing here needs code or Claude — it's account hygiene:
    that comes back short, so a glitchy pull can't blank a dropdown), then commit
    `data/`. Refresh the cold-start fallback copies with `npm run gen-seeds`, then
    commit `data/seed/`.
-7. **Optional keys** (set as env vars in Render; never in code): `DATAGOLF_KEY` turns on
-   the Golf rankings page; `ANALYTICS_TOKEN` turns on Cloudflare Web Analytics.
+7. **Refresh video-game ratings** (occasionally): `npm run gen-ratings`, then commit
+   `data/ratings/`. The live server never fetches these — it only reads the committed maps.
+8. **Optional keys** (set as env vars in Render; never in code): `ANALYTICS_TOKEN` turns
+   on Cloudflare Web Analytics.
 
 ## Change / run it yourself
 - **Change anything:** edit files → `git commit` → `git push origin main` → Render redeploys in ~1–2 min.
@@ -81,5 +95,5 @@ Nothing here needs code or Claude — it's account hygiene:
 
 ## Cost
 $0 on the current free tiers (Render + Cloudflare + GitHub Actions). Optional paid
-add-ons only if *you* choose them: Render always-on (no cold start), a `DATAGOLF_KEY`
-(golf rankings), an `ANALYTICS_TOKEN` (Cloudflare Web Analytics).
+add-ons only if *you* choose them: Render always-on (no cold start) and an
+`ANALYTICS_TOKEN` (Cloudflare Web Analytics).
