@@ -1,0 +1,326 @@
+[
+ {
+  "id": "139",
+  "abbr": "AJA",
+  "name": "Ajax Amsterdam",
+  "short": "Ajax",
+  "color": "#DF1B27",
+  "alt": "#4d6286",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/139.png"
+ },
+ {
+  "id": "359",
+  "abbr": "ARS",
+  "name": "Arsenal",
+  "short": "Arsenal",
+  "color": "#e20520",
+  "alt": "#003399",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png"
+ },
+ {
+  "id": "174",
+  "abbr": "MON",
+  "name": "AS Monaco",
+  "short": "Monaco",
+  "color": "#E91514",
+  "alt": "#004c37",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/174.png"
+ },
+ {
+  "id": "105",
+  "abbr": "ATA",
+  "name": "Atalanta",
+  "short": "Atalanta",
+  "color": "#1157bf",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/105.png"
+ },
+ {
+  "id": "93",
+  "abbr": "ATH",
+  "name": "Athletic Club",
+  "short": "Athletic",
+  "color": "#C8142F",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/93.png"
+ },
+ {
+  "id": "1068",
+  "abbr": "ATM",
+  "name": "Atlético Madrid",
+  "short": "Atlético",
+  "color": "#ca3624",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/1068.png"
+ },
+ {
+  "id": "83",
+  "abbr": "BAR",
+  "name": "Barcelona",
+  "short": "Barcelona",
+  "color": "#990000",
+  "alt": "#FCE38A",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/83.png"
+ },
+ {
+  "id": "131",
+  "abbr": "B04",
+  "name": "Bayer Leverkusen",
+  "short": "Leverkusen",
+  "color": "#DA0308",
+  "alt": "#f9fbfc",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/131.png"
+ },
+ {
+  "id": "132",
+  "abbr": "MUN",
+  "name": "Bayern Munich",
+  "short": "Bayern",
+  "color": "#dc052d",
+  "alt": "#1a1a1a",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/132.png"
+ },
+ {
+  "id": "1929",
+  "abbr": "SLB",
+  "name": "Benfica",
+  "short": "Benfica",
+  "color": "#ca281d",
+  "alt": "#1a1a1a",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/1929.png"
+ },
+ {
+  "id": "2980",
+  "abbr": "BODO",
+  "name": "Bodo/Glimt",
+  "short": "Bodo/Glimt",
+  "color": "#FCEE33",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2980.png"
+ },
+ {
+  "id": "124",
+  "abbr": "DOR",
+  "name": "Borussia Dortmund",
+  "short": "Dortmund",
+  "color": "#ffee00",
+  "alt": "#272726",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/124.png"
+ },
+ {
+  "id": "363",
+  "abbr": "CHE",
+  "name": "Chelsea",
+  "short": "Chelsea",
+  "color": "#144992",
+  "alt": "#FFFFFF",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/363.png"
+ },
+ {
+  "id": "570",
+  "abbr": "BRU",
+  "name": "Club Brugge",
+  "short": "Club Brugge",
+  "color": "#0081ff",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/570.png"
+ },
+ {
+  "id": "125",
+  "abbr": "SGE",
+  "name": "Eintracht Frankfurt",
+  "short": "Frankfurt",
+  "color": "#ffffff",
+  "alt": "#272726",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/125.png"
+ },
+ {
+  "id": "909",
+  "abbr": "KBH",
+  "name": "F.C. København",
+  "short": "København",
+  "color": "#ffffff",
+  "alt": "#1a1a1a",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/909.png"
+ },
+ {
+  "id": "10414",
+  "abbr": "QAR",
+  "name": "FK Qarabag",
+  "short": "FK Qarabag",
+  "color": "#000000",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/10414.png"
+ },
+ {
+  "id": "432",
+  "abbr": "GAL",
+  "name": "Galatasaray",
+  "short": "Galatasaray",
+  "color": "#aa0031",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/432.png"
+ },
+ {
+  "id": "110",
+  "abbr": "INT",
+  "name": "Internazionale",
+  "short": "Inter Milan",
+  "color": "#00239c",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/110.png"
+ },
+ {
+  "id": "111",
+  "abbr": "JUV",
+  "name": "Juventus",
+  "short": "Juventus",
+  "color": "#000000",
+  "alt": "#E8A2B0",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/111.png"
+ },
+ {
+  "id": "2528",
+  "abbr": "KAI",
+  "name": "Kairat Almaty",
+  "short": "Kairat Almaty",
+  "color": "#FCEE33",
+  "alt": "#81c0ff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2528.png"
+ },
+ {
+  "id": "364",
+  "abbr": "LIV",
+  "name": "Liverpool",
+  "short": "Liverpool",
+  "color": "#d11317",
+  "alt": "#FFFFFF",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/364.png"
+ },
+ {
+  "id": "382",
+  "abbr": "MNC",
+  "name": "Manchester City",
+  "short": "Man City",
+  "color": "#99c5ea",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/382.png"
+ },
+ {
+  "id": "176",
+  "abbr": "OLM",
+  "name": "Marseille",
+  "short": "Marseille",
+  "color": "#ffffff",
+  "alt": "#011F68",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/176.png"
+ },
+ {
+  "id": "114",
+  "abbr": "NAP",
+  "name": "Napoli",
+  "short": "Napoli",
+  "color": "#0677d2",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/114.png"
+ },
+ {
+  "id": "361",
+  "abbr": "NEW",
+  "name": "Newcastle United",
+  "short": "Newcastle",
+  "color": "#000000",
+  "alt": "#0B1B3D",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/361.png"
+ },
+ {
+  "id": "435",
+  "abbr": "OLY",
+  "name": "Olympiacos",
+  "short": "Olympiacos",
+  "color": "#d01729",
+  "alt": "#0202fb",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/435.png"
+ },
+ {
+  "id": "22281",
+  "abbr": "PAF",
+  "name": "Pafos",
+  "short": "Pafos",
+  "color": "#82c0fe",
+  "alt": "#003399",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/22281.png"
+ },
+ {
+  "id": "160",
+  "abbr": "PSG",
+  "name": "Paris Saint-Germain",
+  "short": "PSG",
+  "color": "#011F68",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/160.png"
+ },
+ {
+  "id": "148",
+  "abbr": "PSV",
+  "name": "PSV Eindhoven",
+  "short": "PSV",
+  "color": "#ef2f24",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/148.png"
+ },
+ {
+  "id": "86",
+  "abbr": "RMA",
+  "name": "Real Madrid",
+  "short": "Real Madrid",
+  "color": "#ffffff",
+  "alt": "#1B4D3E",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/86.png"
+ },
+ {
+  "id": "494",
+  "abbr": "SLP",
+  "name": "Slavia Prague",
+  "short": "Slavia Prague",
+  "color": "#dc1f26",
+  "alt": "#81c0ff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/494.png"
+ },
+ {
+  "id": "2250",
+  "abbr": "SCP",
+  "name": "Sporting CP",
+  "short": "Sporting",
+  "color": "#008127",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2250.png"
+ },
+ {
+  "id": "367",
+  "abbr": "TOT",
+  "name": "Tottenham Hotspur",
+  "short": "Spurs",
+  "color": "#ffffff",
+  "alt": "#0B1426",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/367.png"
+ },
+ {
+  "id": "5807",
+  "abbr": "USG",
+  "name": "Union St.-Gilloise",
+  "short": "Union SG",
+  "color": "#FCEE33",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/5807.png"
+ },
+ {
+  "id": "102",
+  "abbr": "VIL",
+  "name": "Villarreal",
+  "short": "Villarreal",
+  "color": "#ffff00",
+  "alt": "#6cace4",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/102.png"
+ }
+]

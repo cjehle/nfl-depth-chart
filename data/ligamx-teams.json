@@ -1,0 +1,164 @@
+[
+ {
+  "id": "227",
+  "abbr": "AME",
+  "name": "América",
+  "short": "América",
+  "color": "#ffff91",
+  "alt": "#001C58",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/227.png"
+ },
+ {
+  "id": "226",
+  "abbr": "ATL",
+  "name": "Atlante",
+  "short": "Atlante",
+  "color": "#022789",
+  "alt": "#022789",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/226.png"
+ },
+ {
+  "id": "216",
+  "abbr": "ATS",
+  "name": "Atlas",
+  "short": "Atlas",
+  "color": "#EF0107",
+  "alt": "#e1e1e1",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/216.png"
+ },
+ {
+  "id": "15720",
+  "abbr": "ASL",
+  "name": "Atlético de San Luis",
+  "short": "Atl. San Luis",
+  "color": "#EF0107",
+  "alt": "#dfa829",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/15720.png"
+ },
+ {
+  "id": "218",
+  "abbr": "CAZ",
+  "name": "Cruz Azul",
+  "short": "Cruz Azul",
+  "color": "#0000ff",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/218.png"
+ },
+ {
+  "id": "17851",
+  "abbr": "JUA",
+  "name": "FC Juarez",
+  "short": "Juarez",
+  "color": "#89f442",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/17851.png"
+ },
+ {
+  "id": "219",
+  "abbr": "GDL",
+  "name": "Guadalajara",
+  "short": "Guadalajara",
+  "color": "#EF0107",
+  "alt": "#104e8a",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/219.png"
+ },
+ {
+  "id": "228",
+  "abbr": "LEO",
+  "name": "León",
+  "short": "León",
+  "color": "#008000",
+  "alt": "#FFF61B",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/228.png"
+ },
+ {
+  "id": "220",
+  "abbr": "MTY",
+  "name": "Monterrey",
+  "short": "Monterrey",
+  "color": "#001C58",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/220.png"
+ },
+ {
+  "id": "229",
+  "abbr": "NCX",
+  "name": "Necaxa",
+  "short": "Necaxa",
+  "color": "#EF0107",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/229.png"
+ },
+ {
+  "id": "234",
+  "abbr": "PAC",
+  "name": "Pachuca",
+  "short": "Pachuca",
+  "color": "#001C58",
+  "alt": "#02b0d0",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/234.png"
+ },
+ {
+  "id": "231",
+  "abbr": "PUE",
+  "name": "Puebla",
+  "short": "Puebla",
+  "color": "#ffffff",
+  "alt": "#0032a8",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/231.png"
+ },
+ {
+  "id": "233",
+  "abbr": "UNAM",
+  "name": "Pumas UNAM",
+  "short": "UNAM",
+  "color": "#ffffff",
+  "alt": "#060040",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/233.png"
+ },
+ {
+  "id": "222",
+  "abbr": "QRO",
+  "name": "Querétaro",
+  "short": "Queretaro",
+  "color": "#212121",
+  "alt": "#02b0d0",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/222.png"
+ },
+ {
+  "id": "225",
+  "abbr": "SAN",
+  "name": "Santos",
+  "short": "Santos",
+  "color": "#15926d",
+  "alt": "#00331b",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/225.png"
+ },
+ {
+  "id": "232",
+  "abbr": "UANL",
+  "name": "Tigres UANL",
+  "short": "Tigres",
+  "color": "#ffd011",
+  "alt": "#0000ff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/232.png"
+ },
+ {
+  "id": "10125",
+  "abbr": "TIJ",
+  "name": "Tijuana",
+  "short": "Tijuana",
+  "color": "#EF0107",
+  "alt": "#e1e1e1",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/10125.png"
+ },
+ {
+  "id": "223",
+  "abbr": "TOL",
+  "name": "Toluca",
+  "short": "Toluca",
+  "color": "#EF0107",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/223.png"
+ }
+]

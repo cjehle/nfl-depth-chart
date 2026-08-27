@@ -11,8 +11,21 @@ const OUT = path.join(__dirname, "..", "data", "ratings");
 const j = async (u) => { const r = await fetch(u, { headers: H, signal: AbortSignal.timeout(20000) }); if (!r.ok) throw new Error(r.status); return r.json(); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function fcMLS() {
-  const map = {}; let offset = 0, total = Infinity, pages = 0, empty = 0, failed = 0;
+// One pass over the EA FC database, bucketed into PER-LEAGUE maps. Keeping each
+// league separate means a same-named player from another league can't be borrowed
+// (e.g. the LALIGA Lewandowski is a different person from the Fire's).
+const FC_LEAGUES = [
+  { key: "mls", re: /major league soccer|\bmls\b/i },
+  { key: "epl", re: /premier league/i },
+  { key: "laliga", re: /laliga|la liga/i },
+  { key: "bundesliga", re: /bundesliga/i, not: /2\.?\s*bundesliga/i },
+  { key: "seriea", re: /serie a/i, not: /femm|women|serie b/i },
+  { key: "ligue1", re: /ligue 1/i },
+  { key: "nwsl", re: /nwsl/i },
+];
+async function fcSoccer() {
+  const maps = {}; for (const l of FC_LEAGUES) maps[l.key] = {};
+  let offset = 0, total = Infinity, pages = 0, empty = 0, failed = 0;
   while (offset < total && pages < 400 && empty < 3) {
     let d = null;
     for (let attempt = 0; attempt < 4 && !d; attempt++) {          // retry a flaky page, don't abandon the run
@@ -24,20 +37,23 @@ async function fcMLS() {
     const items = d.items || [];
     if (!items.length) { empty++; } else { empty = 0; }
     for (const p of items) {
-      // MLS league only — never borrow a same-named player from another league
-      // (e.g. the LALIGA Lewandowski is a different person from the Fire's).
-      if (!/major league soccer|\bmls\b/i.test(p.leagueName || "")) continue;
       if (p.overallRating == null) continue;
+      const ln = p.leagueName || "";
+      const L = FC_LEAGUES.find((l) => l.re.test(ln) && !(l.not && l.not.test(ln)));
+      if (!L) continue;
       // Key by BOTH common name and full name so ESPN's "Robert Lewandowski"
       // matches whether EA stored a short commonName or the full name.
       for (const nm of [normName(p.commonName || ""), normName(`${p.firstName || ""} ${p.lastName || ""}`)]) {
-        if (nm && map[nm] == null) map[nm] = p.overallRating;
+        if (nm && maps[L.key][nm] == null) maps[L.key][nm] = p.overallRating;
       }
     }
     offset += 100; pages++; if (pages % 25 === 0) console.error(`    …FC ${offset}/${total}`); await sleep(150);
   }
-  fs.writeFileSync(path.join(OUT, "mls.json"), JSON.stringify(map));
-  console.error(`  mls.json: ${Object.keys(map).length} MLS players (scanned ${pages} FC pages${failed ? `, ${failed} skipped` : ""})`);
+  for (const l of FC_LEAGUES) {
+    fs.writeFileSync(path.join(OUT, `${l.key}.json`), JSON.stringify(maps[l.key]));
+    console.error(`  ${l.key}.json: ${Object.keys(maps[l.key]).length} players`);
+  }
+  if (failed) console.error(`  (${failed} FC pages skipped after retries)`);
 }
 
 async function theShowMLB() {
@@ -93,7 +109,7 @@ async function eaCFB() {
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   console.error("Generating rating maps (this pages EA/Sony — run occasionally, not on the live server)…");
-  await fcMLS();
+  await fcSoccer();
   await theShowMLB();
   await eaCFB();
   console.error("Done → data/ratings/. Commit them: git add data/ratings && git commit");

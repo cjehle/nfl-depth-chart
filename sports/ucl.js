@@ -1,0 +1,1 @@
+module.exports = require("./_soccer.js")({ key: "ucl", name: "Champions League", league: "uefa.champions", defaults: { a: "86", b: "382" }, ratings: false }); // Real Madrid vs Man City (no per-league EA FC map)

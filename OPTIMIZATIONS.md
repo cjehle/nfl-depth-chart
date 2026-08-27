@@ -1,5 +1,23 @@
 # Site optimizations
 
+## Batch 4 — 2026-08-27 (International Soccer)
+
+Added **8 top soccer leagues**, grouped under an **"International Soccer"** folder
+(a `<details>` dropdown) in the nav + a section on the hub. Each reuses the existing
+MLS-style `match` builder + pitch surface via a shared factory (`sports/_soccer.js`),
+so a league is just a one-line config + a committed team list:
+
+- **Premier League, La Liga, Bundesliga, Serie A, Ligue 1, NWSL** — with per-league
+  EA FC ratings (one `gen-ratings` pass now buckets EA FC into per-league maps:
+  `data/ratings/{epl,laliga,bundesliga,seriea,ligue1,nwsl,mls}.json`, keyed per
+  league so a same-named player from another league can't be mismatched).
+- **Liga MX & Champions League** — lineups only (EA FC has no Liga MX license, and
+  UCL has no per-league map), so no OVR badge — same honest pattern as elsewhere.
+
+Marquee defaults: Man City–Liverpool, Real Madrid–Barcelona, Bayern–Dortmund,
+Inter–Juventus, PSG–Marseille, América–Guadalajara, Portland–Kansas City,
+Real Madrid–Man City (UCL). Also fixed "last 1 match" pluralization in subtitles.
+
 ## Batch 3 — 2026-08-27 (college additions)
 
 - **College hockey → NHL draft status.** Every college-hockey player now shows

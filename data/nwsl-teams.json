@@ -1,0 +1,146 @@
+[
+ {
+  "id": "21422",
+  "abbr": "LA",
+  "name": "Angel City FC",
+  "short": "Angel City",
+  "color": "#202121",
+  "alt": "#898c8f",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/21422.png"
+ },
+ {
+  "id": "22187",
+  "abbr": "BAY",
+  "name": "Bay FC",
+  "short": "Bay",
+  "color": "#ff5049",
+  "alt": "#0d2032",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/22187.png"
+ },
+ {
+  "id": "131562",
+  "abbr": "BOS",
+  "name": "Boston Legacy FC",
+  "short": "Boston",
+  "color": "#00FF00",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/131562.png"
+ },
+ {
+  "id": "15360",
+  "abbr": "CHI",
+  "name": "Chicago Stars FC",
+  "short": "Chicago",
+  "color": "#c7102e",
+  "alt": "#3AB5E8",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/15360.png"
+ },
+ {
+  "id": "131563",
+  "abbr": "DEN",
+  "name": "Denver Summit FC",
+  "short": "Denver",
+  "color": "#20604E",
+  "alt": "#E4B83E",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/131563.png"
+ },
+ {
+  "id": "15364",
+  "abbr": "GFC",
+  "name": "Gotham FC",
+  "short": "Gotham",
+  "color": "#a9f1fd",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/15364.png"
+ },
+ {
+  "id": "17346",
+  "abbr": "HOU",
+  "name": "Houston Dash",
+  "short": "Houston",
+  "color": "#ff6900",
+  "alt": "#8ab7e9",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/17346.png"
+ },
+ {
+  "id": "20907",
+  "abbr": "KC",
+  "name": "Kansas City Current",
+  "short": "Kansas City",
+  "color": "#cf3339",
+  "alt": "#62cbc9",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/20907.png"
+ },
+ {
+  "id": "15366",
+  "abbr": "NC",
+  "name": "North Carolina Courage",
+  "short": "North Carolina",
+  "color": "#ab0033",
+  "alt": "#00416b",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/15366.png"
+ },
+ {
+  "id": "18206",
+  "abbr": "ORL",
+  "name": "Orlando Pride",
+  "short": "Orlando",
+  "color": "#c5b5f2",
+  "alt": "#14002f",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/18206.png"
+ },
+ {
+  "id": "15362",
+  "abbr": "POR",
+  "name": "Portland Thorns FC",
+  "short": "Portland",
+  "color": "#000000",
+  "alt": "#99242B",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/15362.png"
+ },
+ {
+  "id": "20905",
+  "abbr": "LOU",
+  "name": "Racing Louisville FC",
+  "short": "Louisville",
+  "color": "#c5b5f2",
+  "alt": "#14002f",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/20905.png"
+ },
+ {
+  "id": "21423",
+  "abbr": "SD",
+  "name": "San Diego Wave FC",
+  "short": "San Diego",
+  "color": "#032e62",
+  "alt": "#21c6d9",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/21423.png"
+ },
+ {
+  "id": "15363",
+  "abbr": "SEA",
+  "name": "Seattle Reign FC",
+  "short": "Seattle",
+  "color": "#292431",
+  "alt": "#2e407a",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/15363.png"
+ },
+ {
+  "id": "19141",
+  "abbr": "UTA",
+  "name": "Utah Royals",
+  "short": "Utah",
+  "color": "#ae122a",
+  "alt": "#fdb71a",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/19141.png"
+ },
+ {
+  "id": "15365",
+  "abbr": "WAS",
+  "name": "Washington Spirit",
+  "short": "Washington",
+  "color": "#000000",
+  "alt": "#ede939",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/15365.png"
+ }
+]

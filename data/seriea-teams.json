@@ -1,0 +1,182 @@
+[
+ {
+  "id": "103",
+  "abbr": "MIL",
+  "name": "AC Milan",
+  "short": "Milan",
+  "color": "#e4002b",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/103.png"
+ },
+ {
+  "id": "104",
+  "abbr": "ROMA",
+  "name": "AS Roma",
+  "short": "AS Roma",
+  "color": "#990a2c",
+  "alt": "#F5F3E5",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/104.png"
+ },
+ {
+  "id": "105",
+  "abbr": "ATA",
+  "name": "Atalanta",
+  "short": "Atalanta",
+  "color": "#1157bf",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/105.png"
+ },
+ {
+  "id": "107",
+  "abbr": "BOL",
+  "name": "Bologna",
+  "short": "Bologna",
+  "color": "#04043d",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/107.png"
+ },
+ {
+  "id": "2925",
+  "abbr": "CAG",
+  "name": "Cagliari",
+  "short": "Cagliari",
+  "color": "#282846",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2925.png"
+ },
+ {
+  "id": "2572",
+  "abbr": "COMO",
+  "name": "Como",
+  "short": "Como",
+  "color": "#4169E1",
+  "alt": "#FFFFFF",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2572.png"
+ },
+ {
+  "id": "109",
+  "abbr": "FIO",
+  "name": "Fiorentina",
+  "short": "Fiorentina",
+  "color": "#4c1d84",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/109.png"
+ },
+ {
+  "id": "4057",
+  "abbr": "FRO",
+  "name": "Frosinone",
+  "short": "Frosinone",
+  "color": "#FACF08",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/4057.png"
+ },
+ {
+  "id": "3263",
+  "abbr": "GEN",
+  "name": "Genoa",
+  "short": "Genoa",
+  "color": "#08305d",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/3263.png"
+ },
+ {
+  "id": "110",
+  "abbr": "INT",
+  "name": "Internazionale",
+  "short": "Inter Milan",
+  "color": "#00239c",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/110.png"
+ },
+ {
+  "id": "111",
+  "abbr": "JUV",
+  "name": "Juventus",
+  "short": "Juventus",
+  "color": "#000000",
+  "alt": "#E8A2B0",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/111.png"
+ },
+ {
+  "id": "112",
+  "abbr": "LAZ",
+  "name": "Lazio",
+  "short": "Lazio",
+  "color": "#74bde7",
+  "alt": "#FFFFFF",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/112.png"
+ },
+ {
+  "id": "113",
+  "abbr": "LEC",
+  "name": "Lecce",
+  "short": "Lecce",
+  "color": "#FCED0B",
+  "alt": "#08305d",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/113.png"
+ },
+ {
+  "id": "4007",
+  "abbr": "MON",
+  "name": "Monza",
+  "short": "Monza",
+  "color": "#C8142F",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/4007.png"
+ },
+ {
+  "id": "114",
+  "abbr": "NAP",
+  "name": "Napoli",
+  "short": "Napoli",
+  "color": "#0677d2",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/114.png"
+ },
+ {
+  "id": "115",
+  "abbr": "PAR",
+  "name": "Parma",
+  "short": "Parma",
+  "color": "#19161D",
+  "alt": "#ffdd30",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/115.png"
+ },
+ {
+  "id": "3997",
+  "abbr": "SAS",
+  "name": "Sassuolo",
+  "short": "Sassuolo",
+  "color": "#0fa653",
+  "alt": "#ADAEB0",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/3997.png"
+ },
+ {
+  "id": "239",
+  "abbr": "TOR",
+  "name": "Torino",
+  "short": "Torino",
+  "color": "#9f0000",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/239.png"
+ },
+ {
+  "id": "118",
+  "abbr": "UDI",
+  "name": "Udinese",
+  "short": "Udinese",
+  "color": "#19161D",
+  "alt": "#0F1C3F",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/118.png"
+ },
+ {
+  "id": "17530",
+  "abbr": "VEN",
+  "name": "Venezia",
+  "short": "Venezia",
+  "color": "#000000",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/17530.png"
+ }
+]

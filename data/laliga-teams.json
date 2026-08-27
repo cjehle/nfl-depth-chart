@@ -1,0 +1,182 @@
+[
+ {
+  "id": "96",
+  "abbr": "ALA",
+  "name": "Alavés",
+  "short": "Alavés",
+  "color": "#0000ff",
+  "alt": "#FFC0CB",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/96.png"
+ },
+ {
+  "id": "93",
+  "abbr": "ATH",
+  "name": "Athletic Club",
+  "short": "Athletic",
+  "color": "#C8142F",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/93.png"
+ },
+ {
+  "id": "1068",
+  "abbr": "ATM",
+  "name": "Atlético Madrid",
+  "short": "Atlético",
+  "color": "#ca3624",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/1068.png"
+ },
+ {
+  "id": "83",
+  "abbr": "BAR",
+  "name": "Barcelona",
+  "short": "Barcelona",
+  "color": "#990000",
+  "alt": "#FCE38A",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/83.png"
+ },
+ {
+  "id": "85",
+  "abbr": "CEL",
+  "name": "Celta Vigo",
+  "short": "Celta Vigo",
+  "color": "#6cace4",
+  "alt": "#004996",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/85.png"
+ },
+ {
+  "id": "90",
+  "abbr": "DEP",
+  "name": "Deportivo",
+  "short": "Deportivo",
+  "color": "#3366CC",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/90.png"
+ },
+ {
+  "id": "3751",
+  "abbr": "ELC",
+  "name": "Elche",
+  "short": "Elche",
+  "color": "#288A00",
+  "alt": "#4B2B67",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/3751.png"
+ },
+ {
+  "id": "88",
+  "abbr": "ESP",
+  "name": "Espanyol",
+  "short": "Espanyol",
+  "color": "#3366CC",
+  "alt": "#C8142F",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/88.png"
+ },
+ {
+  "id": "2922",
+  "abbr": "GET",
+  "name": "Getafe",
+  "short": "Getafe",
+  "color": "#0000ff",
+  "alt": "#7F1734",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2922.png"
+ },
+ {
+  "id": "1538",
+  "abbr": "LEV",
+  "name": "Levante",
+  "short": "Levante",
+  "color": "#C8142F",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/1538.png"
+ },
+ {
+  "id": "99",
+  "abbr": "MCF",
+  "name": "Málaga",
+  "short": "Málaga",
+  "color": "#b9e8f0",
+  "alt": "#D19CA4",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/99.png"
+ },
+ {
+  "id": "97",
+  "abbr": "OSA",
+  "name": "Osasuna",
+  "short": "Osasuna",
+  "color": "#cd0000",
+  "alt": "#ffffff",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/97.png"
+ },
+ {
+  "id": "87",
+  "abbr": "RAC",
+  "name": "Racing Santander",
+  "short": "Racing",
+  "color": "#ffffff",
+  "alt": "#3B6C1A",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/87.png"
+ },
+ {
+  "id": "101",
+  "abbr": "RAY",
+  "name": "Rayo Vallecano",
+  "short": "Rayo",
+  "color": "#ffffff",
+  "alt": "#cd0000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/101.png"
+ },
+ {
+  "id": "244",
+  "abbr": "BET",
+  "name": "Real Betis",
+  "short": "Betis",
+  "color": "#288A00",
+  "alt": "#0A422D",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/244.png"
+ },
+ {
+  "id": "86",
+  "abbr": "RMA",
+  "name": "Real Madrid",
+  "short": "Real Madrid",
+  "color": "#ffffff",
+  "alt": "#1B4D3E",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/86.png"
+ },
+ {
+  "id": "89",
+  "abbr": "RSO",
+  "name": "Real Sociedad",
+  "short": "Real Sociedad",
+  "color": "#3366CC",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/89.png"
+ },
+ {
+  "id": "243",
+  "abbr": "SEV",
+  "name": "Sevilla",
+  "short": "Sevilla",
+  "color": "#ffffff",
+  "alt": "#d81022",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/243.png"
+ },
+ {
+  "id": "94",
+  "abbr": "VAL",
+  "name": "Valencia",
+  "short": "Valencia",
+  "color": "#ffffff",
+  "alt": "#FF6F00",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/94.png"
+ },
+ {
+  "id": "102",
+  "abbr": "VIL",
+  "name": "Villarreal",
+  "short": "Villarreal",
+  "color": "#ffff00",
+  "alt": "#6cace4",
+  "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/102.png"
+ }
+]

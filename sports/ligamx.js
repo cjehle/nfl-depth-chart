@@ -1,0 +1,1 @@
+module.exports = require("./_soccer.js")({ key: "ligamx", name: "Liga MX", league: "mex.1", defaults: { a: "227", b: "219" }, ratings: false }); // América vs Guadalajara (EA FC has no Liga MX license)

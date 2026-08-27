@@ -35,8 +35,11 @@ Each page load asks for fresh data; the server coalesces that to at most one ups
 pull per team per ~60s (fast + can't get your IP throttled). Pages also auto-refresh
 every 4 minutes while open, and the daily Action warms every sport.
 
-## Sports (9)
-NFL · MLB · NBA · NHL · MLS · WNBA · College Football · College Basketball · College Hockey.
+## Sports
+NFL · MLB · NBA · NHL · MLS · WNBA · College Football (all FBS) · College Basketball
+(all D1) · College Hockey · **International Soccer** (Premier League, La Liga, Bundesliga,
+Serie A, Ligue 1, Liga MX, NWSL, Champions League — grouped under one nav folder,
+all using the MLS-style match builder via `sports/_soccer.js`).
 NFL uses ESPN's real depth chart (+ nflverse history + Madden). MLB uses ESPN's real
 depth chart. **NBA/WNBA/CBB build a "typical starting five" from recent box scores**
 (who starts most, last-5 weighted; drops off-roster players; falls back to the ESPN

@@ -34,7 +34,7 @@ const LINEUP_TTL = (Number(process.env.LINEUP_TTL_HOURS) || 12) * 3600e3;
 // Surface sports (rink/court/pitch/diamond/field). Loaded one-by-one so a single
 // broken config can never take down the whole server — it's just skipped.
 const SURFACE = {};
-for (const key of ["nhl", "nba", "mls", "cbb", "cfb", "mlb", "mch", "wnba"]) {
+for (const key of ["nhl", "nba", "mls", "cbb", "cfb", "mlb", "mch", "wnba", "epl", "laliga", "bundesliga", "seriea", "ligue1", "ligamx", "nwsl", "ucl"]) {
   try {
     const cfg = require(`./sports/${key}.js`);
     if (!Array.isArray(cfg.teams) || !cfg.teams.length) throw new Error("missing/empty teams array");
@@ -151,6 +151,15 @@ const OG = {
   mlb: { title: "MLB Lineups on the Diamond", desc: "Two teams' lineups on the diamond + full depth chart at every position. Live from ESPN.", img: "/og/mlb.png", path: "/mlb" },
   mch: { title: "College Hockey Rosters on the Ice", desc: "Hockey East, Big Ten, NCHC, CCHA, Atlantic Hockey & ECAC rosters by position on the rink.", img: "/og/mch.png", path: "/mch" },
   wnba: { title: "WNBA Starting Fives on the Court", desc: "Each WNBA team's typical starting five from recent box scores + full roster at every spot. Live from ESPN.", img: "/og/wnba.png", path: "/wnba" },
+  // International soccer — reuse the home OG image (per-league images optional later).
+  epl: { title: "Premier League Starting XIs on the Pitch", desc: "Any Premier League team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/epl" },
+  laliga: { title: "La Liga Starting XIs on the Pitch", desc: "Any La Liga team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/laliga" },
+  bundesliga: { title: "Bundesliga Starting XIs on the Pitch", desc: "Any Bundesliga team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/bundesliga" },
+  seriea: { title: "Serie A Starting XIs on the Pitch", desc: "Any Serie A team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/seriea" },
+  ligue1: { title: "Ligue 1 Starting XIs on the Pitch", desc: "Any Ligue 1 team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/ligue1" },
+  ligamx: { title: "Liga MX Starting XIs on the Pitch", desc: "Any Liga MX team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/ligamx" },
+  nwsl: { title: "NWSL Starting XIs on the Pitch", desc: "Any NWSL team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/nwsl" },
+  ucl: { title: "Champions League Starting XIs on the Pitch", desc: "Any UEFA Champions League team's typical starting XI in its usual formation. Live from ESPN.", img: "/og/mls.png", path: "/ucl" },
 };
 const FAVICON = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8F%9F%EF%B8%8F</text></svg>";
 function headFor(key) {
@@ -230,6 +239,11 @@ const PAGE_ROUTES = {
   "/cfb": { rel: "surface/index.html", og: "cfb" }, "/cbb": { rel: "surface/index.html", og: "cbb" },
   "/mlb": { rel: "surface/index.html", og: "mlb" }, "/mch": { rel: "surface/index.html", og: "mch" },
   "/wnba": { rel: "surface/index.html", og: "wnba" },
+  // International soccer (all use the shared surface page + match builder)
+  "/epl": { rel: "surface/index.html", og: "epl" }, "/laliga": { rel: "surface/index.html", og: "laliga" },
+  "/bundesliga": { rel: "surface/index.html", og: "bundesliga" }, "/seriea": { rel: "surface/index.html", og: "seriea" },
+  "/ligue1": { rel: "surface/index.html", og: "ligue1" }, "/ligamx": { rel: "surface/index.html", og: "ligamx" },
+  "/nwsl": { rel: "surface/index.html", og: "nwsl" }, "/ucl": { rel: "surface/index.html", og: "ucl" },
 };
 
 const server = http.createServer(async (req, res) => {
