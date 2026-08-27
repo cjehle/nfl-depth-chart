@@ -11,6 +11,7 @@ let viewMode = "field";
 let CROSS_OK = true; // can pills be dragged across the center line? (false for CFB's field)
 let ratingLabel = null; // video-game ratings source for this sport (e.g. "EA FC"), or null
 let draftStatus = false; // does this sport carry NHL draft status? (college hockey)
+let seasonYear = null;   // selected past season (null = current)
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -71,25 +72,26 @@ function draftPill(d) {
 // ---------------------------------------------------------------------------
 // FETCH (per-side cache: switching the view never refetches a team)
 // ---------------------------------------------------------------------------
-async function fetchLineup(teamId, fresh, unit) {
+async function fetchLineup(teamId, fresh, unit, year) {
   // Always ask for fresh data so the lineup updates on every load. The server
   // coalesces this to at most one ESPN pull per team per ~60s (fast + polite).
   // A 20s client timeout means a stuck request drops to the Retry button instead
-  // of hanging on the loading spinner forever.
+  // of hanging on the loading spinner forever. (Past seasons can be slower — a
+  // longer timeout so historical box-score builds don't drop to Retry.)
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 20000);
+  const timer = setTimeout(() => ctrl.abort(), year ? 30000 : 20000);
   try {
-    const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1${unit ? `&unit=${unit}` : ""}`, { signal: ctrl.signal });
+    const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1${unit ? `&unit=${unit}` : ""}${year ? `&year=${year}` : ""}`, { signal: ctrl.signal });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     return data;
   } finally { clearTimeout(timer); }
 }
-async function getSide(side, teamId, fresh, unit) {
+async function getSide(side, teamId, fresh, unit, year) {
   const c = sideCache[side];
-  const ck = `${teamId}:${unit || ""}`;
+  const ck = `${teamId}:${unit || ""}:${year || ""}`;
   if (!fresh && c.key === ck && c.data) return c.data;
-  const data = await fetchLineup(teamId, fresh, unit);
+  const data = await fetchLineup(teamId, fresh, unit, year);
   c.key = ck; c.data = data;
   return data;
 }
@@ -350,7 +352,7 @@ async function render(fresh) {
   try {
     // Single-team sports (baseball): one lineup across the whole surface.
     if (CONFIG.singleTeam) {
-      const dataA = await getSide("A", idA, fresh, null);
+      const dataA = await getSide("A", idA, fresh, null, seasonYear);
       if (gen !== renderGen) return;
       ratingLabel = dataA.ratingLabel || null;
       draftStatus = !!dataA.draftStatus;
@@ -365,7 +367,7 @@ async function render(fresh) {
       return;
     }
     const unitA = CONFIG.dualUnit ? CONFIG.units[0] : null, unitB = CONFIG.dualUnit ? CONFIG.units[1] : null;
-    const [dataA, dataB] = await Promise.all([getSide("A", idA, fresh, unitA), getSide("B", idB, fresh, unitB)]);
+    const [dataA, dataB] = await Promise.all([getSide("A", idA, fresh, unitA, seasonYear), getSide("B", idB, fresh, unitB, seasonYear)]);
     if (gen !== renderGen) return;
     ratingLabel = dataA.ratingLabel || dataB.ratingLabel || null;
     draftStatus = !!(dataA.draftStatus || dataB.draftStatus);
@@ -433,6 +435,7 @@ function setView(m) { viewMode = m; applyView(); writeState(); }
 // ---- state (URL + localStorage; URL wins on load) ----
 function writeState() {
   const p = new URLSearchParams({ a: teamASelect.value, b: teamBSelect.value, v: viewMode });
+  if (seasonYear) p.set("s", String(seasonYear));
   try { history.replaceState(null, "", "?" + p.toString()); } catch {}
   try { localStorage.setItem(`sdc.${CONFIG.sport}.state`, p.toString()); } catch {}
 }
@@ -443,6 +446,8 @@ function readState() {
   const get = (k) => url.get(k) ?? saved.get(k) ?? null;
   const setSel = (sel, v) => { if (v != null && [...sel.options].some((o) => o.value === v)) sel.value = v; };
   setSel(teamASelect, get("a")); setSel(teamBSelect, get("b"));
+  const seasonSel = document.getElementById("season");
+  if (seasonSel) { const s = get("s"); if (s != null && [...seasonSel.options].some((o) => o.value === s)) { seasonSel.value = s; seasonYear = s ? Number(s) : null; } }
   const v = get("v");
   viewMode = ["field", "list"].includes(v) ? v : (window.matchMedia("(max-width: 760px)").matches ? "list" : "field");
 }
@@ -454,6 +459,17 @@ function fillTeams(sel) {
     opt.value = t.id; opt.textContent = t.name;
     sel.appendChild(opt);
   }
+}
+// Season options: "Current" (auto) + the previous 5 seasons. Two-calendar-year
+// leagues (NBA/CBB) are labeled by end year ("2024-25"); the rest by calendar year.
+function fillSeasons(sel) {
+  const nowY = new Date().getUTCFullYear();
+  const endYear = CONFIG.seasonEndYear;
+  const cur = endYear ? (new Date().getUTCMonth() >= 8 ? nowY + 1 : nowY) : nowY;
+  const label = (y) => (endYear ? `${y - 1}-${String(y).slice(2)}` : String(y));
+  const opts = [["", "Current"]];
+  for (let i = 1; i <= 5; i++) { const y = cur - i; opts.push([String(y), label(y)]); }
+  for (const [val, txt] of opts) { const o = document.createElement("option"); o.value = val; o.textContent = txt; sel.appendChild(o); }
 }
 
 // ---- startup ----
@@ -490,6 +506,21 @@ function fillTeams(sel) {
 
   fillTeams(teamASelect); fillTeams(teamBSelect);
   teamASelect.value = CONFIG.defaults.a; teamBSelect.value = CONFIG.defaults.b;
+
+  // Past-season selector (only on sports with rich historical data).
+  if (CONFIG.history) {
+    const seasonSel = document.getElementById("season");
+    const picker = document.querySelector(".season-picker");
+    if (seasonSel && picker) {
+      fillSeasons(seasonSel);
+      picker.classList.remove("hidden");
+      seasonSel.addEventListener("change", () => {
+        seasonYear = seasonSel.value ? Number(seasonSel.value) : null;
+        sideCache.A = { key: null, data: null }; sideCache.B = { key: null, data: null };
+        render(false);
+      });
+    }
+  }
 
   document.getElementById("refresh").addEventListener("click", () => render(true));
   document.getElementById("swap").addEventListener("click", () => {

@@ -14,6 +14,7 @@ module.exports = {
   // Typical starting five from recent box scores (ESPN has no WNBA depth chart);
   // falls back to roster-by-position if box data is unavailable.
   kind: "boxstart",
+  history: true, // past seasons via box scores
   rosterLabel: "roster by position",
   note: "Typical starting five (recent games) · via ESPN",
   defaults: { a: "19", b: "5" }, // Chicago Sky vs Indiana Fever

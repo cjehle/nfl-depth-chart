@@ -13,6 +13,7 @@ module.exports = {
   surface: "pitch",
   espn: { sport: "soccer", league: "usa.1" },
   kind: "match",
+  history: true, // past seasons via schedule?season
   note: "Typical starting XI & formation from recent matches · EA FC ratings · via ESPN",
   defaults: { a: "182", b: "20232" }, // Chicago Fire vs Inter Miami
   teams: TEAMS,

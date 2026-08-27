@@ -24,6 +24,8 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 
 .view-toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .view-label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.season-picker { display: flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.season-picker select { text-transform: none; letter-spacing: 0; background: #0c2416; color: var(--ink); border: 1px solid #29513a; border-radius: 8px; padding: 5px 8px; font-size: 13px; }
 .view-toggle { display: flex; flex: 1; background: #0c2416; border: 1px solid #1c3b28; border-radius: 10px; overflow: hidden; }
 .view-toggle button { flex: 1; padding: 10px 8px; background: transparent; color: var(--muted); border: 0; font-size: 14px; font-weight: 600; cursor: pointer; }
 .view-toggle button.active { background: var(--accent); color: #06140b; }

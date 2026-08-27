@@ -11,6 +11,7 @@ module.exports = {
   surface: "diamond",
   espn: { sport: "baseball", league: "mlb" },
   kind: "depth",
+  history: true, // ESPN keeps past-season depth charts
   singleTeam: true, // baseball shows ONE team's nine across the full diamond (not two)
   note: "Age, bio & depth chart via ESPN",
   defaults: { a: "16", b: "8" }, // Chicago Cubs (single-team default) — b kept for parity

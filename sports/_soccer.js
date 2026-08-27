@@ -14,6 +14,7 @@ module.exports = function makeSoccerLeague({ key, name, league, defaults, rating
     surface: "pitch",
     espn: { sport: "soccer", league },
     kind: "match",
+    history: true, // supports a past-season selector (ESPN keeps schedules by season)
     note: `Typical starting XI & formation from recent matches${ratings ? " · EA FC ratings" : ""} · via ESPN`,
     defaults,
     teams: require(`../data/${key}-teams.json`),

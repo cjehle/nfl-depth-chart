@@ -46,7 +46,7 @@ function publicConfig(sport) {
   const cfg = SURFACE[sport];
   return {
     sport: cfg.key, name: cfg.name, emoji: cfg.emoji, title: cfg.title, tagline: cfg.tagline,
-    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit, singleTeam: !!cfg.singleTeam, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
+    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit, singleTeam: !!cfg.singleTeam, history: !!cfg.history, seasonEndYear: !!cfg.seasonEndYear, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
     teams: cfg.teams.map((t) => ({ id: String(t.id), abbr: t.abbr, name: t.name, short: t.short, color: t.color, alt: t.alt, logo: t.logo, conf: t.conf })),
   };
 }
@@ -58,14 +58,14 @@ function publicConfig(sport) {
 const LINEUP_CACHE = "public, s-maxage=120, stale-while-revalidate=600";
 // Surface lineup cache (TTL + single-flight + disk last-good), keyed by sport+team.
 const lineupStore = new Map();
-async function getLineup(sport, teamId, fresh, unit) {
-  const key = `${sport}:${teamId}:${unit || ""}`;
+async function getLineup(sport, teamId, fresh, unit, year) {
+  const key = `${sport}:${teamId}:${unit || ""}:${year || ""}`;
   const existing = lineupStore.get(key);
   if (fresh) { if (existing && "value" in existing && Date.now() - existing.time > 60000) lineupStore.delete(key); }
   else if (existing && "value" in existing) stats.cacheHits++;
   try {
     return await cached(lineupStore, key, LINEUP_TTL, async () => {
-      const data = await buildLineup(SURFACE[sport], surfaceTeamSets[sport].get(String(teamId)), unit);
+      const data = await buildLineup(SURFACE[sport], surfaceTeamSets[sport].get(String(teamId)), unit, year || null);
       writeDisk(key, data);
       return data;
     });
@@ -310,7 +310,13 @@ const server = http.createServer(async (req, res) => {
         if (!isNumericId(teamId) || !surfaceTeamSets[sport].has(teamId)) { sendJson(req, res, 400, { error: "Unknown team" }); return done(400); }
         const unitParam = params.get("unit");
         const unit = ["offense", "defense", "line1", "line2"].includes(unitParam) ? unitParam : null;
-        try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit), { "Cache-Control": LINEUP_CACHE }); return done(200); }
+        // Optional past-season year (only honored for history-enabled sports; clamped to the last ~6 seasons).
+        let year = null;
+        if (SURFACE[sport].history) {
+          const y = Number(params.get("year")), nowY = new Date().getUTCFullYear();
+          if (Number.isInteger(y) && y >= nowY - 6 && y <= nowY + 1) year = y;
+        }
+        try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit, year), { "Cache-Control": LINEUP_CACHE }); return done(200); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }
       sendJson(req, res, 404, { error: "Not found" }); return done(404);

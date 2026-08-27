@@ -13,6 +13,7 @@ module.exports = {
   // Typical starting five from recent box scores; falls back to ESPN's depth
   // chart when box data is thin (early season). seasonEndYear drives that fallback.
   kind: "boxstart",
+  history: true, // past seasons via box scores
   boxFallback: "depth",
   seasonEndYear: true, // ESPN labels NBA seasons by END year (2027 = 2026-27); roll over in the fall
   note: "Typical starting five (recent games) · via ESPN",

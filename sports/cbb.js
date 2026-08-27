@@ -14,6 +14,7 @@ module.exports = {
   // Typical starting five from recent box scores (drops graduated players);
   // falls back to roster-by-class in the offseason / when box data is thin.
   kind: "boxstart",
+  history: true, // past seasons via box scores
   classYears: true,
   note: "Typical starting five (recent games), else roster by class · via ESPN",
   defaults: { a: "305", b: "193" }, // DePaul (home) vs Miami (OH)

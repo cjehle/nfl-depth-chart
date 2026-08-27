@@ -1,5 +1,33 @@
 # Site optimizations
 
+## Batch 6 — 2026-08-27 (historical seasons)
+
+A **"Season" selector (last 5 years)** on the sports with rich historical ESPN
+data — MLB, NBA, WNBA, CBB, and every soccer league (NFL already had past seasons).
+NHL and college football/hockey stay current-only (their historical views would be
+misleading — old stats re-ranking today's roster, etc.).
+
+- Threads a `season` param through `getLineup → buildLineup → the depth / boxstart
+  / match builders`. `/api/lineup?...&year=YYYY` (clamped to the last ~6 seasons).
+- **Depth (MLB/NBA):** past-season depth chart; players no longer on the roster are
+  resolved via their athlete `$ref` (bounded + cached).
+- **Box-score (NBA/WNBA/CBB):** rebuilds the five from that season's box scores (no
+  current-roster gate), bios from the box data.
+- **Match (soccer):** typical XI from that season's schedule (`?season=`).
+- Current video-game ratings are **suppressed** for past seasons (a 2022 XI with
+  2026 OVRs would be wrong — historical ratings are a separate step). Season labels
+  are correct per league ("2023-24" for NBA/CBB, "2024" for calendar sports).
+
+## Batch 5 — 2026-08-27 (view polish)
+
+- **Baseball → single team on the diamond** (Cubs default): the nine fielders across
+  a full diamond (outfield fanned, infield around the bases, mound, catcher at home),
+  second-team controls hidden.
+- **Basketball courts:** three perimeter players on the three-point line + two bigs
+  in the paint; layout reordered so the List view reads Guards → Forwards → Center.
+- **College football field:** formation spacing now mirrors the NFL page (lines at
+  the LoS, backfield/secondary spread toward the end zones).
+
 ## Batch 4 — 2026-08-27 (International Soccer)
 
 Added **8 top soccer leagues**, grouped under an **"International Soccer"** folder
