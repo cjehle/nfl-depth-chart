@@ -14,7 +14,7 @@ module.exports = {
   kind: "roster",
   classYears: true,
   note: "Roster by class (seniors first) · not a verified depth chart · via ESPN",
-  defaults: { a: "193", b: "2006" }, // Miami (OH) vs Akron
+  defaults: { a: "305", b: "193" }, // DePaul (home) vs Miami (OH)
   teams: TEAMS,
   bucket: (pos) => { const a = (pos || "").toUpperCase(); if (a === "C") return "center"; if (a === "G" || a.endsWith("G")) return "guard"; return "forward"; },
   bio: (a) => ({ extra: [a.birthPlace?.city, a.birthPlace?.state].filter(Boolean).join(", "), pos: a.position?.abbreviation || "" }),

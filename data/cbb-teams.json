@@ -160,6 +160,116 @@
   "conf": "Big 12"
  },
  {
+  "id": "2086",
+  "abbr": "BTLR",
+  "name": "Butler Bulldogs",
+  "short": "Butler",
+  "color": "#0d1361",
+  "alt": "#00a3e0",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2086.png",
+  "conf": "Big East"
+ },
+ {
+  "id": "156",
+  "abbr": "CREI",
+  "name": "Creighton Bluejays",
+  "short": "Creighton",
+  "color": "#005ca9",
+  "alt": "#6cadde",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/156.png",
+  "conf": "Big East"
+ },
+ {
+  "id": "305",
+  "abbr": "DEP",
+  "name": "DePaul Blue Demons",
+  "short": "DePaul",
+  "color": "#2d649c",
+  "alt": "#ce1125",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/305.png",
+  "conf": "Big East"
+ },
+ {
+  "id": "46",
+  "abbr": "GTWN",
+  "name": "Georgetown Hoyas",
+  "short": "Georgetown",
+  "color": "#110E42",
+  "alt": "#001c58",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/46.png",
+  "conf": "Big East"
+ },
+ {
+  "id": "269",
+  "abbr": "MARQ",
+  "name": "Marquette Golden Eagles",
+  "short": "Marquette",
+  "color": "#003366",
+  "alt": "#ffcc00",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/269.png",
+  "conf": "Big East"
+ },
+ {
+  "id": "2507",
+  "abbr": "PROV",
+  "name": "Providence Friars",
+  "short": "Providence",
+  "color": "#000000",
+  "alt": "#a3a19e",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2507.png",
+  "conf": "Big East"
+ },
+ {
+  "id": "2550",
+  "abbr": "HALL",
+  "name": "Seton Hall Pirates",
+  "short": "Seton Hall",
+  "color": "#0857B1",
+  "alt": "#8a8d8f",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2550.png",
+  "conf": "Big East"
+ },
+ {
+  "id": "2599",
+  "abbr": "SJU",
+  "name": "St. John's Red Storm",
+  "short": "St John's",
+  "color": "#d10000",
+  "alt": "#101010",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2599.png",
+  "conf": "Big East"
+ },
+ {
+  "id": "41",
+  "abbr": "CONN",
+  "name": "UConn Huskies",
+  "short": "UConn",
+  "color": "#0c2340",
+  "alt": "#a2aaad",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/41.png",
+  "conf": "Big East"
+ },
+ {
+  "id": "222",
+  "abbr": "VILL",
+  "name": "Villanova Wildcats",
+  "short": "Villanova",
+  "color": "#00205b",
+  "alt": "#13b5ea",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/222.png",
+  "conf": "Big East"
+ },
+ {
+  "id": "2752",
+  "abbr": "XAV",
+  "name": "Xavier Musketeers",
+  "short": "Xavier",
+  "color": "#21304e",
+  "alt": "#a5a7a8",
+  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2752.png",
+  "conf": "Big East"
+ },
+ {
   "id": "356",
   "abbr": "ILL",
   "name": "Illinois Fighting Illini",

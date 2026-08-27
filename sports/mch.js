@@ -16,7 +16,7 @@ module.exports = {
   classYears: true,
   rosterLabel: "roster by position",
   note: "Roster by position · not a verified depth chart · via ESPN",
-  defaults: { a: "193", b: "130" }, // Miami (OH) vs Michigan
+  defaults: { a: "130", b: "127" }, // Michigan vs Michigan State (Miami OH hockey roster isn't published by ESPN)
   teams: TEAMS,
   bucket: (pos) => { const a = (pos || "").toUpperCase(); if (a.startsWith("G")) return "goalie"; if (a.startsWith("D")) return "defense"; return "forward"; },
   bio: (a) => ({ extra: [a.birthPlace?.city, a.birthPlace?.state || a.birthPlace?.country].filter(Boolean).join(", "), pos: a.position?.abbreviation || "" }),

@@ -124,7 +124,7 @@ const OG = {
   nba: { title: "NBA Starting Fives on the Court", desc: "Two teams' starting fives + full depth chart at every position. Live from ESPN.", img: "/og/nba.png", path: "/nba" },
   mls: { title: "MLS Starting XIs on the Pitch", desc: "Each team's real starting XI in its most recent formation. Live from ESPN.", img: "/og/mls.png", path: "/mls" },
   cfb: { title: "College Football Rosters on the Field", desc: "Big Ten, SEC, Big 12, MAC (+ Pac-12) — one team's offense vs another's defense, by position.", img: "/og/cfb.png", path: "/cfb" },
-  cbb: { title: "College Basketball Rosters on the Court", desc: "Big Ten, SEC, Big 12, MAC rosters by position on the court.", img: "/og/cbb.png", path: "/cbb" },
+  cbb: { title: "College Basketball Rosters on the Court", desc: "Big East, Big Ten, SEC, Big 12, MAC rosters by position on the court.", img: "/og/cbb.png", path: "/cbb" },
   mlb: { title: "MLB Lineups on the Diamond", desc: "Two teams' lineups on the diamond + full depth chart at every position. Live from ESPN.", img: "/og/mlb.png", path: "/mlb" },
   mch: { title: "College Hockey Rosters on the Ice", desc: "Hockey East, Big Ten, NCHC, CCHA, Atlantic Hockey & ECAC rosters by position on the rink.", img: "/og/mch.png", path: "/mch" },
   wnba: { title: "WNBA Rosters on the Court", desc: "All WNBA teams' rosters by position on the court. Live from ESPN.", img: "/og/wnba.png", path: "/wnba" },
