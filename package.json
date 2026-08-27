@@ -3,7 +3,9 @@
   "version": "2.0.0",
   "private": true,
   "description": "All-sports depth charts (NFL, NHL, NBA, MLS, college FB & hoops) — starting lineups on the field/ice/court/pitch, live from ESPN.",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
@@ -11,6 +13,7 @@
     "gen-teams": "node scripts/gen-teams.js",
     "gen-seeds": "node scripts/gen-seeds.js",
     "gen-ratings": "node scripts/gen-ratings.js",
-    "gen-draft": "node scripts/gen-draft.js"
+    "gen-draft": "node scripts/gen-draft.js",
+    "gen-ratings-history": "node scripts/gen-ratings-history.js"
   }
 }
