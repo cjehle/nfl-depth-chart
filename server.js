@@ -69,6 +69,32 @@ async function getLineup(sport, teamId, fresh, unit) {
 }
 
 // ---------------------------------------------------------------------------
+// GOLF — Data Golf world rankings. Needs the user's paid DataGolf API key in the
+// DATAGOLF_KEY env var. Cached ~1h (rankings change ~weekly), so we make at most
+// one upstream call per hour — well under DataGolf's 45-req/min limit.
+// ---------------------------------------------------------------------------
+const golfStore = new Map();
+async function getGolfRankings() {
+  return cached(golfStore, "dg", 60 * 60e3, async () => {
+    const url = `https://feeds.datagolf.com/preds/get-dg-rankings?file_format=json&key=${encodeURIComponent(process.env.DATAGOLF_KEY)}`;
+    const d = JSON.parse(await require("./lib/espn.js").fetchText(url, { timeout: 15000 }));
+    const fmtName = (n) => /,/.test(n || "") ? n.split(",").map((s) => s.trim()).reverse().join(" ") : (n || "");
+    const rankings = (d.rankings || []).map((r) => ({
+      rank: r.dg_rank ?? r.datagolf_rank ?? null,
+      owgr: r.owgr_rank ?? null,
+      name: fmtName(r.player_name),
+      country: r.country || "",
+      tour: r.primary_tour || "",
+      skill: typeof r.dg_skill_estimate === "number" ? Math.round(r.dg_skill_estimate * 100) / 100 : null,
+      am: !!r.am,
+    })).filter((r) => r.rank != null).sort((a, b) => a.rank - b.rank);
+    const disk = readDisk("golf");
+    if (rankings.length) writeDisk("golf", { updated: d.last_updated || new Date().toISOString(), rankings });
+    return rankings.length ? { updated: d.last_updated || new Date().toISOString(), rankings } : (disk || { updated: null, rankings: [] });
+  });
+}
+
+// ---------------------------------------------------------------------------
 // HTTP layer
 // ---------------------------------------------------------------------------
 const MIME = {
@@ -131,6 +157,7 @@ const OG = {
   mlb: { title: "MLB Lineups on the Diamond", desc: "Two teams' lineups on the diamond + full depth chart at every position. Live from ESPN.", img: "/og/mlb.png", path: "/mlb" },
   mch: { title: "College Hockey Rosters on the Ice", desc: "Hockey East, Big Ten, NCHC, CCHA, Atlantic Hockey & ECAC rosters by position on the rink.", img: "/og/mch.png", path: "/mch" },
   wnba: { title: "WNBA Rosters on the Court", desc: "All WNBA teams' rosters by position on the court. Live from ESPN.", img: "/og/wnba.png", path: "/wnba" },
+  golf: { title: "Golf World Rankings — Data Golf", desc: "The Data Golf world rankings: every ranked player, DG skill estimate and OWGR.", img: "/og/golf.png", path: "/golf" },
 };
 const FAVICON = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8F%9F%EF%B8%8F</text></svg>";
 function headFor(key) {
@@ -186,6 +213,7 @@ const PAGE_ROUTES = {
   "/cfb": { rel: "surface/index.html", og: "cfb" }, "/cbb": { rel: "surface/index.html", og: "cbb" },
   "/mlb": { rel: "surface/index.html", og: "mlb" }, "/mch": { rel: "surface/index.html", og: "mch" },
   "/wnba": { rel: "surface/index.html", og: "wnba" },
+  "/golf": { rel: "golf/index.html", og: "golf" },
 };
 
 const server = http.createServer(async (req, res) => {
@@ -239,6 +267,11 @@ const server = http.createServer(async (req, res) => {
         const unit = ["offense", "defense", "line1", "line2"].includes(unitParam) ? unitParam : null;
         try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit)); return done(200); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
+      }
+      if (urlPath === "/api/golf-rankings") {
+        if (!process.env.DATAGOLF_KEY) { sendJson(req, res, 200, { needKey: true }); return done(200); }
+        try { sendJson(req, res, 200, await getGolfRankings(), { "Cache-Control": "public, max-age=1800" }); return done(200); }
+        catch (err) { console.error("golf error:", err && err.message); sendJson(req, res, 502, { error: "Couldn't load golf rankings right now." }); return done(502); }
       }
       sendJson(req, res, 404, { error: "Not found" }); return done(404);
     }

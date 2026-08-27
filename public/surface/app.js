@@ -8,6 +8,7 @@ let TEAM_BY_ID = new Map();              // id -> team {id,abbr,name,color,alt,l
 const sideCache = { A: { key: null, data: null }, B: { key: null, data: null } };
 let popoverGen = 0, renderGen = 0, lastFocused = null;
 let viewMode = "field";
+let CROSS_OK = true; // can pills be dragged across the center line? (false for CFB's field)
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -96,10 +97,19 @@ function makeDraggable(chip, onClick, onMoved) {
     if (!dragging) return;
     const dx = e.clientX - sx, dy = e.clientY - sy;
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
-    const box = chip.parentElement.getBoundingClientRect();
+    const parent = chip.parentElement.getBoundingClientRect();
     const hw = chip.offsetWidth / 2, hh = chip.offsetHeight / 2;
-    chip.style.left = Math.max(hw, Math.min(box.width - hw, cx0 + dx)) + "px";
-    chip.style.top = Math.max(hh, Math.min(box.height - hh, cy0 + dy)) + "px";
+    const nx = cx0 + dx, ny = cy0 + dy;
+    if (CROSS_OK) {
+      // Most sports: a pill can be dragged anywhere on the surface, including
+      // across the center line. (Football keeps players on their own side.)
+      const s = document.getElementById("surface").getBoundingClientRect();
+      chip.style.left = Math.max((s.left - parent.left) + hw, Math.min((s.right - parent.left) - hw, nx)) + "px";
+      chip.style.top = Math.max((s.top - parent.top) + hh, Math.min((s.bottom - parent.top) - hh, ny)) + "px";
+    } else {
+      chip.style.left = Math.max(hw, Math.min(parent.width - hw, nx)) + "px";
+      chip.style.top = Math.max(hh, Math.min(parent.height - hh, ny)) + "px";
+    }
   });
   const finish = (e) => {
     if (!dragging) return;
@@ -378,6 +388,7 @@ function fillTeams(sel) {
   document.getElementById("field-label").textContent = `${CONFIG.emoji} ${surfaceWord(CONFIG.surface)}`;
   document.getElementById("midlabel").textContent = midWord(CONFIG.surface);
   document.getElementById("surface").dataset.surface = CONFIG.surface;
+  CROSS_OK = CONFIG.surface !== "field"; // football (CFB field) keeps players on their side; everything else can cross
   if (CONFIG.dualUnit && CONFIG.unitLabels) { // e.g. Offense/Defense (CFB) or 1st/2nd Line (NHL)
     document.getElementById("tagA").textContent = CONFIG.unitLabels[0];
     document.getElementById("tagB").textContent = CONFIG.unitLabels[1];

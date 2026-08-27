@@ -18,17 +18,18 @@ module.exports = {
     extra: `B/T ${a.bats?.abbreviation || "–"}/${a.throws?.abbreviation || "–"}`,
     pos: a.position?.abbreviation || "",
   }),
-  // Defensive positions on the diamond (own outfield at top, battery toward center).
+  // The 9 fielders arranged as a diamond: outfield up top, infield around the
+  // bases, battery (P/C) down the middle toward the center. (DH bats only, so
+  // it's not shown on the field — it's still in the List view / depth chart.)
   layout: [
-    { key: "LF", label: "Left Field", posKey: "lf", group: "Outfield", x: 18, y: 12 },
-    { key: "CF", label: "Center Field", posKey: "cf", group: "Outfield", x: 50, y: 8 },
-    { key: "RF", label: "Right Field", posKey: "rf", group: "Outfield", x: 82, y: 12 },
-    { key: "3B", label: "Third Base", posKey: "3b", group: "Infield", x: 20, y: 30 },
-    { key: "SS", label: "Shortstop", posKey: "ss", group: "Infield", x: 38, y: 24 },
-    { key: "2B", label: "Second Base", posKey: "2b", group: "Infield", x: 62, y: 24 },
-    { key: "1B", label: "First Base", posKey: "1b", group: "Infield", x: 80, y: 30 },
-    { key: "P", label: "Pitcher", posKey: "p", group: "Battery", x: 50, y: 38 },
-    { key: "C", label: "Catcher", posKey: "c", group: "Battery", x: 50, y: 48 },
-    { key: "DH", label: "Designated Hitter", posKey: "dh", group: "DH", x: 26, y: 46 },
+    { key: "CF", label: "Center Field", posKey: "cf", group: "Outfield", x: 50, y: 7 },
+    { key: "LF", label: "Left Field", posKey: "lf", group: "Outfield", x: 15, y: 14 },
+    { key: "RF", label: "Right Field", posKey: "rf", group: "Outfield", x: 85, y: 14 },
+    { key: "SS", label: "Shortstop", posKey: "ss", group: "Infield", x: 37, y: 25 },
+    { key: "2B", label: "Second Base", posKey: "2b", group: "Infield", x: 63, y: 25 },
+    { key: "P", label: "Pitcher", posKey: "p", group: "Battery", x: 50, y: 34 },
+    { key: "3B", label: "Third Base", posKey: "3b", group: "Infield", x: 18, y: 36 },
+    { key: "1B", label: "First Base", posKey: "1b", group: "Infield", x: 82, y: 36 },
+    { key: "C", label: "Catcher", posKey: "c", group: "Battery", x: 50, y: 47 },
   ],
 };

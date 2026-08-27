@@ -19,10 +19,10 @@ module.exports = {
   bucket: (pos) => { const a = (pos || "").toUpperCase(); if (a === "C") return "center"; if (a === "G" || a.endsWith("G")) return "guard"; return "forward"; },
   bio: (a) => ({ extra: (a.college && a.college.name) || "", pos: a.position?.abbreviation || "" }),
   layout: [
-    { key: "C", label: "Center", bucket: "center", faceRank: 1, group: "Center", x: 50, y: 14 },
-    { key: "PF", label: "Forward", bucket: "forward", faceRank: 2, group: "Forwards", x: 27, y: 22 },
-    { key: "SF", label: "Forward", bucket: "forward", faceRank: 1, group: "Forwards", x: 74, y: 28 },
-    { key: "SG", label: "Guard", bucket: "guard", faceRank: 2, group: "Guards", x: 20, y: 42 },
-    { key: "PG", label: "Guard", bucket: "guard", faceRank: 1, group: "Guards", x: 55, y: 47 },
+    { key: "C", label: "Center", bucket: "center", faceRank: 1, group: "Center", x: 50, y: 18 },
+    { key: "PF", label: "Forward", bucket: "forward", faceRank: 2, group: "Forwards", x: 28, y: 27 },
+    { key: "SF", label: "Forward", bucket: "forward", faceRank: 1, group: "Forwards", x: 74, y: 32 },
+    { key: "SG", label: "Guard", bucket: "guard", faceRank: 2, group: "Guards", x: 20, y: 45 },
+    { key: "PG", label: "Guard", bucket: "guard", faceRank: 1, group: "Guards", x: 56, y: 49 },
   ],
 };
