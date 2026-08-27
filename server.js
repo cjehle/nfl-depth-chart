@@ -120,9 +120,8 @@ function rateLimited(ip) {
   if (b.tokens < 1) return true; b.tokens -= 1; return false;
 }
 const isNumericId = (s) => /^\d+$/.test(s || "");
-// Root stays the NFL/Bills chart (preserves billsdepthchart.com); the all-sports
-// hub lives at /all. Each sport also has its own route.
-const PAGE_ROUTES = { "/": "nfl/index.html", "/nfl": "nfl/index.html", "/all": "index.html", "/nhl": "surface/index.html", "/nba": "surface/index.html", "/mls": "surface/index.html" };
+// Home is the all-sports hub; each sport has its own route. (/all kept as an alias.)
+const PAGE_ROUTES = { "/": "index.html", "/all": "index.html", "/nfl": "nfl/index.html", "/nhl": "surface/index.html", "/nba": "surface/index.html", "/mls": "surface/index.html" };
 
 const server = http.createServer(async (req, res) => {
   const t0 = Date.now();
