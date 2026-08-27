@@ -125,7 +125,10 @@ function wrSpots(pos, n) {
 // client-side transforms — never refetches the team that didn't change).
 // ---------------------------------------------------------------------------
 async function fetchTeam(teamId, year, fresh) {
-  const res = await fetch(`/api/depth?team=${teamId}&year=${year}${fresh ? "&fresh=1" : ""}`);
+  // Always ask for fresh data so the chart updates on every load. The server
+  // coalesces this to at most one ESPN pull per team per ~60s, so it stays fast
+  // and can't hammer ESPN even on rapid reloads.
+  const res = await fetch(`/api/depth?team=${teamId}&year=${year}&fresh=1`);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
   return data;

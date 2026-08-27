@@ -43,7 +43,9 @@ function bioLine(p) {
 // FETCH (per-side cache: switching the view never refetches a team)
 // ---------------------------------------------------------------------------
 async function fetchLineup(teamId, fresh) {
-  const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}${fresh ? "&fresh=1" : ""}`);
+  // Always ask for fresh data so the lineup updates on every load. The server
+  // coalesces this to at most one ESPN pull per team per ~60s (fast + polite).
+  const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1`);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
   return data;
