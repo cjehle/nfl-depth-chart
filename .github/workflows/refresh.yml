@@ -19,8 +19,8 @@ jobs:
           echo "Health:"; curl -fsS --max-time 90 "$BASE/healthz" || true; echo
           echo "NFL (Bills):"
           curl -fsS --max-time 90 "$BASE/api/depth?team=2&fresh=1" -o /dev/null && echo "  ok" || echo "  (asleep; will refresh on next visit)"
-          echo "NHL / NBA / MLS default matchups:"
-          for q in "sport=nhl&team=2" "sport=nhl&team=1" "sport=nba&team=13" "sport=nba&team=2" "sport=mls&team=187" "sport=mls&team=18966"; do
+          echo "All other sports (default matchups):"
+          for q in "sport=nhl&team=2&unit=line1" "sport=nba&team=13" "sport=mls&team=182" "sport=mlb&team=16" "sport=wnba&team=19" "sport=cfb&team=193&unit=offense" "sport=cbb&team=305" "sport=mch&team=130"; do
             curl -fsS --max-time 90 "$BASE/api/lineup?$q&fresh=1" -o /dev/null && echo "  ok: $q" || echo "  (skip: $q)"
           done
           # Confirm it's serving again after the refresh.

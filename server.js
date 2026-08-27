@@ -22,19 +22,22 @@ const path = require("path");
 const zlib = require("zlib");
 const crypto = require("crypto");
 const { stats, cached, buildLineup, writeDisk, readDisk } = require("./lib/espn.js");
-const nfl = require("./lib/nfl.js");
+// Load the NFL engine defensively: if it ever fails to load, the NFL routes are
+// disabled but the rest of the site still runs.
+let nfl = null;
+try { nfl = require("./lib/nfl.js"); } catch (e) { console.error("NFL engine failed to load (NFL routes disabled):", e && e.message); }
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const LINEUP_TTL = (Number(process.env.LINEUP_TTL_HOURS) || 12) * 3600e3;
 
-// Surface sports (rink/court/pitch), each a small config module.
-const SURFACE = {
-  nhl: require("./sports/nhl.js"), nba: require("./sports/nba.js"), mls: require("./sports/mls.js"),
-  cbb: require("./sports/cbb.js"), cfb: require("./sports/cfb.js"),
-  mlb: require("./sports/mlb.js"), mch: require("./sports/mch.js"),
-  wnba: require("./sports/wnba.js"),
-};
+// Surface sports (rink/court/pitch/diamond/field). Loaded one-by-one so a single
+// broken config can never take down the whole server — it's just skipped.
+const SURFACE = {};
+for (const key of ["nhl", "nba", "mls", "cbb", "cfb", "mlb", "mch", "wnba"]) {
+  try { SURFACE[key] = require(`./sports/${key}.js`); }
+  catch (e) { console.error(`sport "${key}" failed to load (skipped):`, e && e.message); }
+}
 const surfaceTeamSets = Object.fromEntries(Object.entries(SURFACE).map(([k, cfg]) => [k, new Map(cfg.teams.map((t) => [String(t.id), t]))]));
 function publicConfig(sport) {
   const cfg = SURFACE[sport];
@@ -201,6 +204,9 @@ const server = http.createServer(async (req, res) => {
       const params = new URL(req.url, `http://localhost:${PORT}`).searchParams;
 
       // ---- NFL ----
+      if (urlPath === "/api/depth" || urlPath === "/api/ages") {
+        if (!nfl) { sendJson(req, res, 503, { error: "NFL data temporarily unavailable" }); return done(503); }
+      }
       if (urlPath === "/api/depth") {
         const teamId = params.get("team") || "2";
         if (!isNumericId(teamId) || !nfl.TEAM_BY_ID.has(teamId)) { sendJson(req, res, 400, { error: "Unknown team" }); return done(400); }
@@ -250,4 +256,19 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => { console.log(`\n🏟️  All-Sports Depth Charts running!  Open  http://localhost:${PORT}\n`); });
+// ---------------------------------------------------------------------------
+// "Run forever" backstops. Every request is already wrapped in try/catch and
+// every upstream call times out + falls back to a last-good disk copy, but these
+// last-resort handlers make sure a stray error anywhere can never kill the
+// process. (Render would restart a crash anyway; this avoids the restart.)
+// ---------------------------------------------------------------------------
+process.on("uncaughtException", (e) => console.error("uncaughtException (server kept alive):", (e && e.stack) || e));
+process.on("unhandledRejection", (e) => console.error("unhandledRejection (server kept alive):", (e && e.stack) || e));
+server.on("error", (e) => console.error("server error:", e && e.message));
+server.keepAliveTimeout = 65000; // play nice behind proxies/load balancers
+server.headersTimeout = 66000;
+
+server.listen(PORT, () => {
+  console.log(`\n🏟️  All-Sports Depth Charts running!  Open  http://localhost:${PORT}`);
+  console.log(`   sports loaded: NFL${nfl ? "" : "(disabled)"}, ${Object.keys(SURFACE).join(", ")}\n`);
+});
