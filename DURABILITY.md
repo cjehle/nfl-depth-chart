@@ -52,7 +52,16 @@ Sports FC, MLB → MLB The Show** (NFL → Madden, in `lib/nfl.js`). To avoid ha
 EA/Sony from the live server, ratings live in committed maps (`data/ratings/*.json`)
 built by `npm run gen-ratings`; the server only reads them. NBA/WNBA (2K) and NHL/CFB
 have no publicly accessible ratings feed, so they show no badge. Refresh occasionally:
-`npm run gen-ratings` then commit `data/ratings/`.
+`npm run gen-ratings` then commit `data/ratings/`. CFB is wired to EA College
+Football but EA hasn't published those to the public API yet (empty `cfb.json`); it
+auto-lights-up when they do and you re-run `gen-ratings`. College basketball has no
+video game with public ratings.
+
+## College hockey → NHL draft status
+Each college-hockey player shows their NHL draft status (team, round, overall pick,
+year — or "Undrafted") in the depth popover, from a committed map
+(`data/draft/nhl.json`) built by `npm run gen-draft` off the NHL's public draft API.
+Refresh after each June draft: `npm run gen-draft` then commit `data/draft/`.
 
 ## Self-updating (no one has to touch it)
 - **Data updates itself.** Every page load pulls fresh data (coalesced to ≤1 upstream

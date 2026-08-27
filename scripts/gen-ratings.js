@@ -62,10 +62,39 @@ async function theShowMLB() {
   console.error(`  mlb.json: ${Object.keys(map).length} MLB players (scanned ${page - 1} Show pages${failed ? `, ${failed} skipped` : ""})`);
 }
 
+// EA Sports College Football (CFB). EA exposes the same drop-api shape as Madden/
+// EA FC, but currently returns 0 items for this slug (ratings not published via
+// the public API). We still write the (empty) map so the feature lights up the
+// moment EA populates it and this script is re-run — no code change needed.
+async function eaCFB() {
+  const map = {}; let offset = 0, total = Infinity, pages = 0, empty = 0, failed = 0;
+  while (offset < total && pages < 400 && empty < 3) {
+    let d = null;
+    for (let attempt = 0; attempt < 4 && !d; attempt++) {
+      try { d = await j(`https://drop-api.ea.com/rating/ea-sports-college-football?locale=en&limit=100&offset=${offset}`); }
+      catch (e) { await sleep(600 * (attempt + 1)); }
+    }
+    if (!d) { failed++; offset += 100; pages++; continue; }
+    total = d.totalItems || 0;
+    const items = d.items || [];
+    if (!items.length) { empty++; } else { empty = 0; }
+    for (const p of items) {
+      if (p.overallRating == null) continue;
+      for (const nm of [normName(p.commonName || ""), normName(`${p.firstName || ""} ${p.lastName || ""}`)]) {
+        if (nm && map[nm] == null) map[nm] = p.overallRating;
+      }
+    }
+    offset += 100; pages++; await sleep(150);
+  }
+  fs.writeFileSync(path.join(OUT, "cfb.json"), JSON.stringify(map));
+  console.error(`  cfb.json: ${Object.keys(map).length} CFB players${Object.keys(map).length ? "" : " (EA hasn't published these to the public API yet — empty, will fill when they do)"}`);
+}
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   console.error("Generating rating maps (this pages EA/Sony — run occasionally, not on the live server)…");
   await fcMLS();
   await theShowMLB();
+  await eaCFB();
   console.error("Done → data/ratings/. Commit them: git add data/ratings && git commit");
 })();

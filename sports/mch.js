@@ -9,13 +9,14 @@ module.exports = {
   name: "College Hockey",
   emoji: "🏒",
   title: "College Hockey Rosters on the Ice",
-  tagline: "A team's roster by position on the rink — click any spot for everyone there. Roster order, not verified lines.",
+  tagline: "A team's roster by position on the rink — click any player for their NHL draft status. Roster order, not verified lines.",
   surface: "rink",
   espn: { sport: "hockey", league: "mens-college-hockey" },
   kind: "roster",
   classYears: true,
+  draftStatus: true, // attach each player's NHL draft status (committed map, data/draft/nhl.json)
   rosterLabel: "roster by position",
-  note: "Roster by position · not a verified depth chart · via ESPN",
+  note: "Roster by position + NHL draft status · via ESPN & NHL",
   defaults: { a: "193", b: "130" }, // Miami (OH) vs Michigan (note: ESPN publishes no Miami OH hockey roster, so that side reads "no lineup")
   teams: TEAMS,
   bucket: (pos) => { const a = (pos || "").toUpperCase(); if (a.startsWith("G")) return "goalie"; if (a.startsWith("D")) return "defense"; return "forward"; },

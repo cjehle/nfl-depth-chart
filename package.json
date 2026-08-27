@@ -10,6 +10,7 @@
     "test": "node --test",
     "gen-teams": "node scripts/gen-teams.js",
     "gen-seeds": "node scripts/gen-seeds.js",
-    "gen-ratings": "node scripts/gen-ratings.js"
+    "gen-ratings": "node scripts/gen-ratings.js",
+    "gen-draft": "node scripts/gen-draft.js"
   }
 }

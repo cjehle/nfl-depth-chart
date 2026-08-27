@@ -3,14 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Starting Lineups</title>
-    <meta name="description" content="Two teams' starting lineups on the surface, live from ESPN — click any player for the full depth chart." />
     <meta name="theme-color" content="#0b1f12" />
     <!--HEAD-->
     <link rel="stylesheet" href="/shared.css" />
     <link rel="stylesheet" href="/surface/style.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <nav class="site-nav">
       <a href="/" class="site-brand">🏟️ Depth Charts</a>
       <div class="site-links">
@@ -26,7 +25,7 @@
       </div>
     </nav>
 
-    <header class="topbar">
+    <header class="topbar" id="main" tabindex="-1">
       <a class="back-link" href="/">← All sports</a>
       <h1 id="title">Starting Lineups</h1>
       <p class="tagline" id="tagline"></p>
@@ -51,6 +50,7 @@
         </div>
         <div class="control-row actions">
           <button id="swap" title="Swap the two teams">⇅ Swap</button>
+          <button id="share" title="Copy a link to this matchup">↗ Share</button>
           <button id="refresh" title="Fetch the latest lineups">↻ Refresh</button>
         </div>
       </div>

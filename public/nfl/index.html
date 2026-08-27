@@ -3,14 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NFL Depth Chart — Starters on the Field</title>
-    <meta name="description" content="See any NFL team's starting offense and defense on a field, live from ESPN — pick personnel, formation, and past seasons." />
     <meta name="theme-color" content="#0b1f12" />
     <!--HEAD-->
     <link rel="stylesheet" href="/shared.css" />
     <link rel="stylesheet" href="/nfl/style.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <nav class="site-nav">
       <a href="/" class="site-brand">🏟️ Depth Charts</a>
       <div class="site-links">
@@ -26,7 +25,7 @@
       </div>
     </nav>
 
-    <header class="topbar">
+    <header class="topbar" id="main" tabindex="-1">
       <a class="back-link" href="/">← All sports</a>
       <h1>🏈 Starting Lineups on the Field</h1>
       <p class="tagline">
@@ -59,6 +58,7 @@
         </div>
         <div class="control-row actions">
           <button id="refresh" title="Fetch the latest data from ESPN">↻ Refresh</button>
+          <button id="share" title="Copy a link to this matchup">↗ Share</button>
           <button id="reset" title="Put players back to their starting spots">↺ Reset positions</button>
         </div>
       </div>

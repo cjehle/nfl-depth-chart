@@ -21,7 +21,7 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const crypto = require("crypto");
-const { stats, cached, buildLineup, writeDisk, readDisk } = require("./lib/espn.js");
+const { stats, cached, buildLineup, writeDisk, readDisk, cacheStats } = require("./lib/espn.js");
 // Load the NFL engine defensively: if it ever fails to load, the NFL routes are
 // disabled but the rest of the site still runs.
 let nfl = null;
@@ -51,6 +51,11 @@ function publicConfig(sport) {
   };
 }
 
+// Edge cache policy for lineup/depth JSON: a CDN (Cloudflare) may serve a cached
+// copy for ~2 min and keep serving a stale one for 10 min while it revalidates in
+// the background. Keeps the cold Render origin + ESPN off most requests' critical
+// path; the client still auto-refreshes every 4 min, so users stay current.
+const LINEUP_CACHE = "public, s-maxage=120, stale-while-revalidate=600";
 // Surface lineup cache (TTL + single-flight + disk last-good), keyed by sport+team.
 const lineupStore = new Map();
 async function getLineup(sport, teamId, fresh, unit) {
@@ -98,11 +103,15 @@ const SECURITY_HEADERS = {
 function respond(req, res, status, body, contentType, extra = {}) {
   const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
   const headers = { "Content-Type": contentType, ...SECURITY_HEADERS, ...extra };
-  const gzip = /\bgzip\b/.test(req.headers["accept-encoding"] || "") && /text|json|javascript|svg/.test(contentType) && buf.length > 512;
+  const compressible = /text|json|javascript|svg/.test(contentType);
+  const gzip = /\bgzip\b/.test(req.headers["accept-encoding"] || "") && compressible && buf.length > 512;
   const isHead = req.method === "HEAD";
+  // Always Vary on Accept-Encoding for compressible types so a shared/CDN cache
+  // never hands a gzipped body to a client that didn't ask for it (cache mixing).
+  if (compressible) headers["Vary"] = "Accept-Encoding";
   if (gzip) {
     const gz = zlib.gzipSync(buf);
-    res.writeHead(status, { ...headers, "Content-Encoding": "gzip", Vary: "Accept-Encoding", "Content-Length": gz.length });
+    res.writeHead(status, { ...headers, "Content-Encoding": "gzip", "Content-Length": gz.length });
     res.end(isHead ? undefined : gz);
   } else { res.writeHead(status, { ...headers, "Content-Length": buf.length }); res.end(isHead ? undefined : buf); }
 }
@@ -148,6 +157,11 @@ function headFor(key) {
   const o = OG[key] || OG.home;
   const t = escHtml(o.title), d = escHtml(o.desc), img = SITE + o.img;
   const parts = [
+    // Per-route title + description (the tags search engines weight most). These
+    // are injected at <!--HEAD--> so every route is unique — the static HTML no
+    // longer carries its own <title>/description.
+    `<title>${t}</title>`,
+    `<meta name="description" content="${d}">`,
     `<meta property="og:title" content="${t}">`,
     `<meta property="og:description" content="${d}">`,
     `<meta property="og:type" content="website">`,
@@ -163,7 +177,6 @@ function headFor(key) {
     // SEO + faster first paint: canonical URL, and pre-warm the connection to
     // ESPN's logo CDN so team crests appear sooner.
     `<link rel="canonical" href="${SITE}${o.path}">`,
-    `<meta name="theme-color" content="#0b1220">`,
     `<link rel="preconnect" href="https://a.espncdn.com" crossorigin>`,
     `<link rel="dns-prefetch" href="https://a.espncdn.com">`,
     // Structured data (not executed, so it's exempt from script-src CSP).
@@ -188,6 +201,18 @@ function renderPage(req, res, rel, ogKey) {
   respond(req, res, 200, entry.body, MIME[".html"], { ETag: entry.etag, "Cache-Control": "public, max-age=0, must-revalidate" });
 }
 
+// Trusted client IP for rate limiting. Behind Cloudflare→Render, `CF-Connecting-IP`
+// is the real visitor IP and is set by Cloudflare (not spoofable end-to-end);
+// prefer it. Fall back to the first (leftmost = original client) X-Forwarded-For
+// hop, then the socket address. Using the leftmost XFF — not the attacker-
+// appendable rightmost — avoids both spoofing and shared-proxy mis-attribution.
+function clientIp(req) {
+  const cf = req.headers["cf-connecting-ip"];
+  if (cf) return String(cf).trim();
+  const xff = req.headers["x-forwarded-for"];
+  if (xff) return String(xff).split(",")[0].trim();
+  return req.socket.remoteAddress || "unknown";
+}
 const buckets = new Map();
 function rateLimited(ip) {
   const now = Date.now(), cap = 120, refill = 2;
@@ -213,12 +238,27 @@ const server = http.createServer(async (req, res) => {
   const urlPath = req.url.split("?")[0].replace(/\/+$/, "") || "/";
   const done = (s) => console.log(`${req.method} ${req.url} ${s} ${Date.now() - t0}ms`);
   try {
-    if (urlPath === "/healthz") { sendJson(req, res, 200, { status: "ok", uptimeSec: Math.round((Date.now() - stats.started) / 1000), ...stats }); return done(200); }
+    if (urlPath === "/healthz") {
+      const now = Date.now();
+      const mem = process.memoryUsage();
+      const mb = (n) => Math.round(n / 1048576);
+      // Freshness of each warmed lineup (age in seconds since it was cached).
+      const lineups = {};
+      for (const [k, v] of lineupStore) if (v && v.time) lineups[k] = Math.round((now - v.time) / 1000);
+      sendJson(req, res, 200, {
+        status: "ok",
+        uptimeSec: Math.round((now - stats.started) / 1000),
+        ...stats,
+        memoryMB: { rss: mb(mem.rss), heapUsed: mb(mem.heapUsed) },
+        caches: { lineups: lineupStore.size, buckets: buckets.size, static: staticCache.size, pages: pageCache.size, ...cacheStats() },
+        lineupAgeSec: lineups,
+      });
+      return done(200);
+    }
 
     if (urlPath.startsWith("/api/")) {
       if (req.method !== "GET" && req.method !== "HEAD") { sendJson(req, res, 405, { error: "Method not allowed" }); return done(405); }
-      const xff = req.headers["x-forwarded-for"];
-      const ip = (xff ? xff.split(",").pop().trim() : req.socket.remoteAddress) || "unknown";
+      const ip = clientIp(req);
       if (rateLimited(ip)) { stats.rateLimited++; sendJson(req, res, 429, { error: "Too many requests" }); return done(429); }
       const params = new URL(req.url, `http://localhost:${PORT}`).searchParams;
 
@@ -232,7 +272,7 @@ const server = http.createServer(async (req, res) => {
         const cur = nfl.currentNflSeason();
         let year = Number(params.get("year")) || cur;
         year = Math.min(cur, Math.max(nfl.SEASON.OLDEST, year));
-        try { sendJson(req, res, 200, await nfl.getTeamData(teamId, year, params.get("fresh") === "1")); return done(200); }
+        try { sendJson(req, res, 200, await nfl.getTeamData(teamId, year, params.get("fresh") === "1"), { "Cache-Control": LINEUP_CACHE }); return done(200); }
         catch (err) { console.error("depth error:", err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }
       if (urlPath === "/api/ages") {
@@ -256,7 +296,7 @@ const server = http.createServer(async (req, res) => {
         if (!isNumericId(teamId) || !surfaceTeamSets[sport].has(teamId)) { sendJson(req, res, 400, { error: "Unknown team" }); return done(400); }
         const unitParam = params.get("unit");
         const unit = ["offense", "defense", "line1", "line2"].includes(unitParam) ? unitParam : null;
-        try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit)); return done(200); }
+        try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit), { "Cache-Control": LINEUP_CACHE }); return done(200); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }
       sendJson(req, res, 404, { error: "Not found" }); return done(404);

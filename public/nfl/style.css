@@ -156,6 +156,8 @@ body {
 }
 .formation-label img { height: 26px; width: 26px; object-fit: contain; }
 .formation-label .updated { font-weight: 500; opacity: 0.85; font-size: 11px; }
+.formation-label .band-next { font-weight: 600; opacity: 0.82; font-size: 11px; white-space: nowrap; }
+@media (max-width: 620px) { .formation-label .band-next { display: none; } }
 /* Defense sits on top of the field, offense on the bottom, so their labels
    hug the outer edges (away from the line of scrimmage in the middle). */
 .defense-half .formation-label { top: 10px; }

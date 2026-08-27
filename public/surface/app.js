@@ -10,6 +10,7 @@ let popoverGen = 0, renderGen = 0, lastFocused = null;
 let viewMode = "field";
 let CROSS_OK = true; // can pills be dragged across the center line? (false for CFB's field)
 let ratingLabel = null; // video-game ratings source for this sport (e.g. "EA FC"), or null
+let draftStatus = false; // does this sport carry NHL draft status? (college hockey)
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -47,6 +48,24 @@ function relTime(iso) {
   if (s < 3600) return `${Math.round(s / 60)} min ago`;
   if (s < 86400) return `${Math.round(s / 3600)} hr ago`;
   return `${Math.round(s / 86400)} d ago`;
+}
+// Short calendar date like "Aug 12" (for the game a lineup is derived from).
+function fmtDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+// Compact next-game string like "Next: vs LAR · Sun" from team.next, or "".
+function nextGame(next) {
+  if (!next || !next.opp) return "";
+  const day = next.date ? new Date(next.date).toLocaleDateString(undefined, { weekday: "short" }) : "";
+  return `Next: ${next.homeAway} ${next.opp}${day ? " · " + day : ""}`;
+}
+// NHL draft status pill for the depth popover (college hockey), or "".
+function draftPill(d) {
+  if (!d) return "";
+  if (d.drafted) return `<div class="p-draft drafted">🏒 NHL Draft · ${esc(d.label)}</div>`;
+  return `<div class="p-draft undrafted">🏒 NHL Draft · Undrafted</div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,6 +211,9 @@ function decorateBand(bandEl, tintEl, data, mirror) {
   const rec = t.record && !/^0-0/.test(t.record) ? ` (${t.record})` : "";
   span.textContent = `${rank}${t.name}${rec} · ${data.subtitle || ""}`;
   bandEl.appendChild(span);
+  // Upcoming opponent (already in the payload) as a subtle secondary line.
+  const ng = nextGame(t.next);
+  if (ng) { const n = document.createElement("span"); n.className = "band-next"; n.textContent = ng; bandEl.appendChild(n); }
   bandEl.style.background = hexToRgba(t.color, 0.92);
   tintEl.style.background = `linear-gradient(${mirror ? 0 : 180}deg, ${hexToRgba(t.color, 0.32)}, ${hexToRgba(t.color, 0.08)})`;
 }
@@ -233,10 +255,11 @@ function listTeam(data) {
       const badge = badgeClass ? `<span class="badge ${badgeClass}">${esc(face.injury)}</span>` : "";
       const depth = ch.players.length - 1 > 0 ? `<span class="list-depth">+${ch.players.length - 1}</span>` : "";
       const ovr = face.overall != null ? `<span class="list-ovr" title="${esc(ratingLabel || "")} overall rating">${face.overall}</span>` : "";
+      const dr = face.draft && face.draft.drafted ? `<span class="list-draft" title="NHL Draft: ${esc(face.draft.label)}">${esc(face.draft.team)} R${face.draft.round}</span>` : "";
       btn.innerHTML = `
         <span class="list-pos">${esc(ch.label)}</span>
         <span class="list-name">${esc(face.name)} <span class="list-num">#${esc(face.jersey || "--")}</span></span>
-        ${ovr}${badge}${depth}`;
+        ${ovr}${dr}${badge}${depth}`;
       btn.addEventListener("click", () => openDepth(`${data.team.abbr} — ${ch.label}`, ch.players));
       sec.appendChild(btn);
     }
@@ -276,6 +299,7 @@ function openDepth(title, players) {
     const age = p.classYear ? p.classYear : (p.age != null ? `${p.age} yrs` : "");
     const bio = bioLine(p);
     const ovr = p.overall != null ? `<span class="p-ovr" title="${esc(ratingLabel || "")} overall rating">${p.overall}<i>OVR</i></span>` : "";
+    const draftHtml = draftPill(p.draft);
     li.innerHTML = `
       <div class="p-main">
         <span class="rank">${i + 1}</span>
@@ -286,6 +310,7 @@ function openDepth(title, players) {
         ${ovr}
         ${badge}
       </div>
+      ${draftHtml}
       ${bio ? `<div class="p-bio">${bio}</div>` : ""}`;
     popoverList.appendChild(li);
   });
@@ -326,6 +351,7 @@ async function render(fresh) {
     const [dataA, dataB] = await Promise.all([getSide("A", idA, fresh, unitA), getSide("B", idB, fresh, unitB)]);
     if (gen !== renderGen) return;
     ratingLabel = dataA.ratingLabel || dataB.ratingLabel || null;
+    draftStatus = !!(dataA.draftStatus || dataB.draftStatus);
     const sigA = `${CONFIG.sport}:A:${idA}`, sigB = `${CONFIG.sport}:B:${idB}`;
     decorateBand(document.getElementById("bandA"), document.getElementById("tintA"), dataA, false);
     decorateBand(document.getElementById("bandB"), document.getElementById("tintB"), dataB, true);
@@ -335,7 +361,12 @@ async function render(fresh) {
     render._sigs = [sigA, sigB];
     statusEl.textContent = "";
     const u = document.getElementById("updated");
-    if (u) u.textContent = "Updated " + relTime(dataA.updated || dataB.updated);
+    if (u) {
+      // "as of" = the game/match date the lineup is derived from (may be days old
+      // in a break), so an old typical lineup can't masquerade as freshly updated.
+      const asOf = fmtDate(dataA.asOf || dataB.asOf);
+      u.textContent = "Updated " + relTime(dataA.updated || dataB.updated) + (asOf ? ` · lineup as of ${asOf}` : "");
+    }
   } catch (err) {
     statusEl.textContent = "Couldn't load right now. ";
     const b = document.createElement("button");
@@ -345,6 +376,28 @@ async function render(fresh) {
   } finally {
     document.getElementById("surface").classList.remove("loading");
   }
+}
+
+// ---- share the current matchup (URL already carries ?a=&b=&v= via writeState) ----
+async function shareMatchup(btn) {
+  const url = location.href;
+  const title = document.title;
+  try {
+    if (navigator.share) { await navigator.share({ title, url }); return; }
+    await navigator.clipboard.writeText(url);
+    flashStatus("Link copied to clipboard");
+  } catch (e) {
+    if (e && e.name === "AbortError") return; // user dismissed the native sheet
+    try { await navigator.clipboard.writeText(url); flashStatus("Link copied to clipboard"); }
+    catch { flashStatus("Copy this page's URL to share"); }
+  }
+}
+function flashStatus(msg) {
+  const s = document.getElementById("status");
+  if (!s) return;
+  s.textContent = msg;
+  clearTimeout(flashStatus._t);
+  flashStatus._t = setTimeout(() => { if (s.textContent === msg) s.textContent = ""; }, 2500);
 }
 
 // ---- view toggle ----
@@ -420,6 +473,8 @@ function fillTeams(sel) {
     sideCache.A = { key: null, data: null }; sideCache.B = { key: null, data: null };
     render(false);
   });
+  const shareBtn = document.getElementById("share");
+  if (shareBtn) shareBtn.addEventListener("click", () => shareMatchup(shareBtn));
   [teamASelect, teamBSelect].forEach((s) => s.addEventListener("change", () => render(false)));
   document.querySelectorAll(".view-toggle button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 

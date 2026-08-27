@@ -1,4 +1,72 @@
-# Site optimizations — 2026-08-27
+# Site optimizations
+
+## Batch 3 — 2026-08-27 (college additions)
+
+- **College hockey → NHL draft status.** Every college-hockey player now shows
+  whether they were drafted and by whom — "🏒 NHL Draft · DET · R7 #187 (2020)"
+  in the depth popover (with a compact "DET R7" chip in the list), or "Undrafted".
+  Built from the NHL's public draft API into a committed map (`data/draft/nhl.json`,
+  2406 players, 2015-2025) via `npm run gen-draft` — zero runtime NHL fetching.
+  `lib/draft.js`, `sports/mch.js` (`draftStatus:true`), `lib/espn.js`, clients.
+- **College football ratings — wired, awaiting EA.** EA College Football uses the
+  same drop-api shape as Madden, but EA does **not** publish those ratings to the
+  public API yet (the endpoint returns 0 items). CFB is fully wired to it
+  (`gen-ratings` writes an empty `cfb.json`; `ratings.publisher()` shows no badge
+  until the map has data), so the moment EA populates it, a `npm run gen-ratings`
+  re-run lights up CFB OVR badges with **no code change**.
+- **College basketball ratings — none available.** There is no current college-
+  basketball video game with published ratings (2K College Hoops / EA College
+  Hoops were discontinued ~2010), and no stable public source, so CBB carries no
+  ratings. Left out honestly rather than scraping a fragile source.
+
+## Batch 2 — 2026-08-27 (second 10)
+
+A fresh round after a 9-dimension code audit. All verified locally and grounded
+in the code.
+
+1. **CDN-cacheable lineup/depth APIs (stale-while-revalidate).** `/api/lineup` and
+   `/api/depth` now send `Cache-Control: public, s-maxage=120, stale-while-revalidate=600`
+   (+ always `Vary: Accept-Encoding`). Cloudflare serves most hits from the edge,
+   keeping the cold Render origin and ESPN off the critical path. `server.js`.
+2. **Per-route `<title>` + `<meta name=description>`.** These were byte-identical
+   across the 8 surface sports; now `headFor()` injects the unique title+description
+   from the OG map, and the static HTML no longer carries its own. Also removed a
+   duplicate `theme-color`. `server.js › headFor`, the three `index.html` heads.
+3. **Share / copy-link button.** New "↗ Share" on the surface + NFL pages using
+   `navigator.share()` with a clipboard fallback and a status-region confirmation.
+   The URL already carries `?a=&b=&v=`. `public/*/index.html`, `public/*/app.js`.
+4. **Skip-to-content link + visible focus ring.** A keyboard skip link on every
+   page (WCAG 2.4.1) targeting `#main`, plus a global `:focus-visible` ring (2.4.7).
+   `public/shared.css`, the three `index.html`.
+5. **"Lineup as of <date>".** Builders already compute the game/match date a lineup
+   is derived from (`updatedMatch`) but it was dropped; now surfaced as `asOf` and
+   shown by the "Updated" chip, so a months-old offseason lineup can't look fresh.
+   `lib/espn.js › buildLineup`, `public/surface/app.js`.
+6. **Rate limiter keyed off `CF-Connecting-IP`.** Was using the spoofable/shared
+   last hop of `X-Forwarded-For`; now prefers Cloudflare's trusted client IP, then
+   the leftmost XFF, then the socket. `server.js › clientIp`.
+7. **CI workflow.** `.github/workflows/ci.yml` runs `npm test` + `node --check`
+   over all JS on push/PR (Node 20 & 22), so a typo can't reach Render unguarded.
+8. **Enriched `/healthz`.** Now reports `process.memoryUsage()`, cache sizes, and a
+   per-lineup freshness map (age in seconds) — real ops visibility on the ephemeral
+   free tier. `server.js`, `lib/espn.js › cacheStats`.
+9. **Next-game opponent + date in the team band.** `team.nextEvent` was fetched
+   with the record and discarded; now parsed and shown as "Next: @SEA · Sun" on
+   surface + NFL bands. `lib/espn.js › teamRecord/parseNext`, `lib/nfl.js`, clients.
+10. **Service worker + installability.** `public/sw.js` precaches the app shell,
+    serves navigations network-first and `/api/*` + static assets
+    stale-while-revalidate (instant last-known lineup offline). Manifest gains
+    `id`, `lang`, a maskable icon and app shortcuts. `public/sw.js`, `public/nav.js`,
+    `public/manifest.webmanifest`.
+
+Runners-up captured for later: cache compressed bytes per entry; per-sport
+schema-drift detection on `/healthz`; per-host circuit breaker in `fetchText`;
+unit tests for the lineup builders; MLB probable starting pitcher; safe-area
+insets; BreadcrumbList/ItemList JSON-LD; position/role glossary.
+
+---
+
+## Batch 1 — 2026-08-27 (first 10)
 
 Two batches shipped together: **accuracy** (lineups now reflect who actually
 plays) and **page optimizations** (10 improvements to speed, SEO, a11y & polish).

@@ -1,0 +1,30 @@
+name: CI
+
+# Run the test suite + a syntax check on every push and PR, so a broken builder
+# or a typo in a config can't reach Render unguarded (a zero-dep server otherwise
+# surfaces such errors only at boot).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Syntax check all JS
+        run: |
+          set -e
+          for f in server.js lib/*.js sports/*.js scripts/*.js public/*.js public/**/*.js; do
+            [ -e "$f" ] || continue
+            node --check "$f"
+          done
+      - name: Run tests
+        run: npm test

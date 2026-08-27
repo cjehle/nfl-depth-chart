@@ -525,7 +525,13 @@ function relTime(iso) {
   if (s < 86400) return `${Math.round(s / 3600)} hr ago`;
   return `${Math.round(s / 86400)} d ago`;
 }
-function decorateHalf(teamId, unitWord, formationName, season, record, labelEl, tintEl) {
+function nextGameText(next) {
+  if (!next || !next.opp) return "";
+  var day = "";
+  if (next.date) { var d = new Date(next.date); if (!isNaN(d)) day = d.toLocaleDateString(undefined, { weekday: "short" }); }
+  return "Next: " + next.homeAway + " " + next.opp + (day ? " · " + day : "");
+}
+function decorateHalf(teamId, unitWord, formationName, season, record, next, labelEl, tintEl) {
   const team = TEAM_BY_ID.get(String(teamId));
   const color = (team && team.color) || "#333333";
   labelEl.textContent = "";
@@ -539,6 +545,8 @@ function decorateHalf(teamId, unitWord, formationName, season, record, labelEl, 
   const span = document.createElement("span");
   span.textContent = `${team ? team.name : ""} ${unitWord} · ${formationName || ""} (${season || ""})`;
   labelEl.appendChild(span);
+  const ng = nextGameText(next);
+  if (ng) { const n = document.createElement("span"); n.className = "band-next"; n.textContent = ng; labelEl.appendChild(n); }
   labelEl.style.background = hexToRgba(color, 0.92);
   tintEl.style.background = `linear-gradient(${hexToRgba(color, 0.3)}, ${hexToRgba(color, 0.1)})`;
 }
@@ -567,9 +575,9 @@ async function render(fresh) {
     const offTitle = `${offData.team} OFFENSE · ${OFFENSE_PERSONNEL[personnel].short} (${offData.season})`;
     const defTitle = `${defData.team} DEFENSE · ${DEFENSE_FORMATION[formation].short} (${defData.season})`;
 
-    decorateHalf(defenseId, "DEFENSE", DEFENSE_FORMATION[formation].short, defData.season, defData.record,
+    decorateHalf(defenseId, "DEFENSE", DEFENSE_FORMATION[formation].short, defData.season, defData.record, defData.next,
       document.getElementById("defense-formation"), document.getElementById("defense-tint"));
-    decorateHalf(offenseId, "OFFENSE", OFFENSE_PERSONNEL[personnel].short, offData.season, offData.record,
+    decorateHalf(offenseId, "OFFENSE", OFFENSE_PERSONNEL[personnel].short, offData.season, offData.record, offData.next,
       document.getElementById("offense-formation"), document.getElementById("offense-tint"));
 
     const offSig = `off:${offenseId}:${offData.season}:${personnel}`;
@@ -668,6 +676,21 @@ function fillSeasons(sel) {
 
 // ---- wire up ----
 document.getElementById("refresh").addEventListener("click", () => render(true));
+(function () {
+  const btn = document.getElementById("share");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const url = location.href, title = document.title, s = document.getElementById("status");
+    const flash = (m) => { if (!s) return; s.textContent = m; clearTimeout(flash._t); flash._t = setTimeout(() => { if (s.textContent === m) s.textContent = ""; }, 2500); };
+    try {
+      if (navigator.share) { await navigator.share({ title, url }); return; }
+      await navigator.clipboard.writeText(url); flash("Link copied to clipboard");
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      try { await navigator.clipboard.writeText(url); flash("Link copied to clipboard"); } catch { flash("Copy this page's URL to share"); }
+    }
+  });
+})();
 document.getElementById("reset").addEventListener("click", () => {
   // Clear any dragged positions for the current matchup, then redraw defaults.
   (render._sigs || []).forEach((sig) => delete layouts[sig]);
