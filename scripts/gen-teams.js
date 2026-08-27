@@ -30,10 +30,10 @@ async function fromIds(sport, league, ids) { // NBA's list endpoint is flaky; fe
   for (const id of ids) { const d = await jt(`${site}/${sport}/${league}/teams/${id}`); if (!d.__e && d.team) out.push(norm(d.team)); }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
-async function fromConferences(sport, league, confMap, { hashColors = false } = {}) {
+async function fromConferences(sport, league, confMap, { hashColors = false, season = 2025 } = {}) {
   const out = [], seen = new Set();
   for (const [cid, label] of Object.entries(confMap)) {
-    const g = await jt(`${core}/${sport}/leagues/${league}/seasons/2025/types/2/groups/${cid}`);
+    const g = await jt(`${core}/${sport}/leagues/${league}/seasons/${season}/types/2/groups/${cid}`);
     if (g.__e || !g.teams?.$ref) continue;
     const tl = await jt(g.teams.$ref + (g.teams.$ref.includes("?") ? "&" : "?") + "limit=60");
     for (const it of (tl.items || [])) { const t = await jt(it.$ref); if (t.__e || seen.has(String(t.id))) continue; seen.add(String(t.id)); out.push(norm(t, label)); }
@@ -49,8 +49,13 @@ async function fromConferences(sport, league, confMap, { hashColors = false } = 
   save("mlb-teams.json", await fromList("baseball", "mlb"), 28);
   save("wnba-teams.json", await fromList("basketball", "wnba"), 10);
   save("nba-teams.json", await fromIds("basketball", "nba", Array.from({ length: 30 }, (_, i) => i + 1)), 28);
-  save("cfb-teams.json", await fromConferences("football", "college-football", { 5: "Big Ten", 8: "SEC", 4: "Big 12", 15: "MAC", 9: "Pac-12" }), 50);
-  save("cbb-teams.json", await fromConferences("basketball", "mens-college-basketball", { 7: "Big Ten", 23: "SEC", 8: "Big 12", 14: "MAC", 4: "Big East" }), 60);
+  // College football: all FBS conferences (~134 teams). Group IDs verified against
+  // ESPN's 2026 season. Pac-12 is included even while small (rebuilding).
+  save("cfb-teams.json", await fromConferences("football", "college-football",
+    { 1: "ACC", 151: "American", 4: "Big 12", 5: "Big Ten", 12: "C-USA", 18: "Independents", 15: "MAC", 17: "Mountain West", 9: "Pac-12", 8: "SEC", 37: "Sun Belt" },
+    { season: 2026 }), 120);
+  // College basketball: every D1 team (~362) straight from the teams endpoint.
+  save("cbb-teams.json", await fromList("basketball", "mens-college-basketball"), 300);
   save("mch-teams.json", await fromConferences("hockey", "mens-college-hockey", { 52: "Hockey East", 62: "Big Ten", 63: "NCHC", 54: "CCHA", 61: "Atlantic Hockey", 53: "ECAC" }, { hashColors: true }), 40);
   console.error("Done. Review `git diff data/` before committing.");
 })();
