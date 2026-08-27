@@ -7,32 +7,32 @@ module.exports = {
   name: "MLB",
   emoji: "⚾",
   title: "MLB Lineups on the Diamond",
-  tagline: "Two teams' lineups on the diamond — click any position for the full depth chart there.",
+  tagline: "One team's lineup on the diamond — click any position for the full depth chart there.",
   surface: "diamond",
   espn: { sport: "baseball", league: "mlb" },
   kind: "depth",
+  singleTeam: true, // baseball shows ONE team's nine across the full diamond (not two)
   note: "Age, bio & depth chart via ESPN",
-  defaults: { a: "16", b: "8" }, // Chicago Cubs vs Milwaukee Brewers
+  defaults: { a: "16", b: "8" }, // Chicago Cubs (single-team default) — b kept for parity
   teams: TEAMS,
   bio: (a) => ({
     extra: `B/T ${a.bats?.abbreviation || "–"}/${a.throws?.abbreviation || "–"}`,
     pos: a.position?.abbreviation || "",
   }),
-  // The 9 fielders arranged as a diamond: outfield up top, infield around the
-  // bases, battery (P/C) down the middle toward the center. (DH bats only, so
-  // it's not shown on the field — it's still in the List view / depth chart.)
-  // Real diamond shape: outfield fan up top, middle infielders flanking second,
-  // corners lower, pitcher on the mound, catcher at home (toward center). Short
-  // labels keep the chips single-line so they don't overlap.
+  // The nine fielders across a FULL diamond (single team): outfield fanned across
+  // the top, infielders around the bases, pitcher on the mound, catcher at home
+  // plate near the bottom. (The DH bats only, so it isn't on the field — still in
+  // the List view / depth chart.) Home plate ≈ (50,80); the infield diamond's
+  // vertices are 1B (74,56), 2B (50,32), 3B (26,56).
   layout: [
-    { key: "CF", label: "CF", posKey: "cf", group: "Outfield", x: 50, y: 7 },
-    { key: "LF", label: "LF", posKey: "lf", group: "Outfield", x: 17, y: 14 },
-    { key: "RF", label: "RF", posKey: "rf", group: "Outfield", x: 83, y: 14 },
-    { key: "SS", label: "SS", posKey: "ss", group: "Infield", x: 39, y: 27 },
-    { key: "2B", label: "2B", posKey: "2b", group: "Infield", x: 61, y: 27 },
-    { key: "3B", label: "3B", posKey: "3b", group: "Infield", x: 26, y: 38 },
-    { key: "1B", label: "1B", posKey: "1b", group: "Infield", x: 74, y: 38 },
-    { key: "P", label: "P", posKey: "p", group: "Battery", x: 50, y: 39 },
-    { key: "C", label: "C", posKey: "c", group: "Battery", x: 50, y: 49 },
+    { key: "CF", label: "CF", posKey: "cf", group: "Outfield", x: 50, y: 12 },
+    { key: "LF", label: "LF", posKey: "lf", group: "Outfield", x: 20, y: 20 },
+    { key: "RF", label: "RF", posKey: "rf", group: "Outfield", x: 80, y: 20 },
+    { key: "SS", label: "SS", posKey: "ss", group: "Infield", x: 38, y: 40 },
+    { key: "2B", label: "2B", posKey: "2b", group: "Infield", x: 62, y: 40 },
+    { key: "3B", label: "3B", posKey: "3b", group: "Infield", x: 26, y: 53 },
+    { key: "1B", label: "1B", posKey: "1b", group: "Infield", x: 74, y: 53 },
+    { key: "P", label: "P", posKey: "p", group: "Battery", x: 50, y: 58 },
+    { key: "C", label: "C", posKey: "c", group: "Battery", x: 50, y: 86 },
   ],
 };

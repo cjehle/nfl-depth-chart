@@ -133,7 +133,7 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
     radial-gradient(circle at 50% 97%, #ff8a3d 0 4px, transparent 5px);
 }
 
-/* baseball diamond (two teams share a central infield) */
+/* baseball diamond */
 .surface[data-surface="diamond"] { aspect-ratio: 0.92; background: linear-gradient(180deg, #2f7a43, #256a3a); }
 .surface[data-surface="diamond"]::before {
   content: ""; position: absolute; left: 50%; top: 50%; width: 42%; height: 42%; z-index: 1; pointer-events: none;
@@ -144,6 +144,22 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
   content: ""; position: absolute; inset: 8px; z-index: 1; pointer-events: none;
   background: linear-gradient(#ffffff55, #ffffff55) 50% 50% / 100% 2px no-repeat;
 }
+/* single-team baseball diamond: infield lower (home plate near the bottom), a
+   pitcher's mound at the center, outfield grass filling the top. */
+.surface.single[data-surface="diamond"] { aspect-ratio: 0.86; }
+.surface.single[data-surface="diamond"]::before {
+  content: ""; position: absolute; left: 50%; top: 56%; width: 42%; height: 42%; z-index: 1; pointer-events: none;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 2px solid #ffffff70; background: #b9793e55; border-radius: 6px;
+}
+.surface.single[data-surface="diamond"]::after {
+  content: ""; position: absolute; left: 50%; top: 55%; width: 16px; height: 16px; z-index: 1; pointer-events: none;
+  transform: translate(-50%, -50%); border-radius: 50%; background: #c89b6a; border: 1px solid #ffffff66;
+}
+
+/* single-team mode: one lineup fills the whole surface (hide the mirrored half). */
+.surface.single .half.bottom, .surface.single .midline { display: none; }
+.surface.single .half.top { height: 100%; }
 
 /* football field */
 .surface[data-surface="field"] { aspect-ratio: 0.82; background: repeating-linear-gradient(0deg, #1f7a43 0 9.09%, #1c7040 9.09% 18.18%); }

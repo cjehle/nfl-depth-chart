@@ -20,11 +20,13 @@ module.exports = {
   teams: TEAMS,
   bucket: (pos) => { const a = (pos || "").toUpperCase(); if (a === "C") return "center"; if (a === "G" || a.endsWith("G")) return "guard"; return "forward"; },
   bio: (a) => ({ extra: (a.college && a.college.name) || "", pos: a.position?.abbreviation || "" }),
+  // Three perimeter players on the three-point line, two bigs in the paint. Order
+  // is guard→center so the List view reads Guards, Forwards, Center.
   layout: [
-    { key: "C", label: "Center", bucket: "center", faceRank: 1, group: "Center", x: 50, y: 18 },
-    { key: "PF", label: "Forward", bucket: "forward", faceRank: 2, group: "Forwards", x: 28, y: 27 },
-    { key: "SF", label: "Forward", bucket: "forward", faceRank: 1, group: "Forwards", x: 74, y: 32 },
-    { key: "SG", label: "Guard", bucket: "guard", faceRank: 2, group: "Guards", x: 20, y: 45 },
-    { key: "PG", label: "Guard", bucket: "guard", faceRank: 1, group: "Guards", x: 56, y: 49 },
+    { key: "PG", label: "Guard", bucket: "guard", faceRank: 1, group: "Guards", x: 50, y: 50 },
+    { key: "SG", label: "Guard", bucket: "guard", faceRank: 2, group: "Guards", x: 84, y: 40 },
+    { key: "SF", label: "Forward", bucket: "forward", faceRank: 1, group: "Forwards", x: 16, y: 40 },
+    { key: "PF", label: "Forward", bucket: "forward", faceRank: 2, group: "Forwards", x: 38, y: 23 },
+    { key: "C", label: "Center", bucket: "center", faceRank: 1, group: "Center", x: 55, y: 16 },
   ],
 };

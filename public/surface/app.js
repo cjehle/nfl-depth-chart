@@ -225,6 +225,7 @@ function renderList(dataA, dataB) {
   const el = document.getElementById("list-view");
   el.innerHTML = "";
   el.appendChild(listTeam(dataA));
+  if (!dataB) return; // single-team sports (baseball) show only one lineup
   el.appendChild(listTeam(dataB));
 }
 function listTeam(data) {
@@ -347,6 +348,22 @@ async function render(fresh) {
   const idA = teamASelect.value, idB = teamBSelect.value;
   writeState();
   try {
+    // Single-team sports (baseball): one lineup across the whole surface.
+    if (CONFIG.singleTeam) {
+      const dataA = await getSide("A", idA, fresh, null);
+      if (gen !== renderGen) return;
+      ratingLabel = dataA.ratingLabel || null;
+      draftStatus = !!dataA.draftStatus;
+      const sigA = `${CONFIG.sport}:A:${idA}`;
+      decorateBand(document.getElementById("bandA"), document.getElementById("tintA"), dataA, false);
+      renderTeamOnSurface("playersA", dataA, false, sigA);
+      renderList(dataA, null);
+      render._sigs = [sigA];
+      statusEl.textContent = "";
+      const u1 = document.getElementById("updated");
+      if (u1) { const asOf = fmtDate(dataA.asOf); u1.textContent = "Updated " + relTime(dataA.updated) + (asOf ? ` · lineup as of ${asOf}` : ""); }
+      return;
+    }
     const unitA = CONFIG.dualUnit ? CONFIG.units[0] : null, unitB = CONFIG.dualUnit ? CONFIG.units[1] : null;
     const [dataA, dataB] = await Promise.all([getSide("A", idA, fresh, unitA), getSide("B", idB, fresh, unitB)]);
     if (gen !== renderGen) return;
@@ -459,6 +476,13 @@ function fillTeams(sel) {
   document.getElementById("midlabel").textContent = midWord(CONFIG.surface);
   document.getElementById("surface").dataset.surface = CONFIG.surface;
   CROSS_OK = CONFIG.surface !== "field"; // football (CFB field) keeps players on their side; everything else can cross
+  if (CONFIG.singleTeam) {
+    // One team fills the whole surface: hide the second team's controls + swap.
+    document.getElementById("surface").classList.add("single");
+    const rowB = document.querySelector(".control-row.rowB"); if (rowB) rowB.style.display = "none";
+    const swap = document.getElementById("swap"); if (swap) swap.style.display = "none";
+    const tagA = document.getElementById("tagA"); if (tagA) tagA.style.display = "none";
+  }
   if (CONFIG.dualUnit && CONFIG.unitLabels) { // e.g. Offense/Defense (CFB) or 1st/2nd Line (NHL)
     document.getElementById("tagA").textContent = CONFIG.unitLabels[0];
     document.getElementById("tagB").textContent = CONFIG.unitLabels[1];

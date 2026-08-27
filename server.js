@@ -46,7 +46,7 @@ function publicConfig(sport) {
   const cfg = SURFACE[sport];
   return {
     sport: cfg.key, name: cfg.name, emoji: cfg.emoji, title: cfg.title, tagline: cfg.tagline,
-    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
+    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit, singleTeam: !!cfg.singleTeam, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
     teams: cfg.teams.map((t) => ({ id: String(t.id), abbr: t.abbr, name: t.name, short: t.short, color: t.color, alt: t.alt, logo: t.logo, conf: t.conf })),
   };
 }
@@ -148,7 +148,7 @@ const OG = {
   mls: { title: "MLS Starting XIs on the Pitch", desc: "Each team's typical starting XI from recent matches, in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/mls" },
   cfb: { title: "College Football Rosters on the Field", desc: "All FBS teams — one team's offense vs another's defense, by position. Live from ESPN.", img: "/og/cfb.png", path: "/cfb" },
   cbb: { title: "College Basketball Starting Fives on the Court", desc: "All 360+ D1 teams — starting fives from recent box scores (roster by class in the offseason). Live from ESPN.", img: "/og/cbb.png", path: "/cbb" },
-  mlb: { title: "MLB Lineups on the Diamond", desc: "Two teams' lineups on the diamond + full depth chart at every position. Live from ESPN.", img: "/og/mlb.png", path: "/mlb" },
+  mlb: { title: "MLB Lineups on the Diamond", desc: "Any team's lineup on the diamond + full depth chart at every position, with MLB The Show ratings. Live from ESPN.", img: "/og/mlb.png", path: "/mlb" },
   mch: { title: "College Hockey Rosters on the Ice", desc: "Hockey East, Big Ten, NCHC, CCHA, Atlantic Hockey & ECAC rosters by position on the rink.", img: "/og/mch.png", path: "/mch" },
   wnba: { title: "WNBA Starting Fives on the Court", desc: "Each WNBA team's typical starting five from recent box scores + full roster at every spot. Live from ESPN.", img: "/og/wnba.png", path: "/wnba" },
   // International soccer — reuse the home OG image (per-league images optional later).

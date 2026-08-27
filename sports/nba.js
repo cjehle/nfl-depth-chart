@@ -20,13 +20,16 @@ module.exports = {
   teams: TEAMS,
   bucket: (pos) => { const a = (pos || "").toUpperCase(); if (a === "C") return "center"; if (a === "G" || a.endsWith("G")) return "guard"; return "forward"; },
   bio: (a) => ({ extra: (a.college && a.college.name) || "", pos: a.position?.abbreviation || "" }),
-  // Half-court spots for one team (own basket at top, ball brought up toward
-  // center). posKey feeds the depth-chart fallback; bucket feeds box-score starters.
+  // Half-court spots for one team (own basket at top). Three perimeter players on
+  // the three-point line (point guard at the top of the key, wings out wide) and
+  // two bigs in the paint near the basket. Order is guard→center so the List view
+  // reads Guards, Forwards, Center. posKey feeds the depth-chart fallback; bucket
+  // feeds box-score starters.
   layout: [
-    { key: "C", label: "Center", posKey: "c", bucket: "center", group: "Center", x: 50, y: 18 },
-    { key: "PF", label: "Power Forward", posKey: "pf", bucket: "forward", group: "Forwards", x: 28, y: 27 },
-    { key: "SF", label: "Small Forward", posKey: "sf", bucket: "forward", group: "Forwards", x: 74, y: 32 },
-    { key: "SG", label: "Shooting Guard", posKey: "sg", bucket: "guard", group: "Guards", x: 20, y: 45 },
-    { key: "PG", label: "Point Guard", posKey: "pg", bucket: "guard", group: "Guards", x: 56, y: 49 },
+    { key: "PG", label: "Point Guard", posKey: "pg", bucket: "guard", group: "Guards", x: 50, y: 50 },
+    { key: "SG", label: "Shooting Guard", posKey: "sg", bucket: "guard", group: "Guards", x: 84, y: 40 },
+    { key: "SF", label: "Small Forward", posKey: "sf", bucket: "forward", group: "Forwards", x: 16, y: 40 },
+    { key: "PF", label: "Power Forward", posKey: "pf", bucket: "forward", group: "Forwards", x: 38, y: 23 },
+    { key: "C", label: "Center", posKey: "c", bucket: "center", group: "Center", x: 55, y: 16 },
   ],
 };
