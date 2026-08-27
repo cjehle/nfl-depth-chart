@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NFL Depth Chart — Starters on the Field</title>
+    <meta name="description" content="See any NFL team's starting offense and defense on a field, live from ESPN — pick personnel, formation, and past seasons." />
+    <meta name="theme-color" content="#0b1f12" />
+    <link rel="stylesheet" href="/shared.css" />
+    <link rel="stylesheet" href="/nfl/style.css" />
+  </head>
+  <body>
+    <nav class="site-nav">
+      <a href="/all" class="site-brand">🏟️ Depth Charts</a>
+      <div class="site-links">
+        <a href="/nfl" data-s="nfl">🏈 NFL</a>
+        <a href="/nhl" data-s="nhl">🏒 NHL</a>
+        <a href="/nba" data-s="nba">🏀 NBA</a>
+        <a href="/mls" data-s="mls">⚽ MLS</a>
+      </div>
+    </nav>
+
+    <header class="topbar">
+      <h1>🏈 Starting Lineups on the Field</h1>
+      <p class="tagline">
+        Offense vs Defense — <strong>click</strong> any position for its full depth chart, or
+        <strong>drag</strong> players around (they can't cross the line of scrimmage).
+      </p>
+
+      <div class="view-toggle-row">
+        <span class="view-label">View</span>
+        <div class="view-toggle" role="group" aria-label="View">
+          <button data-view="field" aria-pressed="false">🏟️ Field</button>
+          <button data-view="list" aria-pressed="false">☰ List</button>
+          <button data-view="special" aria-pressed="false" title="Special teams">Special</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="control-row offense-row">
+          <span class="row-tag">Offense</span>
+          <label><span>Team</span><select id="offense-team"></select></label>
+          <label><span>Personnel</span><select id="personnel-select"></select></label>
+          <label><span>Season</span><select id="offense-season"></select></label>
+        </div>
+        <div class="control-row defense-row">
+          <span class="row-tag">Defense</span>
+          <label><span>Team</span><select id="defense-team"></select></label>
+          <label><span>Formation</span><select id="formation-select"></select></label>
+          <label><span>Season</span><select id="defense-season"></select></label>
+        </div>
+        <div class="control-row actions">
+          <button id="refresh" title="Fetch the latest data from ESPN">↻ Refresh</button>
+          <button id="reset" title="Put players back to their starting spots">↺ Reset positions</button>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span>Injury status:</span>
+        <span class="badge out">Out / IR</span>
+        <span class="badge questionable">Questionable</span>
+        <span class="badge other">Other</span>
+      </div>
+    </header>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <div class="field-scroll">
+    <main class="field" id="field">
+      <div class="field-half defense-half">
+        <div class="tint" id="defense-tint"></div>
+        <div class="formation-label" id="defense-formation"></div>
+        <div class="players" id="defense-players"></div>
+      </div>
+      <div class="midline"><span>LINE OF SCRIMMAGE</span></div>
+      <div class="field-half offense-half">
+        <div class="tint" id="offense-tint"></div>
+        <div class="players" id="offense-players"></div>
+        <div class="formation-label" id="offense-formation"></div>
+      </div>
+    </main>
+    </div>
+    <p id="scroll-hint" class="scroll-hint">← swipe the field sideways to see every player →</p>
+
+    <div id="list-view" class="list-view hidden"></div>
+    <div id="st-view" class="list-view hidden"></div>
+
+    <div id="depth-popover" class="popover hidden" role="dialog" aria-modal="true" aria-labelledby="popover-title">
+      <div class="popover-head">
+        <span id="popover-title"></span>
+        <button id="popover-close" aria-label="Close depth chart">✕</button>
+      </div>
+      <ol id="popover-list"></ol>
+      <div class="popover-note">OVR = Madden NFL overall rating (EA) · Age via ESPN</div>
+    </div>
+
+    <script src="/nav.js"></script>
+    <script src="/nfl/teams.js"></script>
+    <script src="/nfl/app.js"></script>
+  </body>
+</html>

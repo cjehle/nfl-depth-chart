@@ -1,13 +1,11 @@
 {
-  "name": "nfl-depth-chart",
-  "version": "1.0.0",
-  "description": "NFL starting lineups on a field, live from ESPN + Madden ratings",
+  "name": "depth-charts",
+  "version": "2.0.0",
   "private": true,
+  "description": "All-sports depth charts (NFL/NHL/NBA/MLS) — two teams' starting lineups on the field/ice/court/pitch, live from ESPN.",
+  "engines": { "node": ">=20" },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
-  },
-  "engines": {
-    "node": ">=20"
+    "dev": "node server.js"
   }
 }

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Starting Lineups</title>
+    <meta name="description" content="Two teams' starting lineups on the surface, live from ESPN — click any player for the full depth chart." />
+    <meta name="theme-color" content="#0b1f12" />
+    <link rel="stylesheet" href="/shared.css" />
+    <link rel="stylesheet" href="/surface/style.css" />
+  </head>
+  <body>
+    <nav class="site-nav">
+      <a href="/all" class="site-brand">🏟️ Depth Charts</a>
+      <div class="site-links">
+        <a href="/nfl" data-s="nfl">🏈 NFL</a>
+        <a href="/nhl" data-s="nhl">🏒 NHL</a>
+        <a href="/nba" data-s="nba">🏀 NBA</a>
+        <a href="/mls" data-s="mls">⚽ MLS</a>
+      </div>
+    </nav>
+
+    <header class="topbar">
+      <h1 id="title">Starting Lineups</h1>
+      <p class="tagline" id="tagline"></p>
+
+      <div class="view-toggle-row">
+        <span class="view-label">View</span>
+        <div class="view-toggle" role="group" aria-label="View">
+          <button data-view="field" aria-pressed="false"><span id="field-label">Field</span></button>
+          <button data-view="list" aria-pressed="false">☰ List</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="control-row rowA">
+          <span class="row-tag" id="tagA">Team A</span>
+          <label><span>Team</span><select id="teamA"></select></label>
+        </div>
+        <div class="control-row rowB">
+          <span class="row-tag" id="tagB">Team B</span>
+          <label><span>Team</span><select id="teamB"></select></label>
+        </div>
+        <div class="control-row actions">
+          <button id="swap" title="Swap the two teams">⇅ Swap</button>
+          <button id="refresh" title="Fetch the latest lineups">↻ Refresh</button>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span>Injury status:</span>
+        <span class="badge out">Out / IR</span>
+        <span class="badge questionable">Questionable</span>
+        <span class="badge other">Other</span>
+      </div>
+    </header>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <div class="surface-scroll">
+      <main class="surface" id="surface" data-surface="">
+        <div class="half top">
+          <div class="tint" id="tintA"></div>
+          <div class="team-band" id="bandA"></div>
+          <div class="players" id="playersA"></div>
+        </div>
+        <div class="midline"><span id="midlabel">CENTER</span></div>
+        <div class="half bottom">
+          <div class="tint" id="tintB"></div>
+          <div class="players" id="playersB"></div>
+          <div class="team-band" id="bandB"></div>
+        </div>
+      </main>
+    </div>
+    <p id="scroll-hint" class="scroll-hint">← the surface scrolls sideways on small screens →</p>
+
+    <div id="list-view" class="list-view hidden"></div>
+
+    <div id="depth-popover" class="popover hidden" role="dialog" aria-modal="true" aria-labelledby="popover-title">
+      <div class="popover-head">
+        <span id="popover-title"></span>
+        <button id="popover-close" aria-label="Close depth chart">✕</button>
+      </div>
+      <ol id="popover-list"></ol>
+      <div class="popover-note" id="popover-note"></div>
+    </div>
+
+    <script src="/nav.js"></script>
+    <script src="/surface/app.js"></script>
+  </body>
+</html>

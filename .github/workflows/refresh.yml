@@ -1,14 +1,13 @@
-# Daily data refresh + keep-warm.
+# Daily data refresh + keep-warm for the all-sports site.
 # Hits the live site once a day so the app re-pulls fresh depth-chart/injury data
-# from ESPN even if no one visits. `fresh=1` forces the server to bypass its cache.
-# Runs free on GitHub Actions (public repo). You can also trigger it by hand from
-# the repo's "Actions" tab (Run workflow).
+# even if no one visits. `fresh=1` forces the server to bypass its cache.
+# Runs free on GitHub Actions. Trigger by hand from the repo's "Actions" tab too.
 name: Daily refresh
 
 on:
   schedule:
     - cron: "0 13 * * *" # 13:00 UTC daily (~8–9am ET)
-  workflow_dispatch: {}   # lets you run it manually anytime
+  workflow_dispatch: {}
 
 jobs:
   refresh:
@@ -18,8 +17,11 @@ jobs:
         run: |
           BASE="https://billsdepthchart.com"
           echo "Health:"; curl -fsS --max-time 90 "$BASE/healthz" || true; echo
-          # Force a fresh pull for the default team (server uses the current season).
-          echo "Refreshing Bills lineup…"
-          curl -fsS --max-time 90 "$BASE/api/depth?team=2&fresh=1" -o /dev/null && echo "  ok" || echo "  (site may have been asleep; it will refresh on the retry / next visit)"
-          # A second call confirms it's serving fresh data.
+          echo "NFL (Bills):"
+          curl -fsS --max-time 90 "$BASE/api/depth?team=2&fresh=1" -o /dev/null && echo "  ok" || echo "  (asleep; will refresh on next visit)"
+          echo "NHL / NBA / MLS default matchups:"
+          for q in "sport=nhl&team=2" "sport=nhl&team=1" "sport=nba&team=13" "sport=nba&team=2" "sport=mls&team=187" "sport=mls&team=18966"; do
+            curl -fsS --max-time 90 "$BASE/api/lineup?$q&fresh=1" -o /dev/null && echo "  ok: $q" || echo "  (skip: $q)"
+          done
+          # Confirm it's serving again after the refresh.
           curl -fsS --max-time 90 "$BASE/api/depth?team=2" -o /dev/null && echo "verified" || true

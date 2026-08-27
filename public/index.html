@@ -3,144 +3,61 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NFL Depth Chart — Starters on the Field</title>
-    <meta
-      name="description"
-      content="See any NFL team's starting offense and defense on a field, live from ESPN — pick personnel, formation, and past seasons."
-    />
-    <!-- Nicer preview when the link is shared (Slack, iMessage, Twitter, etc.). -->
-    <meta property="og:title" content="Bills Depth Chart — Starters on the Field" />
-    <meta
-      property="og:description"
-      content="Starting offense vs defense on a field. Click a position for the full depth chart; browse personnel, formations, and past seasons."
-    />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://billsdepthchart.com/" />
-    <meta property="og:image" content="https://billsdepthchart.com/og-image.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://billsdepthchart.com/og-image.png" />
-
-    <!-- Icons + "Add to Home Screen" (installable web app). -->
-    <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Depth Charts — every team's starting lineup</title>
+    <meta name="description" content="Starting lineups for the NFL, NHL, NBA and MLS — on the field, ice, court and pitch. Click any player for the full depth chart." />
     <meta name="theme-color" content="#0b1f12" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Depth Chart" />
-
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="/shared.css" />
   </head>
-  <body>
-    <header class="topbar">
-      <h1>🏈 Starting Lineups on the Field</h1>
-      <p class="tagline">
-        Offense vs Defense — <strong>click</strong> any position for its full depth chart, or
-        <strong>drag</strong> players around (they can't cross the line of scrimmage).
-      </p>
-
-      <div class="view-toggle-row">
-        <span class="view-label">View</span>
-        <div class="view-toggle" role="group" aria-label="View">
-          <button data-view="field" aria-pressed="false">🏟️ Field</button>
-          <button data-view="list" aria-pressed="false">☰ List</button>
-          <button data-view="special" aria-pressed="false" title="Special teams">Special</button>
-        </div>
+  <body class="landing">
+    <nav class="site-nav">
+      <a href="/all" class="site-brand">🏟️ Depth Charts</a>
+      <div class="site-links">
+        <a href="/nfl" data-s="nfl">🏈 NFL</a>
+        <a href="/nhl" data-s="nhl">🏒 NHL</a>
+        <a href="/nba" data-s="nba">🏀 NBA</a>
+        <a href="/mls" data-s="mls">⚽ MLS</a>
       </div>
+    </nav>
 
-      <div class="controls">
-        <div class="control-row offense-row">
-          <span class="row-tag">Offense</span>
-          <label>
-            <span>Team</span>
-            <select id="offense-team"></select>
-          </label>
-          <label>
-            <span>Personnel</span>
-            <select id="personnel-select"></select>
-          </label>
-          <label>
-            <span>Season</span>
-            <select id="offense-season"></select>
-          </label>
-        </div>
-        <div class="control-row defense-row">
-          <span class="row-tag">Defense</span>
-          <label>
-            <span>Team</span>
-            <select id="defense-team"></select>
-          </label>
-          <label>
-            <span>Formation</span>
-            <select id="formation-select"></select>
-          </label>
-          <label>
-            <span>Season</span>
-            <select id="defense-season"></select>
-          </label>
-        </div>
-        <div class="control-row actions">
-          <button id="refresh" title="Fetch the latest data from ESPN">↻ Refresh</button>
-          <button id="reset" title="Put players back to their starting spots">↺ Reset positions</button>
-        </div>
-      </div>
-
-      <div class="legend">
-        <span>Injury status:</span>
-        <span class="badge out">Out / IR</span>
-        <span class="badge questionable">Questionable</span>
-        <span class="badge other">Other</span>
-      </div>
+    <header class="landing-hero">
+      <h1>🏟️ Starting Lineups, Every Sport</h1>
+      <p>Two teams face off on the field, ice, court or pitch. Click any player to open the full depth chart behind them — live from ESPN.</p>
     </header>
 
-    <!-- Status line for loading / errors (announced to screen readers) -->
-    <p id="status" class="status" role="status" aria-live="polite"></p>
-
-    <!-- The football field. app.js fills in the two halves.
-         Defense is on top, offense on the bottom (they meet at the line of scrimmage).
-         On narrow screens the field scrolls sideways inside this wrapper. -->
-    <div class="field-scroll">
-    <main class="field" id="field">
-      <div class="field-half defense-half">
-        <div class="tint" id="defense-tint"></div>
-        <div class="formation-label" id="defense-formation"></div>
-        <div class="players" id="defense-players"></div>
-      </div>
-
-      <div class="midline"><span>LINE OF SCRIMMAGE</span></div>
-
-      <div class="field-half offense-half">
-        <div class="tint" id="offense-tint"></div>
-        <div class="players" id="offense-players"></div>
-        <div class="formation-label" id="offense-formation"></div>
-      </div>
+    <main class="sport-grid">
+      <a class="sport-card" style="--card:#00338d" href="/nfl">
+        <div class="emoji">🏈</div>
+        <h2>NFL</h2>
+        <p>Offense vs defense on the field. Personnel packages, formations, past seasons and Madden ratings.</p>
+        <span class="tag">Full depth chart</span>
+      </a>
+      <a class="sport-card" style="--card:#00468b" href="/nhl">
+        <div class="emoji">🏒</div>
+        <h2>NHL</h2>
+        <p>Starting lines on the rink — forwards, defense pairs and the goalie, ranked by production.</p>
+        <span class="tag">32 teams</span>
+      </a>
+      <a class="sport-card" style="--card:#c8102e" href="/nba">
+        <div class="emoji">🏀</div>
+        <h2>NBA</h2>
+        <p>Starting fives on the court, with the full depth chart at every position.</p>
+        <span class="tag">30 teams</span>
+      </a>
+      <a class="sport-card" style="--card:#1f7a43" href="/mls">
+        <div class="emoji">⚽</div>
+        <h2>MLS</h2>
+        <p>Each team's real starting XI in its most recent formation, on the pitch.</p>
+        <span class="tag">30 teams</span>
+      </a>
+      <span class="sport-card soon" style="--card:#8a6d3b">
+        <div class="emoji">🎓</div>
+        <h2>College FB</h2>
+        <p>FBS depth charts — pending a reliable data source.</p>
+        <span class="tag">Coming soon</span>
+      </span>
     </main>
-    </div>
-    <!-- Only shown on phones in field view: the field is wider than the screen. -->
-    <p id="scroll-hint" class="scroll-hint">← swipe the field sideways to see every player →</p>
 
-    <!-- List view (used on phones and as a keyboard/screen-reader friendly
-         alternative to the field). app.js fills it in. -->
-    <div id="list-view" class="list-view hidden"></div>
-
-    <!-- Special teams view: kickers, punters, returners, etc. for both teams. -->
-    <div id="st-view" class="list-view hidden"></div>
-
-    <!-- Popover that shows the full depth chart when you click a position.
-         It's a modal dialog: focus moves in, is trapped, and returns on close. -->
-    <div id="depth-popover" class="popover hidden" role="dialog" aria-modal="true" aria-labelledby="popover-title">
-      <div class="popover-head">
-        <span id="popover-title"></span>
-        <button id="popover-close" aria-label="Close depth chart">✕</button>
-      </div>
-      <ol id="popover-list"></ol>
-      <div class="popover-note">OVR = Madden NFL overall rating (EA) · Age via ESPN</div>
-    </div>
-
-    <!-- teams.js is shared with the server; it defines the 32-team dropdown list. -->
-    <script src="teams.js"></script>
-    <script src="app.js"></script>
+    <p class="landing-foot">Data via ESPN. A hobby project — not affiliated with any league.</p>
+    <script src="/nav.js"></script>
   </body>
 </html>

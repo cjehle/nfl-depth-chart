@@ -1,0 +1,47 @@
+/* shared.css — the site nav (all pages) + the landing page. */
+:root {
+  --nav-bg: #081109;
+  --nav-ink: #eaf2ec;
+  --nav-muted: #8fb0a0;
+  --nav-accent: #3ea06a;
+}
+* { box-sizing: border-box; }
+
+/* ---- top nav (on every page) ---- */
+.site-nav {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 8px 16px; background: var(--nav-bg); border-bottom: 1px solid #1c3b28;
+  position: sticky; top: 0; z-index: 200;
+}
+.site-nav .site-brand { color: var(--nav-ink); font-weight: 800; text-decoration: none; font-size: 15px; letter-spacing: 0.2px; }
+.site-nav .site-links { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.site-nav .site-links a {
+  color: var(--nav-muted); text-decoration: none; font-size: 13px; font-weight: 700;
+  padding: 6px 11px; border-radius: 8px; border: 1px solid transparent; white-space: nowrap;
+}
+.site-nav .site-links a:hover { color: var(--nav-ink); background: #10271a; }
+.site-nav .site-links a.active { color: #06140b; background: var(--nav-accent); }
+.site-nav .site-links a.soon { opacity: 0.5; pointer-events: none; }
+
+/* ---- landing page ---- */
+body.landing {
+  margin: 0; color: var(--nav-ink); min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: radial-gradient(1200px 600px at 50% -10%, #12331f, #0b1f12);
+}
+.landing-hero { max-width: 900px; margin: 0 auto; padding: 46px 20px 10px; text-align: center; }
+.landing-hero h1 { font-size: 34px; margin: 0 0 10px; }
+.landing-hero p { color: var(--nav-muted); font-size: 15px; margin: 0 auto; max-width: 560px; line-height: 1.5; }
+.sport-grid { max-width: 900px; margin: 26px auto 60px; padding: 0 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.sport-card {
+  display: block; text-decoration: none; color: var(--nav-ink);
+  background: #0f2a1a; border: 1px solid #1c3b28; border-top: 4px solid var(--card, #3ea06a);
+  border-radius: 14px; padding: 22px 18px; transition: transform 0.08s ease, box-shadow 0.12s ease;
+}
+.sport-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px #0007; }
+.sport-card .emoji { font-size: 34px; }
+.sport-card h2 { margin: 8px 0 4px; font-size: 20px; }
+.sport-card p { margin: 0; color: var(--nav-muted); font-size: 13px; line-height: 1.45; }
+.sport-card.soon { opacity: 0.55; pointer-events: none; }
+.sport-card .tag { display: inline-block; margin-top: 10px; font-size: 11px; font-weight: 800; color: #06140b; background: var(--card, #3ea06a); padding: 2px 8px; border-radius: 999px; }
+.landing-foot { text-align: center; color: var(--nav-muted); font-size: 12px; padding-bottom: 40px; }

@@ -1,98 +1,63 @@
-# 🏈 NFL Depth Chart — Starters on the Field
+# Depth Charts — all sports, one site 🏟️
 
-A web app that puts a team's **starting defense on top** and its **starting offense on the bottom**
-of a football field, meeting at the line of scrimmage. Click any position for the full depth chart.
-Data is **live** — lineups and injuries come straight from ESPN, so nothing is ever a stale snapshot.
+Two teams' **starting lineups** on the field / ice / court / pitch, live from ESPN.
+Click any player for the **full depth chart** behind them. One small Node server
+(no dependencies) serves every sport by route:
 
-Defaults to the **Buffalo Bills** on both sides, but you can set any matchup and browse past seasons.
+| Route | Sport | View |
+|-------|-------|------|
+| `/`     | Landing | Pick a sport |
+| `/nfl`  | 🏈 NFL | Offense vs defense on the field — personnel packages, formations, past seasons (2020+), Madden OVR, special teams |
+| `/nhl`  | 🏒 NHL | Starting lines on the rink (ranked by last season's production) |
+| `/nba`  | 🏀 NBA | Starting five on the court (ESPN's real depth chart) |
+| `/mls`  | ⚽ MLS | Real starting XI in its most recent formation, on the pitch |
+| `/cfb`  | 🎓 College FB | Coming soon — see **CFB status** below |
 
-## Features
+## Run it
 
-- **Field or List view** — a diagram, or a keyboard/screen-reader-friendly list (default on phones).
-- **Click / tap / Enter** any position → full depth chart popover with each player's **age** and an
-  **OVR** rating (Madden — a free stand-in for PFF; PFF has no public API).
-- **Drag players** around their half of the field (they can't cross the line of scrimmage); your
-  arrangement is remembered. **Reset positions** clears it.
-- **Offensive personnel** — 11 / 12 / 10 / 21 / 13.
-- **Defensive formation** — Base / Nickel / Dime / Quarter-Prevent / Goal Line.
-- **Season picker per side** — the current season plus real history back to 2020.
-- **Team colors + logos**, injury badges, and a season label per side.
-- **Shareable** — the whole matchup lives in the URL, so a bookmarked/pasted link restores the view.
-- **Accessible** — keyboard-navigable chips, a real focus-trapped modal, WCAG-contrast colors,
-  44px tap targets, `prefers-reduced-motion` support.
-
-## Run it locally
-
-Needs [Node.js](https://nodejs.org) 20+ (you have it via nvm). **No `npm install`** — zero
-dependencies. From this folder:
+Node 20+ (no `npm install` needed — zero dependencies):
 
 ```bash
-node server.js
+npm start
 ```
 
-Then open `http://localhost:3000`. `Ctrl + C` to stop. Run the tests with:
+Then open **http://localhost:3000**.
 
-```bash
-npm test
-```
+## How it works
 
-## Make it a public website
+- **`server.js`** — one HTTP server (gzip, ETag caching, security headers, per-IP
+  rate limiting, disk last-good fallback). Routes pages (`/nfl` … `/mls`) and two
+  API surfaces:
+  - **NFL:** `GET /api/depth?team=&year=&fresh=` and `GET /api/ages?ids=&year=`
+  - **Others:** `GET /api/config?sport=` and `GET /api/lineup?sport=&team=&fresh=`
+  - `GET /healthz`
+- **`lib/nfl.js`** — the NFL engine (ESPN live + nflverse history + EA Madden).
+- **`lib/espn.js`** — the shared engine for NHL/NBA/MLS (three lineup builders:
+  `depth` = ESPN's ranked chart, `match` = last match's XI/formation for soccer,
+  `statrank` = roster ranked by production for hockey).
+- **`sports/{nhl,nba,mls}.js`** — small per-sport configs.
+- **`public/`** — `index.html` (landing), `nfl/` (the NFL app), `surface/` (the
+  NHL/NBA/MLS app), plus shared `nav.js` + `shared.css`.
 
-See **[DEPLOY.md](DEPLOY.md)** — buy the domain, push to GitHub, deploy free on Render, point DNS.
-(You do the account/payment clicks; the code is already configured via `render.yaml`.)
+## Deploying (your accounts, your logins)
 
-## How updates work
+One free service covers the whole site:
 
-The app doesn't store data — every visit fetches current info and caches it briefly before
-re-checking:
+1. Create an empty GitHub repo (e.g. `depth-charts`).
+2. Push this folder to it (SSH already set up on this machine).
+3. In Render: **New ▸ Blueprint** → pick the repo → **Apply** (reads `render.yaml`).
+   Free plan, no payment.
+4. Point a domain (e.g. `depthchart.com`) at it in Cloudflare (free), same as the
+   Bills site.
 
-| Data | Re-checks | Env var |
-|------|-----------|---------|
-| Depth chart + injuries | daily | `DEPTH_TTL_HOURS` (24) |
-| Madden ratings | monthly | `MADDEN_TTL_DAYS` (30) |
+## Data notes
 
-The **Refresh** button forces an immediate re-pull.
-
-## About past seasons
-
-ESPN only serves the *current* roster, so past seasons come from the open **nflverse** historical
-depth charts (opening-week lineup for the year). Age is computed **as of that season** and labeled as
-such. Historical **Madden** comes from that season's game where EA still serves it:
-
-| Season | Depth chart | Madden |
-|--------|-------------|--------|
-| current | ESPN (live) | current game |
-| 2025 | nflverse (newer format) | Madden 26 ✅ |
-| 2024 | nflverse | — (EA endpoint empty) |
-| 2021–2023 | nflverse | Madden 22–24 ✅ |
-| 2020 | nflverse | — (EA endpoint down) |
-
-Injuries are current-only; past seasons show none. When a rating isn't available the popup says so
-rather than showing a wrong/current number.
-
-## Endpoints
-
-- `GET /api/depth?team=<id>&year=<season>&fresh=1` — tidy lineup JSON.
-- `GET /api/ages?ids=1,2,3&year=<season>` — ages for a batch of players.
-- `GET /healthz` — liveness + counters (no upstream calls; used by Render's health check).
-
-## Files
-
-| File | Job |
-|------|-----|
-| `server.js` | Web server: serves the page, fetches + merges + caches ESPN/nflverse/EA data. |
-| `lib/util.js` | Pure helpers (CSV, name matching, ages, position mapping, lineup shaping). |
-| `teams.js` | 32 teams + shared season constants (used by server **and** browser). |
-| `public/index.html`, `public/style.css`, `public/app.js` | The page. |
-| `test/util.test.js` | Unit tests for the pure helpers (`npm test`). |
-| `render.yaml`, `DEPLOY.md` | Deploy config + step-by-step guide. |
-
-## Notes
-
-- Free hosting tiers sleep after ~15 min idle → the first visit after a lull takes ~30s to wake
-  (and refreshes data), then it's fast. A free pinger hitting `/healthz` keeps it awake.
-- The app is hardened for public use: security headers + CSP, gzip, ETag/304, per-IP rate limiting,
-  request size caps, timeouts/retries, and a last-good disk cache so a brief upstream outage doesn't
-  take the site down.
-- Data sources are unofficial (ESPN, EA, nflverse). If one changes shape, that piece degrades to
-  "—" and the rest keeps working.
+All data is ESPN's public JSON (no key). Honest caveats:
+- **NBA/MLS** — real starters (NBA depth chart / MLS last-match XI).
+- **NHL** — ESPN's hockey depth feed is broken (returns retired players), so lines
+  are **projected from last season's production**; real players + stats, labeled.
+- **CFB** — ESPN has no CFB depth API, and CollegeFootballData has no depth chart
+  (its usage data is offense-skill-only). The one real source is ESPN's own CFB
+  depth page (`cdn.espn.com`), which is blocked on the dev machine's corporate
+  proxy — so it gets tested **after deploy** from Render. If it works, CFB ships;
+  if not, it stays "coming soon" rather than fabricating a lineup.
