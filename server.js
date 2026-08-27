@@ -227,25 +227,6 @@ const server = http.createServer(async (req, res) => {
         try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit)); return done(200); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }
-      // Temporary diagnostic: can this server reach ESPN's real CFB depth feed
-      // (proxy-blocked on the dev machine) to later upgrade /cfb to verified depth?
-      if (urlPath === "/api/cfbprobe") {
-        let team = params.get("team"); if (!isNumericId(team)) team = "333";
-        const urls = [
-          `https://cdn.espn.com/core/college-football/team/depth?xhr=1&id=${team}`,
-          `https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/2025/teams/${team}/depthcharts`,
-        ];
-        const out = [];
-        for (const u of urls) {
-          try {
-            const r = await fetch(u, { headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
-            const t = await r.text();
-            out.push({ url: u, status: r.status, len: t.length, sample: t.slice(0, 400) });
-          } catch (e) { out.push({ url: u, err: String(e) }); }
-        }
-        sendJson(req, res, 200, { probe: out }); return done(200);
-      }
-
       sendJson(req, res, 404, { error: "Not found" }); return done(404);
     }
 
