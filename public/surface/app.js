@@ -42,19 +42,20 @@ function bioLine(p) {
 // ---------------------------------------------------------------------------
 // FETCH (per-side cache: switching the view never refetches a team)
 // ---------------------------------------------------------------------------
-async function fetchLineup(teamId, fresh) {
+async function fetchLineup(teamId, fresh, unit) {
   // Always ask for fresh data so the lineup updates on every load. The server
   // coalesces this to at most one ESPN pull per team per ~60s (fast + polite).
-  const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1`);
+  const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1${unit ? `&unit=${unit}` : ""}`);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
   return data;
 }
-async function getSide(side, teamId, fresh) {
+async function getSide(side, teamId, fresh, unit) {
   const c = sideCache[side];
-  if (!fresh && c.key === teamId && c.data) return c.data;
-  const data = await fetchLineup(teamId, fresh);
-  c.key = teamId; c.data = data;
+  const ck = `${teamId}:${unit || ""}`;
+  if (!fresh && c.key === ck && c.data) return c.data;
+  const data = await fetchLineup(teamId, fresh, unit);
+  c.key = ck; c.data = data;
   return data;
 }
 
@@ -242,7 +243,7 @@ function openDepth(title, players) {
     if (i === 0) li.className = "starter";
     const badgeClass = injuryClass(p.injury);
     const badge = badgeClass ? `<span class="badge ${badgeClass}">${esc(p.injury)}</span>` : "";
-    const age = p.age != null ? `${p.age} yrs` : "";
+    const age = p.classYear ? p.classYear : (p.age != null ? `${p.age} yrs` : "");
     const bio = bioLine(p);
     li.innerHTML = `
       <div class="p-main">
@@ -288,7 +289,8 @@ async function render(fresh) {
   const idA = teamASelect.value, idB = teamBSelect.value;
   writeState();
   try {
-    const [dataA, dataB] = await Promise.all([getSide("A", idA, fresh), getSide("B", idB, fresh)]);
+    const unitA = CONFIG.dualUnit ? "offense" : null, unitB = CONFIG.dualUnit ? "defense" : null;
+    const [dataA, dataB] = await Promise.all([getSide("A", idA, fresh, unitA), getSide("B", idB, fresh, unitB)]);
     if (gen !== renderGen) return;
     const sigA = `${CONFIG.sport}:A:${idA}`, sigB = `${CONFIG.sport}:B:${idB}`;
     decorateBand(document.getElementById("bandA"), document.getElementById("tintA"), dataA, false);
@@ -356,6 +358,10 @@ function fillTeams(sel) {
   document.getElementById("field-label").textContent = `${CONFIG.emoji} ${surfaceWord(CONFIG.surface)}`;
   document.getElementById("midlabel").textContent = midWord(CONFIG.surface);
   document.getElementById("surface").dataset.surface = CONFIG.surface;
+  if (CONFIG.dualUnit) { // football: two teams' offense vs defense
+    document.getElementById("tagA").textContent = "Offense";
+    document.getElementById("tagB").textContent = "Defense";
+  }
 
   fillTeams(teamASelect); fillTeams(teamBSelect);
   teamASelect.value = CONFIG.defaults.a; teamBSelect.value = CONFIG.defaults.b;
@@ -375,4 +381,4 @@ function fillTeams(sel) {
 })();
 
 function surfaceWord(s) { return s === "court" ? "Court" : s === "pitch" ? "Pitch" : s === "rink" ? "Ice" : "Field"; }
-function midWord(s) { return s === "court" ? "HALF COURT" : s === "pitch" ? "MIDFIELD" : s === "rink" ? "CENTER ICE" : "MIDFIELD"; }
+function midWord(s) { return s === "court" ? "HALF COURT" : s === "pitch" ? "MIDFIELD" : s === "rink" ? "CENTER ICE" : s === "field" ? "LINE OF SCRIMMAGE" : "MIDFIELD"; }

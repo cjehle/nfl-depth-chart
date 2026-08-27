@@ -29,27 +29,30 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const LINEUP_TTL = (Number(process.env.LINEUP_TTL_HOURS) || 12) * 3600e3;
 
 // Surface sports (rink/court/pitch), each a small config module.
-const SURFACE = { nhl: require("./sports/nhl.js"), nba: require("./sports/nba.js"), mls: require("./sports/mls.js") };
+const SURFACE = {
+  nhl: require("./sports/nhl.js"), nba: require("./sports/nba.js"), mls: require("./sports/mls.js"),
+  cbb: require("./sports/cbb.js"), cfb: require("./sports/cfb.js"),
+};
 const surfaceTeamSets = Object.fromEntries(Object.entries(SURFACE).map(([k, cfg]) => [k, new Map(cfg.teams.map((t) => [String(t.id), t]))]));
 function publicConfig(sport) {
   const cfg = SURFACE[sport];
   return {
     sport: cfg.key, name: cfg.name, emoji: cfg.emoji, title: cfg.title, tagline: cfg.tagline,
-    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults,
-    teams: cfg.teams.map((t) => ({ id: String(t.id), abbr: t.abbr, name: t.name, short: t.short, color: t.color, alt: t.alt, logo: t.logo })),
+    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit,
+    teams: cfg.teams.map((t) => ({ id: String(t.id), abbr: t.abbr, name: t.name, short: t.short, color: t.color, alt: t.alt, logo: t.logo, conf: t.conf })),
   };
 }
 
 // Surface lineup cache (TTL + single-flight + disk last-good), keyed by sport+team.
 const lineupStore = new Map();
-async function getLineup(sport, teamId, fresh) {
-  const key = `${sport}:${teamId}`;
+async function getLineup(sport, teamId, fresh, unit) {
+  const key = `${sport}:${teamId}:${unit || ""}`;
   const existing = lineupStore.get(key);
   if (fresh) { if (existing && "value" in existing && Date.now() - existing.time > 60000) lineupStore.delete(key); }
   else if (existing && "value" in existing) stats.cacheHits++;
   try {
     return await cached(lineupStore, key, LINEUP_TTL, async () => {
-      const data = await buildLineup(SURFACE[sport], surfaceTeamSets[sport].get(String(teamId)));
+      const data = await buildLineup(SURFACE[sport], surfaceTeamSets[sport].get(String(teamId)), unit);
       writeDisk(key, data);
       return data;
     });
@@ -121,7 +124,7 @@ function rateLimited(ip) {
 }
 const isNumericId = (s) => /^\d+$/.test(s || "");
 // Home is the all-sports hub; each sport has its own route. (/all kept as an alias.)
-const PAGE_ROUTES = { "/": "index.html", "/all": "index.html", "/nfl": "nfl/index.html", "/nhl": "surface/index.html", "/nba": "surface/index.html", "/mls": "surface/index.html" };
+const PAGE_ROUTES = { "/": "index.html", "/all": "index.html", "/nfl": "nfl/index.html", "/nhl": "surface/index.html", "/nba": "surface/index.html", "/mls": "surface/index.html", "/cfb": "surface/index.html", "/cbb": "surface/index.html" };
 
 const server = http.createServer(async (req, res) => {
   const t0 = Date.now();
@@ -167,7 +170,9 @@ const server = http.createServer(async (req, res) => {
         if (!SURFACE[sport]) { sendJson(req, res, 400, { error: "Unknown sport" }); return done(400); }
         const teamId = params.get("team") || SURFACE[sport].defaults.a;
         if (!isNumericId(teamId) || !surfaceTeamSets[sport].has(teamId)) { sendJson(req, res, 400, { error: "Unknown team" }); return done(400); }
-        try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1")); return done(200); }
+        const unitParam = params.get("unit");
+        const unit = unitParam === "defense" ? "defense" : unitParam === "offense" ? "offense" : null;
+        try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit)); return done(200); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }
       sendJson(req, res, 404, { error: "Not found" }); return done(404);
