@@ -35,8 +35,11 @@ const LINEUP_TTL = (Number(process.env.LINEUP_TTL_HOURS) || 12) * 3600e3;
 // broken config can never take down the whole server — it's just skipped.
 const SURFACE = {};
 for (const key of ["nhl", "nba", "mls", "cbb", "cfb", "mlb", "mch", "wnba"]) {
-  try { SURFACE[key] = require(`./sports/${key}.js`); }
-  catch (e) { console.error(`sport "${key}" failed to load (skipped):`, e && e.message); }
+  try {
+    const cfg = require(`./sports/${key}.js`);
+    if (!Array.isArray(cfg.teams) || !cfg.teams.length) throw new Error("missing/empty teams array");
+    SURFACE[key] = cfg; // only register a fully-valid config (so startup can't throw later)
+  } catch (e) { console.error(`sport "${key}" failed to load (skipped):`, e && e.message); }
 }
 const surfaceTeamSets = Object.fromEntries(Object.entries(SURFACE).map(([k, cfg]) => [k, new Map(cfg.teams.map((t) => [String(t.id), t]))]));
 function publicConfig(sport) {
@@ -90,7 +93,9 @@ async function getGolfRankings() {
     })).filter((r) => r.rank != null).sort((a, b) => a.rank - b.rank);
     const disk = readDisk("golf");
     if (rankings.length) writeDisk("golf", { updated: d.last_updated || new Date().toISOString(), rankings });
-    return rankings.length ? { updated: d.last_updated || new Date().toISOString(), rankings } : (disk || { updated: null, rankings: [] });
+    if (rankings.length) return { updated: d.last_updated || new Date().toISOString(), rankings };
+    if (disk) return disk;
+    throw new Error("empty golf rankings"); // don't cache an empty result — retry next request
   });
 }
 
@@ -200,7 +205,7 @@ const buckets = new Map();
 function rateLimited(ip) {
   const now = Date.now(), cap = 120, refill = 2;
   let b = buckets.get(ip);
-  if (!b) { if (buckets.size > 10000) for (const [k, v] of buckets) if (v.tokens >= cap) buckets.delete(k); b = { tokens: cap, last: now }; buckets.set(ip, b); }
+  if (!b) { if (buckets.size > 10000) for (const [k, v] of buckets) if (Math.min(cap, v.tokens + ((now - v.last) / 1000) * refill) >= cap) buckets.delete(k); b = { tokens: cap, last: now }; buckets.set(ip, b); }
   b.tokens = Math.min(cap, b.tokens + ((now - b.last) / 1000) * refill); b.last = now;
   if (b.tokens < 1) return true; b.tokens -= 1; return false;
 }
@@ -246,7 +251,7 @@ const server = http.createServer(async (req, res) => {
       }
       if (urlPath === "/api/ages") {
         const year = Number(params.get("year")) || nfl.currentNflSeason();
-        const ids = (params.get("ids") || "").split(",").filter(isNumericId).slice(0, 40);
+        const ids = (params.get("ids") || "").split(",").filter(isNumericId).slice(0, 24);
         const ages = {};
         await Promise.all(ids.map(async (id) => { try { ages[id] = nfl.ageFromDob((await nfl.getAthlete(id)).dob, year); } catch { ages[id] = null; } }));
         sendJson(req, res, 200, { ages }, { "Cache-Control": "public, max-age=86400" }); return done(200);

@@ -11,6 +11,7 @@ module.exports = {
   surface: "court",
   espn: { sport: "basketball", league: "nba" },
   kind: "depth",
+  seasonEndYear: true, // ESPN labels NBA seasons by END year (2027 = 2026-27); roll over in the fall
   note: "Age, bio & depth chart via ESPN",
   defaults: { a: "13", b: "2" }, // Lakers vs Celtics
   teams: TEAMS,

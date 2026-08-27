@@ -54,10 +54,16 @@ function relTime(iso) {
 async function fetchLineup(teamId, fresh, unit) {
   // Always ask for fresh data so the lineup updates on every load. The server
   // coalesces this to at most one ESPN pull per team per ~60s (fast + polite).
-  const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1${unit ? `&unit=${unit}` : ""}`);
-  const data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data;
+  // A 20s client timeout means a stuck request drops to the Retry button instead
+  // of hanging on the loading spinner forever.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1${unit ? `&unit=${unit}` : ""}`, { signal: ctrl.signal });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data;
+  } finally { clearTimeout(timer); }
 }
 async function getSide(side, teamId, fresh, unit) {
   const c = sideCache[side];
@@ -379,6 +385,10 @@ function fillTeams(sel) {
     CONFIG = await (await fetch(`/api/config?sport=${SPORT}`)).json();
   } catch {
     document.getElementById("status").textContent = "Could not load configuration.";
+    return;
+  }
+  if (!CONFIG || CONFIG.error || !Array.isArray(CONFIG.teams) || !CONFIG.teams.length) {
+    document.getElementById("status").textContent = "This sport is temporarily unavailable.";
     return;
   }
   TEAM_BY_ID = new Map(CONFIG.teams.map((t) => [String(t.id), t]));

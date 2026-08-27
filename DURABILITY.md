@@ -67,9 +67,11 @@ Nothing here needs code or Claude — it's account hygiene:
 5. **A sport shows "no lineup" for a while:** almost always an upstream (ESPN) format
    change — a one-file fix in `sports/<sport>.js` or `lib/espn.js` / `lib/nfl.js`. The
    rest of the site is unaffected in the meantime.
-6. **Refresh the team dropdowns** (only needed after league realignment / a new team):
-   re-run the small enumeration scripts that built `data/*-teams.json` (kept in the
-   project's scratch history) or hand-edit the JSON — id, name, color, logo.
+6. **Refresh the team dropdowns** (only after realignment / a new team): run
+   `npm run gen-teams` (regenerates `data/*-teams.json` from ESPN; skips any list
+   that comes back short, so a glitchy pull can't blank a dropdown), then commit
+   `data/`. Refresh the cold-start fallback copies with `npm run gen-seeds`, then
+   commit `data/seed/`.
 7. **Optional keys** (set as env vars in Render; never in code): `DATAGOLF_KEY` turns on
    the Golf rankings page; `ANALYTICS_TOKEN` turns on Cloudflare Web Analytics.
 
