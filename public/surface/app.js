@@ -300,7 +300,7 @@ async function render(fresh) {
   const idA = teamASelect.value, idB = teamBSelect.value;
   writeState();
   try {
-    const unitA = CONFIG.dualUnit ? "offense" : null, unitB = CONFIG.dualUnit ? "defense" : null;
+    const unitA = CONFIG.dualUnit ? CONFIG.units[0] : null, unitB = CONFIG.dualUnit ? CONFIG.units[1] : null;
     const [dataA, dataB] = await Promise.all([getSide("A", idA, fresh, unitA), getSide("B", idB, fresh, unitB)]);
     if (gen !== renderGen) return;
     const sigA = `${CONFIG.sport}:A:${idA}`, sigB = `${CONFIG.sport}:B:${idB}`;
@@ -355,7 +355,8 @@ function readState() {
 }
 
 function fillTeams(sel) {
-  for (const t of CONFIG.teams) {
+  const teams = [...CONFIG.teams].sort((a, b) => a.name.localeCompare(b.name)); // alphabetical
+  for (const t of teams) {
     const opt = document.createElement("option");
     opt.value = t.id; opt.textContent = t.name;
     sel.appendChild(opt);
@@ -377,9 +378,9 @@ function fillTeams(sel) {
   document.getElementById("field-label").textContent = `${CONFIG.emoji} ${surfaceWord(CONFIG.surface)}`;
   document.getElementById("midlabel").textContent = midWord(CONFIG.surface);
   document.getElementById("surface").dataset.surface = CONFIG.surface;
-  if (CONFIG.dualUnit) { // football: two teams' offense vs defense
-    document.getElementById("tagA").textContent = "Offense";
-    document.getElementById("tagB").textContent = "Defense";
+  if (CONFIG.dualUnit && CONFIG.unitLabels) { // e.g. Offense/Defense (CFB) or 1st/2nd Line (NHL)
+    document.getElementById("tagA").textContent = CONFIG.unitLabels[0];
+    document.getElementById("tagB").textContent = CONFIG.unitLabels[1];
   }
 
   fillTeams(teamASelect); fillTeams(teamBSelect);
@@ -408,5 +409,5 @@ function fillTeams(sel) {
   }, 240000);
 })();
 
-function surfaceWord(s) { return s === "court" ? "Court" : s === "pitch" ? "Pitch" : s === "rink" ? "Ice" : "Field"; }
-function midWord(s) { return s === "court" ? "HALF COURT" : s === "pitch" ? "MIDFIELD" : s === "rink" ? "CENTER ICE" : s === "field" ? "LINE OF SCRIMMAGE" : "MIDFIELD"; }
+function surfaceWord(s) { return s === "court" ? "Court" : s === "pitch" ? "Pitch" : s === "rink" ? "Ice" : s === "diamond" ? "Diamond" : "Field"; }
+function midWord(s) { return s === "court" ? "HALF COURT" : s === "pitch" ? "MIDFIELD" : s === "rink" ? "CENTER ICE" : s === "field" ? "LINE OF SCRIMMAGE" : s === "diamond" ? "VS" : "MIDFIELD"; }

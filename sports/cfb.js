@@ -18,9 +18,12 @@ module.exports = {
   surface: "field",
   espn: { sport: "football", league: "college-football" },
   kind: "roster",
+  classYears: true,
   dualUnit: true,
+  units: ["offense", "defense"],
+  unitLabels: ["Offense", "Defense"],
   note: "Roster by class (seniors first) · not a verified depth chart · via ESPN",
-  defaults: { a: "194", b: "130" }, // Ohio State offense vs Michigan defense
+  defaults: { a: "193", b: "193" }, // Miami (OH) offense vs Miami (OH) defense
   teams: TEAMS,
   bucket: (pos) => {
     const a = (pos || "").toUpperCase();

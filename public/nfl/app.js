@@ -517,7 +517,15 @@ const statusEl = document.getElementById("status");
 let viewMode = "field"; // or "list"
 
 // One half's header band: team logo (built as DOM, no inline handlers), name, etc.
-function decorateHalf(teamId, unitWord, formationName, season, labelEl, tintEl) {
+function relTime(iso) {
+  if (!iso) return "just now";
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} hr ago`;
+  return `${Math.round(s / 86400)} d ago`;
+}
+function decorateHalf(teamId, unitWord, formationName, season, record, labelEl, tintEl) {
   const team = TEAM_BY_ID.get(String(teamId));
   const color = (team && team.color) || "#333333";
   labelEl.textContent = "";
@@ -538,7 +546,8 @@ function decorateHalf(teamId, unitWord, formationName, season, labelEl, tintEl) 
 async function render(fresh) {
   const gen = ++renderGen; // if a newer render starts, this one won't paint stale data
   closeDepth();
-  statusEl.textContent = fresh ? "Refreshing…" : "Loading latest lineups…";
+  statusEl.textContent = fresh ? "⟳ Refreshing…" : "⟳ Loading latest lineups…";
+  document.getElementById("field").classList.add("loading");
 
   const offenseId = offenseSelect.value, defenseId = defenseSelect.value;
   const personnel = personnelSelect.value, formation = formationSelect.value;
@@ -558,9 +567,9 @@ async function render(fresh) {
     const offTitle = `${offData.team} OFFENSE · ${OFFENSE_PERSONNEL[personnel].short} (${offData.season})`;
     const defTitle = `${defData.team} DEFENSE · ${DEFENSE_FORMATION[formation].short} (${defData.season})`;
 
-    decorateHalf(defenseId, "DEFENSE", DEFENSE_FORMATION[formation].short, defData.season,
+    decorateHalf(defenseId, "DEFENSE", DEFENSE_FORMATION[formation].short, defData.season, defData.record,
       document.getElementById("defense-formation"), document.getElementById("defense-tint"));
-    decorateHalf(offenseId, "OFFENSE", OFFENSE_PERSONNEL[personnel].short, offData.season,
+    decorateHalf(offenseId, "OFFENSE", OFFENSE_PERSONNEL[personnel].short, offData.season, offData.record,
       document.getElementById("offense-formation"), document.getElementById("offense-tint"));
 
     const offSig = `off:${offenseId}:${offData.season}:${personnel}`;
@@ -574,8 +583,16 @@ async function render(fresh) {
     render._sigs = [offSig, defSig];
 
     statusEl.textContent = "";
+    const u = document.getElementById("updated");
+    if (u) u.textContent = "Updated " + relTime(offData.fetchedAt || defData.fetchedAt);
   } catch (err) {
-    statusEl.textContent = "Could not load data: " + err.message;
+    statusEl.textContent = "Couldn't load right now. ";
+    const b = document.createElement("button");
+    b.className = "retry"; b.textContent = "Retry";
+    b.addEventListener("click", () => render(true));
+    statusEl.appendChild(b);
+  } finally {
+    document.getElementById("field").classList.remove("loading");
   }
 }
 
@@ -623,7 +640,8 @@ function readState() {
 // Dropdown fillers
 // ---------------------------------------------------------------------------
 function fillDropdown(sel) {
-  for (const team of window.NFL_TEAMS) {
+  const teams = [...window.NFL_TEAMS].sort((a, b) => a.name.localeCompare(b.name)); // alphabetical
+  for (const team of teams) {
     const opt = document.createElement("option");
     opt.value = team.id; opt.textContent = team.name;
     sel.appendChild(opt);
@@ -670,3 +688,12 @@ fillSeasons(defenseSeasonSelect);
 readState();
 applyView();
 render();
+
+// Keep the page live: quietly re-pull every 4 min (skips when hidden, a depth
+// chart is open, or a chip is mid-drag).
+setInterval(() => {
+  if (document.visibilityState !== "visible") return;
+  if (!popover.classList.contains("hidden")) return;
+  if (document.querySelector(".chip.dragging")) return;
+  render(true);
+}, 240000);

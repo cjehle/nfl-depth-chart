@@ -107,6 +107,9 @@ body {
   color: #ffd47a;
   font-size: 14px;
 }
+.status .retry { margin-left: 8px; background: #17442a; color: #eaf2ec; border: 1px solid #2c5c3d; border-radius: 8px; padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.updated { margin-left: 10px; font-size: 11px; color: #9fb0a4; white-space: nowrap; }
+.field.loading { opacity: 0.5; transition: opacity 0.15s ease; }
 
 /* ---------- The field ---------- */
 /* On narrow screens the field is wider than the viewport, so it scrolls

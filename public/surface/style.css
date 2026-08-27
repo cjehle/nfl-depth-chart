@@ -131,6 +131,18 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
     radial-gradient(circle at 50% 97%, #ff8a3d 0 4px, transparent 5px);
 }
 
+/* baseball diamond (two teams share a central infield) */
+.surface[data-surface="diamond"] { aspect-ratio: 0.92; background: linear-gradient(180deg, #2f7a43, #256a3a); }
+.surface[data-surface="diamond"]::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 42%; height: 42%; z-index: 1; pointer-events: none;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 2px solid #ffffff66; background: #b9793e40; border-radius: 6px;
+}
+.surface[data-surface="diamond"]::after {
+  content: ""; position: absolute; inset: 8px; z-index: 1; pointer-events: none;
+  background: linear-gradient(#ffffff55, #ffffff55) 50% 50% / 100% 2px no-repeat;
+}
+
 /* football field */
 .surface[data-surface="field"] { aspect-ratio: 0.82; background: repeating-linear-gradient(0deg, #1f7a43 0 9.09%, #1c7040 9.09% 18.18%); }
 .surface[data-surface="field"]::before {

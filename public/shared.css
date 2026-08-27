@@ -23,6 +23,10 @@
 .site-nav .site-links a.active { color: #06140b; background: var(--nav-accent); }
 .site-nav .site-links a.soon { opacity: 0.5; pointer-events: none; }
 
+/* "back to all sports" link on each sport page */
+.back-link { display: inline-block; margin: 14px 0 2px; color: #7fd4a1; text-decoration: none; font-size: 13px; font-weight: 700; }
+.back-link:hover { color: #eaf2ec; }
+
 /* ---- landing page ---- */
 body.landing {
   margin: 0; color: var(--nav-ink); min-height: 100vh;

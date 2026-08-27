@@ -1,0 +1,137 @@
+[
+ {
+  "id": "20",
+  "abbr": "ATL",
+  "name": "Atlanta Dream",
+  "short": "Dream",
+  "color": "#e31837",
+  "alt": "#5091cc",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/atl.png"
+ },
+ {
+  "id": "19",
+  "abbr": "CHI",
+  "name": "Chicago Sky",
+  "short": "Sky",
+  "color": "#5091cd",
+  "alt": "#ffd520",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/chi.png"
+ },
+ {
+  "id": "18",
+  "abbr": "CON",
+  "name": "Connecticut Sun",
+  "short": "Sun",
+  "color": "#f05023",
+  "alt": "#0a2240",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/con.png"
+ },
+ {
+  "id": "3",
+  "abbr": "DAL",
+  "name": "Dallas Wings",
+  "short": "Wings",
+  "color": "#002b5c",
+  "alt": "#c4d600",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/dal.png"
+ },
+ {
+  "id": "129689",
+  "abbr": "GS",
+  "name": "Golden State Valkyries",
+  "short": "Valkyries",
+  "color": "#b38fcf",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/gs.png"
+ },
+ {
+  "id": "5",
+  "abbr": "IND",
+  "name": "Indiana Fever",
+  "short": "Fever",
+  "color": "#002d62",
+  "alt": "#e03a3e",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/ind.png"
+ },
+ {
+  "id": "17",
+  "abbr": "LV",
+  "name": "Las Vegas Aces",
+  "short": "Aces",
+  "color": "#a7a8aa",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/lv.png"
+ },
+ {
+  "id": "6",
+  "abbr": "LA",
+  "name": "Los Angeles Sparks",
+  "short": "Sparks",
+  "color": "#552583",
+  "alt": "#fdb927",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/la.png"
+ },
+ {
+  "id": "8",
+  "abbr": "MIN",
+  "name": "Minnesota Lynx",
+  "short": "Lynx",
+  "color": "#266092",
+  "alt": "#79bc43",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/min.png"
+ },
+ {
+  "id": "9",
+  "abbr": "NY",
+  "name": "New York Liberty",
+  "short": "Liberty",
+  "color": "#86cebc",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/ny.png"
+ },
+ {
+  "id": "11",
+  "abbr": "PHX",
+  "name": "Phoenix Mercury",
+  "short": "Mercury",
+  "color": "#3c286e",
+  "alt": "#fa4b0a",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/phx.png"
+ },
+ {
+  "id": "132052",
+  "abbr": "POR",
+  "name": "Portland Fire",
+  "short": "Fire",
+  "color": "#cee5eb",
+  "alt": "#000000",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/por.png"
+ },
+ {
+  "id": "14",
+  "abbr": "SEA",
+  "name": "Seattle Storm",
+  "short": "Storm",
+  "color": "#2c5235",
+  "alt": "#fee11a",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/sea.png"
+ },
+ {
+  "id": "131935",
+  "abbr": "TOR",
+  "name": "Toronto Tempo",
+  "short": "Tempo",
+  "color": "#33476D",
+  "alt": "#7B1B38",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/tor.png"
+ },
+ {
+  "id": "16",
+  "abbr": "WSH",
+  "name": "Washington Mystics",
+  "short": "Mystics",
+  "color": "#e03a3e",
+  "alt": "#002b5c",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/wsh.png"
+ }
+]

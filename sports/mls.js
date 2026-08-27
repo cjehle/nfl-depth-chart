@@ -13,7 +13,7 @@ module.exports = {
   espn: { sport: "soccer", league: "usa.1" },
   kind: "match",
   note: "Starting XI & formation from each team's last match · via ESPN",
-  defaults: { a: "187", b: "18966" }, // LA Galaxy vs LAFC (El Tráfico)
+  defaults: { a: "182", b: "20232" }, // Chicago Fire vs Inter Miami
   teams: TEAMS,
   bio: (a) => ({
     extra: a.citizenship || [a.birthPlace?.city, a.birthPlace?.country].filter(Boolean).join(", "),

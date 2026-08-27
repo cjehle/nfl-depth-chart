@@ -32,13 +32,15 @@ const LINEUP_TTL = (Number(process.env.LINEUP_TTL_HOURS) || 12) * 3600e3;
 const SURFACE = {
   nhl: require("./sports/nhl.js"), nba: require("./sports/nba.js"), mls: require("./sports/mls.js"),
   cbb: require("./sports/cbb.js"), cfb: require("./sports/cfb.js"),
+  mlb: require("./sports/mlb.js"), mch: require("./sports/mch.js"),
+  wnba: require("./sports/wnba.js"),
 };
 const surfaceTeamSets = Object.fromEntries(Object.entries(SURFACE).map(([k, cfg]) => [k, new Map(cfg.teams.map((t) => [String(t.id), t]))]));
 function publicConfig(sport) {
   const cfg = SURFACE[sport];
   return {
     sport: cfg.key, name: cfg.name, emoji: cfg.emoji, title: cfg.title, tagline: cfg.tagline,
-    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit,
+    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
     teams: cfg.teams.map((t) => ({ id: String(t.id), abbr: t.abbr, name: t.name, short: t.short, color: t.color, alt: t.alt, logo: t.logo, conf: t.conf })),
   };
 }
@@ -123,6 +125,9 @@ const OG = {
   mls: { title: "MLS Starting XIs on the Pitch", desc: "Each team's real starting XI in its most recent formation. Live from ESPN.", img: "/og/mls.png", path: "/mls" },
   cfb: { title: "College Football Rosters on the Field", desc: "Big Ten, SEC, Big 12, MAC (+ Pac-12) — one team's offense vs another's defense, by position.", img: "/og/cfb.png", path: "/cfb" },
   cbb: { title: "College Basketball Rosters on the Court", desc: "Big Ten, SEC, Big 12, MAC rosters by position on the court.", img: "/og/cbb.png", path: "/cbb" },
+  mlb: { title: "MLB Lineups on the Diamond", desc: "Two teams' lineups on the diamond + full depth chart at every position. Live from ESPN.", img: "/og/mlb.png", path: "/mlb" },
+  mch: { title: "College Hockey Rosters on the Ice", desc: "Hockey East, Big Ten, NCHC, CCHA, Atlantic Hockey & ECAC rosters by position on the rink.", img: "/og/mch.png", path: "/mch" },
+  wnba: { title: "WNBA Rosters on the Court", desc: "All WNBA teams' rosters by position on the court. Live from ESPN.", img: "/og/wnba.png", path: "/wnba" },
 };
 const FAVICON = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8F%9F%EF%B8%8F</text></svg>";
 function headFor(key) {
@@ -176,6 +181,8 @@ const PAGE_ROUTES = {
   "/nfl": { rel: "nfl/index.html", og: "nfl" },
   "/nhl": { rel: "surface/index.html", og: "nhl" }, "/nba": { rel: "surface/index.html", og: "nba" }, "/mls": { rel: "surface/index.html", og: "mls" },
   "/cfb": { rel: "surface/index.html", og: "cfb" }, "/cbb": { rel: "surface/index.html", og: "cbb" },
+  "/mlb": { rel: "surface/index.html", og: "mlb" }, "/mch": { rel: "surface/index.html", og: "mch" },
+  "/wnba": { rel: "surface/index.html", og: "wnba" },
 };
 
 const server = http.createServer(async (req, res) => {
@@ -223,7 +230,7 @@ const server = http.createServer(async (req, res) => {
         const teamId = params.get("team") || SURFACE[sport].defaults.a;
         if (!isNumericId(teamId) || !surfaceTeamSets[sport].has(teamId)) { sendJson(req, res, 400, { error: "Unknown team" }); return done(400); }
         const unitParam = params.get("unit");
-        const unit = unitParam === "defense" ? "defense" : unitParam === "offense" ? "offense" : null;
+        const unit = ["offense", "defense", "line1", "line2"].includes(unitParam) ? unitParam : null;
         try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit)); return done(200); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }

@@ -18,8 +18,13 @@ module.exports = {
   // ESPN's NHL depth chart is unmaintained (it returns retired players), so we
   // rank the real current roster by last season's production instead.
   kind: "statrank",
+  // Two "sides" are the two lines of the SAME team by default (line 1 vs line 2),
+  // ranked by production. Pick different teams to compare across clubs.
+  dualUnit: true,
+  units: ["line1", "line2"],
+  unitLabels: ["1st Line", "2nd Line"],
   note: "Lines projected from last season's production · roster & stats via ESPN",
-  defaults: { a: "2", b: "1" }, // Buffalo Sabres vs Boston Bruins
+  defaults: { a: "2", b: "2" }, // Buffalo Sabres — 1st line vs 2nd line
   teams: TEAMS,
   bio: (a) => ({ extra: birthplace(a), pos: a.position?.abbreviation || "" }),
   // On-ice spots for one team (own net at top, attacking downward toward center).
