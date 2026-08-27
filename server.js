@@ -301,7 +301,25 @@ server.on("error", (e) => console.error("server error:", e && e.message));
 server.keepAliveTimeout = 65000; // play nice behind proxies/load balancers
 server.headersTimeout = 66000;
 
+// Pre-warm the default matchup for every sport shortly after boot. Render's free
+// tier spins down after inactivity and its disk is ephemeral, so after a cold
+// start the caches are empty — this fills them in the background so the first
+// visitor gets an instant, working page instead of waiting on (or erroring from)
+// a slow first upstream call. Entirely best-effort; failures are ignored.
+async function prewarm() {
+  const jobs = [];
+  if (nfl) jobs.push(nfl.getTeamData("2", nfl.currentNflSeason(), false).catch(() => {}));
+  for (const [sport, cfg] of Object.entries(SURFACE)) {
+    const d = cfg.defaults || {};
+    if (d.a) jobs.push(getLineup(sport, d.a, false, cfg.units ? cfg.units[0] : null).catch(() => {}));
+    if (cfg.dualUnit && d.b) jobs.push(getLineup(sport, d.b, false, cfg.units ? cfg.units[1] : null).catch(() => {}));
+  }
+  await Promise.allSettled(jobs);
+  console.log(`prewarm complete (${jobs.length} default lineups)`);
+}
+
 server.listen(PORT, () => {
   console.log(`\n🏟️  All-Sports Depth Charts running!  Open  http://localhost:${PORT}`);
   console.log(`   sports loaded: NFL${nfl ? "" : "(disabled)"}, ${Object.keys(SURFACE).join(", ")}\n`);
+  setTimeout(() => { prewarm().catch(() => {}); }, 800); // don't block startup
 });

@@ -25,3 +25,14 @@ jobs:
           done
           # Confirm it's serving again after the refresh.
           curl -fsS --max-time 90 "$BASE/api/depth?team=2" -o /dev/null && echo "verified" || true
+
+      - name: Alert if the site is unreachable
+        # Fails this workflow (→ GitHub emails you) ONLY if the site can't be
+        # reached after several tries — a free, no-dependency uptime alert.
+        run: |
+          BASE="https://billsdepthchart.com"
+          for i in 1 2 3 4; do
+            if curl -fsS --max-time 90 "$BASE/healthz" -o /dev/null; then echo "site is up"; exit 0; fi
+            echo "attempt $i: unreachable, retrying in 20s…"; sleep 20
+          done
+          echo "::error::billsdepthchart.com is unreachable after 4 attempts"; exit 1

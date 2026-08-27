@@ -42,13 +42,40 @@ depth chart. MLS uses each team's last-match XI. NHL projects lines from last se
 production. College + WNBA show real rosters by position (ESPN has no depth chart for
 those). See the per-sport notes in the code.
 
-## Maintaining it without Claude
-- **Change anything:** edit files → `git commit` → `git push origin main`. Render redeploys in ~1–2 min.
-- **Run locally:** `npm start` → http://localhost:3000. **Tests:** `npm test`.
-- **Roll back:** `git revert HEAD && git push` (or Render dashboard → an older deploy → Redeploy).
-- **Only realistic long-term upkeep:** if ESPN/nflverse/EA change a data format, one
-  sport may show "no lineup" — a one-file fix in `lib/*.js` or `sports/*.js`. Nothing
-  expires or needs renewal on its own.
+## Self-updating (no one has to touch it)
+- **Data updates itself.** Every page load pulls fresh data (coalesced to ≤1 upstream
+  call per team per ~60s); pages also auto-refresh every 4 min while open.
+- **It survives cold starts.** On boot the server pre-warms every sport's default
+  matchup, so the first visitor after a free-tier spin-down gets an instant page.
+- **A daily GitHub Action** warms all sports and, if the site is ever unreachable,
+  **fails the run so GitHub emails you** — a free uptime alert.
+- **The site does NOT depend on that Action, on the cron, or on Claude.** Even if the
+  Action is disabled, the site keeps serving and updating on every visit.
+
+## Operations runbook (keep it alive forever)
+Nothing here needs code or Claude — it's account hygiene:
+1. **Domain:** keep `billsdepthchart.com` renewed in Cloudflare (bought long — just don't
+   let it lapse). If it ever lapses, the site still works at the `…onrender.com` URL.
+2. **Render account:** stay signed up (free). If Render emails about the free service,
+   click to keep it. Optional: upgrade to always-on to remove cold starts.
+3. **GitHub Actions 60-day rule:** GitHub auto-disables *scheduled* workflows after 60
+   days with no repo commits. If that happens you only lose the daily warm + uptime
+   email — the site still runs. Re-enable anytime: repo → **Actions → Daily refresh →
+   Enable**, or just push any commit (resets the clock).
+4. **Roll back a bad change:** `git revert HEAD && git push`, or Render dashboard → an
+   older deploy → **Redeploy**.
+5. **A sport shows "no lineup" for a while:** almost always an upstream (ESPN) format
+   change — a one-file fix in `sports/<sport>.js` or `lib/espn.js` / `lib/nfl.js`. The
+   rest of the site is unaffected in the meantime.
+6. **Refresh the team dropdowns** (only needed after league realignment / a new team):
+   re-run the small enumeration scripts that built `data/*-teams.json` (kept in the
+   project's scratch history) or hand-edit the JSON — id, name, color, logo.
+7. **Optional keys** (set as env vars in Render; never in code): `DATAGOLF_KEY` turns on
+   the Golf rankings page; `ANALYTICS_TOKEN` turns on Cloudflare Web Analytics.
+
+## Change / run it yourself
+- **Change anything:** edit files → `git commit` → `git push origin main` → Render redeploys in ~1–2 min.
+- **Run locally:** `npm start` → http://localhost:3000. **Tests:** `npm test` (must stay green).
 
 ## Cost
 $0 on the current free tiers (Render + Cloudflare + GitHub Actions). Optional paid
