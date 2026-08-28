@@ -15,6 +15,8 @@ module.exports = {
   // falls back to roster-by-class in the offseason / when box data is thin.
   kind: "boxstart",
   history: true, // past seasons via box scores
+  formations: ["Balanced", "Small ball", "Two bigs", "Three guard"], // court alignment sets (client re-places)
+  formationMode: "court",
   classYears: true,
   note: "Typical starting five (recent games), else roster by class · via ESPN",
   defaults: { a: "305", b: "193" }, // DePaul (home) vs Miami (OH)

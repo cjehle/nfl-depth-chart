@@ -14,6 +14,8 @@ module.exports = {
   espn: { sport: "soccer", league: "usa.1" },
   kind: "match",
   history: true, // past seasons via schedule?season
+  formations: ["4-3-3", "4-4-2", "4-2-3-1", "4-1-4-1", "3-5-2", "3-4-3", "5-3-2"], // Formation dropdown
+  formationMode: "server",
   note: "Typical starting XI & formation from recent matches · EA FC ratings · via ESPN",
   defaults: { a: "182", b: "20232" }, // Chicago Fire vs Inter Miami
   teams: TEAMS,

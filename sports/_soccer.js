@@ -15,6 +15,8 @@ module.exports = function makeSoccerLeague({ key, name, league, defaults, rating
     espn: { sport: "soccer", league },
     kind: "match",
     history: true, // supports a past-season selector (ESPN keeps schedules by season)
+    formations: ["4-3-3", "4-4-2", "4-2-3-1", "4-1-4-1", "3-5-2", "3-4-3", "5-3-2"], // Formation dropdown
+    formationMode: "server", // server re-arranges the XI into the picked formation
     note: `Typical starting XI & formation from recent matches${ratings ? " · EA FC ratings" : ""} · via ESPN`,
     defaults,
     teams: require(`../data/${key}-teams.json`),

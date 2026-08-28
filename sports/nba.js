@@ -14,6 +14,8 @@ module.exports = {
   // chart when box data is thin (early season). seasonEndYear drives that fallback.
   kind: "boxstart",
   history: true, // past seasons via box scores
+  formations: ["Balanced", "Small ball", "Two bigs", "Three guard"], // court alignment sets (client re-places)
+  formationMode: "court",
   boxFallback: "depth",
   seasonEndYear: true, // ESPN labels NBA seasons by END year (2027 = 2026-27); roll over in the fall
   note: "Typical starting five (recent games) · via ESPN",

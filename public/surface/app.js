@@ -14,6 +14,15 @@ let draftStatus = false; // does this sport carry NHL draft status? (college hoc
 let seasonYear = null;   // selected past season (null = current)
 let compareMode = false;                 // tap-two-players-to-compare mode
 const pinned = { A: null, B: null };     // {face, teamName} pinned per side
+let formationValue = null;               // soccer formation override (server re-arranges)
+let courtSet = null;                     // basketball court alignment set (client re-places)
+// Client-side court alignment presets (basketball), keyed by chip slot.
+const COURT_SETS = {
+  "Balanced": { PG: [50, 50], SG: [84, 40], SF: [16, 40], PF: [38, 23], C: [55, 16] },
+  "Small ball": { PG: [50, 52], SG: [86, 44], SF: [14, 44], PF: [72, 30], C: [50, 15] },
+  "Two bigs": { PG: [50, 52], SG: [84, 43], SF: [16, 43], PF: [38, 20], C: [60, 14] },
+  "Three guard": { PG: [50, 52], SG: [80, 46], SF: [20, 46], PF: [36, 25], C: [60, 17] },
+};
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -76,6 +85,7 @@ function draftPill(d) {
 // ---------------------------------------------------------------------------
 // FETCH (per-side cache: switching the view never refetches a team)
 // ---------------------------------------------------------------------------
+function formationParam() { return CONFIG.formationMode === "server" && formationValue ? `&formation=${encodeURIComponent(formationValue)}` : ""; }
 async function fetchLineup(teamId, fresh, unit, year) {
   // Always ask for fresh data so the lineup updates on every load. The server
   // coalesces this to at most one ESPN pull per team per ~60s (fast + polite).
@@ -85,7 +95,7 @@ async function fetchLineup(teamId, fresh, unit, year) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), year ? 30000 : 20000);
   try {
-    const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1${unit ? `&unit=${unit}` : ""}${year ? `&year=${year}` : ""}`, { signal: ctrl.signal });
+    const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1${unit ? `&unit=${unit}` : ""}${year ? `&year=${year}` : ""}${formationParam()}`, { signal: ctrl.signal });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     return data;
@@ -93,7 +103,7 @@ async function fetchLineup(teamId, fresh, unit, year) {
 }
 async function getSide(side, teamId, fresh, unit, year) {
   const c = sideCache[side];
-  const ck = `${teamId}:${unit || ""}:${year || ""}`;
+  const ck = `${teamId}:${unit || ""}:${year || ""}:${formationValue || ""}`;
   if (!fresh && c.key === ck && c.data) return c.data;
   const data = await fetchLineup(teamId, fresh, unit, year);
   c.key = ck; c.data = data;
@@ -202,8 +212,11 @@ function renderTeamOnSurface(containerId, data, mirror, sig) {
   data.chips.forEach((ch, i) => {
     const chipKey = `${ch.key}#${i}`;
     const chip = makeChip(ch, data.team.abbr, data.team.color, () => persistChip(sig, chipKey, chip), side, data.team.name);
-    chip.style.left = ch.x + "%";
-    chip.style.top = (mirror ? 100 - ch.y : ch.y) + "%";
+    let cx = ch.x, cy = ch.y;
+    const set = courtSet && CONFIG.formationMode === "court" && COURT_SETS[courtSet]; // basketball alignment
+    if (set && set[ch.key]) { cx = set[ch.key][0]; cy = set[ch.key][1]; }
+    chip.style.left = cx + "%";
+    chip.style.top = (mirror ? 100 - cy : cy) + "%";
     const pos = saved[chipKey];
     if (pos) { chip.style.left = pos.left; chip.style.top = pos.top; }
     container.appendChild(chip);
@@ -533,6 +546,8 @@ function setView(m) {
 function writeState() {
   const p = new URLSearchParams({ a: teamASelect.value, b: teamBSelect.value, v: viewMode });
   if (seasonYear) p.set("s", String(seasonYear));
+  const f = CONFIG.formationMode === "court" ? courtSet : formationValue;
+  if (f) p.set("f", f);
   try { history.replaceState(null, "", "?" + p.toString()); } catch {}
   try { localStorage.setItem(`sdc.${CONFIG.sport}.state`, p.toString()); } catch {}
 }
@@ -545,6 +560,8 @@ function readState() {
   setSel(teamASelect, get("a")); setSel(teamBSelect, get("b"));
   const seasonSel = document.getElementById("season");
   if (seasonSel) { const s = get("s"); if (s != null && [...seasonSel.options].some((o) => o.value === s)) { seasonSel.value = s; seasonYear = s ? Number(s) : null; } }
+  const fSel = document.getElementById("formation");
+  if (fSel) { const f = get("f"); if (f != null && [...fSel.options].some((o) => o.value === f)) { fSel.value = f; if (CONFIG.formationMode === "court") courtSet = f || null; else formationValue = f || null; } }
   // View: an explicit URL ?v= wins (shareable); otherwise a per-DEVICE saved
   // preference, else the device default (desktop → surface, mobile → list). Scoping
   // by device means choosing List on a phone doesn't hide the surface on desktop.
@@ -630,6 +647,26 @@ function fillSeasons(sel) {
       seasonSel.addEventListener("change", () => {
         seasonYear = seasonSel.value ? Number(seasonSel.value) : null;
         sideCache.A = { key: null, data: null }; sideCache.B = { key: null, data: null };
+        render(false);
+      });
+    }
+  }
+
+  // Formation selector — soccer re-arranges the XI server-side into the picked
+  // formation; basketball re-places the five client-side into a court set.
+  if (CONFIG.formations && CONFIG.formations.length) {
+    const fsel = document.getElementById("formation");
+    const picker = fsel && fsel.closest(".formation-picker");
+    if (fsel && picker) {
+      const isCourt = CONFIG.formationMode === "court";
+      document.getElementById("formation-label").textContent = isCourt ? "Court set" : "Formation";
+      const auto = document.createElement("option"); auto.value = ""; auto.textContent = isCourt ? "Default" : "Auto"; fsel.appendChild(auto);
+      for (const f of CONFIG.formations) { const o = document.createElement("option"); o.value = f; o.textContent = f; fsel.appendChild(o); }
+      picker.classList.remove("hidden");
+      fsel.addEventListener("change", () => {
+        if (isCourt) courtSet = fsel.value || null;
+        else { formationValue = fsel.value || null; sideCache.A = { key: null, data: null }; sideCache.B = { key: null, data: null }; }
+        writeState();
         render(false);
       });
     }
