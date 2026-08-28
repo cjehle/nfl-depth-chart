@@ -121,6 +121,7 @@ body {
 .field {
   position: relative;
   max-width: 900px;
+  container-type: inline-size; /* chips size off the field width (no edge clipping on narrow) */
   margin: 8px auto 40px;
   border: 4px solid #ffffff33;
   border-radius: 10px;
@@ -192,7 +193,7 @@ body {
 .chip {
   position: absolute;
   transform: translate(-50%, -50%);
-  width: 84px;
+  width: clamp(60px, 10cqw, 88px);
   padding: 4px 5px 5px;
   border-radius: 10px;
   background: #ffffff;
@@ -225,7 +226,7 @@ body {
   color: #4a6a56;
 }
 .chip .name {
-  font-size: 11.5px;
+  font-size: clamp(9.5px, 1.5cqw, 11.5px);
   font-weight: 700;
   line-height: 1.12;
   margin-top: 1px;

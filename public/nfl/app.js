@@ -618,7 +618,12 @@ function applyView() {
     b.setAttribute("aria-pressed", String(on));
   });
 }
-function setView(mode) { viewMode = mode; applyView(); writeState(); }
+function setView(mode) {
+  viewMode = mode;
+  const dc = window.matchMedia("(max-width: 760px)").matches ? "m" : "d";
+  try { localStorage.setItem("nfl.view." + dc, mode); } catch {}
+  applyView(); writeState();
+}
 
 // ---------------------------------------------------------------------------
 // STATE in the URL (shareable) + localStorage (sticky). URL wins on load.
@@ -639,9 +644,13 @@ function readState() {
   const setSel = (sel, v) => { if (v != null && [...sel.options].some((o) => o.value === v)) sel.value = v; };
   setSel(offenseSelect, get("ot")); setSel(personnelSelect, get("op")); setSel(offenseSeasonSelect, get("os"));
   setSel(defenseSelect, get("dt")); setSel(formationSelect, get("df")); setSel(defenseSeasonSelect, get("ds"));
-  const v = get("v");
-  // Phones default to List (no sideways scrolling); desktop defaults to Field.
-  viewMode = ["field", "list", "special"].includes(v) ? v : (window.matchMedia("(max-width: 760px)").matches ? "list" : "field");
+  // Explicit URL ?v= wins; else a per-device saved preference; else the device
+  // default (desktop → Field, phone → List). Device-scoped so a phone's List
+  // choice doesn't hide the field on desktop.
+  const urlV = url.get("v");
+  const dc = window.matchMedia("(max-width: 760px)").matches ? "m" : "d";
+  let devPref = null; try { devPref = localStorage.getItem("nfl.view." + dc); } catch {}
+  viewMode = ["field", "list", "special"].includes(urlV) ? urlV : (["field", "list", "special"].includes(devPref) ? devPref : (dc === "m" ? "list" : "field"));
 }
 
 // ---------------------------------------------------------------------------

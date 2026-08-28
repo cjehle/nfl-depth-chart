@@ -455,7 +455,12 @@ function applyView() {
     b.setAttribute("aria-pressed", String(on));
   });
 }
-function setView(m) { viewMode = m; applyView(); writeState(); }
+function setView(m) {
+  viewMode = m;
+  const dc = window.matchMedia("(max-width: 760px)").matches ? "m" : "d";
+  try { localStorage.setItem("sdc.view." + dc, m); } catch {}
+  applyView(); writeState();
+}
 
 // ---- state (URL + localStorage; URL wins on load) ----
 function writeState() {
@@ -473,8 +478,13 @@ function readState() {
   setSel(teamASelect, get("a")); setSel(teamBSelect, get("b"));
   const seasonSel = document.getElementById("season");
   if (seasonSel) { const s = get("s"); if (s != null && [...seasonSel.options].some((o) => o.value === s)) { seasonSel.value = s; seasonYear = s ? Number(s) : null; } }
-  const v = get("v");
-  viewMode = ["field", "list"].includes(v) ? v : (window.matchMedia("(max-width: 760px)").matches ? "list" : "field");
+  // View: an explicit URL ?v= wins (shareable); otherwise a per-DEVICE saved
+  // preference, else the device default (desktop → surface, mobile → list). Scoping
+  // by device means choosing List on a phone doesn't hide the surface on desktop.
+  const urlV = url.get("v");
+  const dc = window.matchMedia("(max-width: 760px)").matches ? "m" : "d";
+  let devPref = null; try { devPref = localStorage.getItem("sdc.view." + dc); } catch {}
+  viewMode = ["field", "list"].includes(urlV) ? urlV : (["field", "list"].includes(devPref) ? devPref : (dc === "m" ? "list" : "field"));
 }
 
 function fillTeams(sel, conf) {

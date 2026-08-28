@@ -22,7 +22,8 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 .tagline { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; line-height: 1.4; }
 .tagline strong { color: var(--ink); }
 
-.view-toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.view-toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.view-toggle { flex: 0 0 auto; } /* never let the Court/List switch truncate */
 .view-label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
 .season-picker { display: flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
 .season-picker select { text-transform: none; letter-spacing: 0; background: #0c2416; color: var(--ink); border: 1px solid #29513a; border-radius: 8px; padding: 5px 8px; font-size: 13px; }
@@ -61,6 +62,7 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
   position: relative;
   width: 100%;
   min-width: 520px;
+  container-type: inline-size; /* chips size themselves off the surface width */
   aspect-ratio: 0.82;
   border-radius: 14px;
   overflow: hidden;
@@ -204,7 +206,8 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 /* ---- player chips ---- */
 .chip {
   position: absolute; transform: translate(-50%, -50%);
-  width: 86px; min-height: 38px; padding: 4px 5px 5px;
+  /* Scale with the surface so chips don't overlap/clip on narrow + tablet widths. */
+  width: clamp(60px, 14cqw, 88px); min-height: 38px; padding: 4px 5px 5px;
   background: #0c2416f2; color: var(--ink);
   border: 1px solid #2c5c3d; border-top: 3px solid var(--accent);
   border-radius: 9px; text-align: center; cursor: pointer;
@@ -214,7 +217,7 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 .chip:hover, .chip:focus { outline: none; box-shadow: 0 0 0 2px var(--accent), 0 6px 16px #0008; z-index: 20; }
 .chip.dragging { opacity: 0.92; box-shadow: 0 10px 22px #000a; z-index: 30; }
 .chip .pos { font-size: 9.5px; letter-spacing: 0.3px; color: var(--muted); font-weight: 700; }
-.chip .name { font-size: 12px; font-weight: 700; line-height: 1.15; margin-top: 1px; }
+.chip .name { font-size: clamp(10px, 2.1cqw, 12px); font-weight: 700; line-height: 1.15; margin-top: 1px; }
 .chip .depth-count { font-size: 9px; color: #7fd4a1; margin-top: 2px; }
 .chip .badge { position: absolute; top: -8px; right: -6px; }
 /* Video-game overall rating (Madden/EA FC/The Show), like a card OVR. */
