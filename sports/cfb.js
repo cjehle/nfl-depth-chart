@@ -9,6 +9,35 @@ const DL = /^(DL|DE|DT|NT|EDGE|NG)$/;
 const LB = /^(LB|ILB|OLB|MLB|WLB|SLB|MIKE|WILL|SAM)$/;
 const DB = /^(DB|CB|S|FS|SS|SAF|NB|NCB)$/;
 
+// Field-spot builder. Surface convention: higher y = closer to the line of
+// scrimmage (offense on the bottom half, defense on the top). Each package below
+// pulls the Nth-ranked player (faceRank) of a bucket into a fixed spot; the whole
+// bucket rides along as that spot's depth list.
+const P = (key, label, bucket, faceRank, group, x, y) => ({ key, label, bucket, faceRank, group, x, y });
+const OLINE = [
+  P("LT", "OL", "ol", 1, "O-Line", 30, 88), P("LG", "OL", "ol", 2, "O-Line", 41, 88),
+  P("C", "OL", "ol", 3, "O-Line", 50, 88), P("RG", "OL", "ol", 4, "O-Line", 59, 88),
+  P("RT", "OL", "ol", 5, "O-Line", 70, 88),
+];
+const DLINE4 = [P("DL1", "DL", "dl", 1, "D-Line", 20, 88), P("DL2", "DL", "dl", 2, "D-Line", 40, 88), P("DL3", "DL", "dl", 3, "D-Line", 60, 88), P("DL4", "DL", "dl", 4, "D-Line", 80, 88)];
+const DLINE3 = [P("DL1", "DL", "dl", 1, "D-Line", 28, 88), P("DL2", "DL", "dl", 2, "D-Line", 50, 88), P("DL3", "DL", "dl", 3, "D-Line", 72, 88)];
+const CB2 = [P("DB1", "DB", "db", 1, "Secondary", 9, 80), P("DB2", "DB", "db", 2, "Secondary", 91, 80)]; // outside corners
+
+// Offense personnel groupings (1st digit = RBs, 2nd = TEs; the rest are WRs).
+const OFF = {
+  "11": [...OLINE, P("QB", "QB", "qb", 1, "Backfield", 50, 73), P("RB", "RB", "rb", 1, "Backfield", 50, 60), P("TE", "TE", "te", 1, "Receivers", 79, 86), P("WR1", "WR", "wr", 1, "Receivers", 9, 88), P("WR2", "WR", "wr", 2, "Receivers", 91, 88), P("WR3", "WR", "wr", 3, "Receivers", 23, 81)],
+  "12": [...OLINE, P("QB", "QB", "qb", 1, "Backfield", 50, 73), P("RB", "RB", "rb", 1, "Backfield", 50, 60), P("TE1", "TE", "te", 1, "Receivers", 79, 86), P("TE2", "TE", "te", 2, "Receivers", 21, 86), P("WR1", "WR", "wr", 1, "Receivers", 9, 88), P("WR2", "WR", "wr", 2, "Receivers", 91, 88)],
+  "21": [...OLINE, P("QB", "QB", "qb", 1, "Backfield", 50, 74), P("RB", "RB", "rb", 1, "Backfield", 44, 60), P("FB", "FB", "rb", 2, "Backfield", 56, 66), P("TE", "TE", "te", 1, "Receivers", 79, 86), P("WR1", "WR", "wr", 1, "Receivers", 9, 88), P("WR2", "WR", "wr", 2, "Receivers", 91, 88)],
+  "10": [...OLINE, P("QB", "QB", "qb", 1, "Backfield", 50, 73), P("RB", "RB", "rb", 1, "Backfield", 50, 60), P("WR1", "WR", "wr", 1, "Receivers", 8, 88), P("WR2", "WR", "wr", 2, "Receivers", 92, 88), P("WR3", "WR", "wr", 3, "Receivers", 20, 82), P("WR4", "WR", "wr", 4, "Receivers", 80, 82)],
+};
+// Defensive fronts (DL–LB–DB counts).
+const DEF = {
+  "base": [...DLINE4, P("LB1", "LB", "lb", 1, "Linebackers", 28, 72), P("LB2", "LB", "lb", 2, "Linebackers", 50, 72), P("LB3", "LB", "lb", 3, "Linebackers", 72, 72), ...CB2, P("DB3", "DB", "db", 3, "Secondary", 38, 56), P("DB4", "DB", "db", 4, "Secondary", 62, 56)],
+  "nickel": [...DLINE4, P("LB1", "LB", "lb", 1, "Linebackers", 35, 72), P("LB2", "LB", "lb", 2, "Linebackers", 65, 72), ...CB2, P("DB3", "DB", "db", 3, "Secondary", 30, 60), P("DB4", "DB", "db", 4, "Secondary", 70, 60), P("DB5", "DB", "db", 5, "Secondary", 50, 52)],
+  "dime": [...DLINE4, P("LB1", "LB", "lb", 1, "Linebackers", 50, 72), ...CB2, P("DB3", "DB", "db", 3, "Secondary", 28, 64), P("DB4", "DB", "db", 4, "Secondary", 72, 64), P("DB5", "DB", "db", 5, "Secondary", 40, 52), P("DB6", "DB", "db", 6, "Secondary", 60, 52)],
+  "3-4": [...DLINE3, P("LB1", "LB", "lb", 1, "Linebackers", 14, 72), P("LB2", "LB", "lb", 2, "Linebackers", 38, 72), P("LB3", "LB", "lb", 3, "Linebackers", 62, 72), P("LB4", "LB", "lb", 4, "Linebackers", 86, 72), ...CB2, P("DB3", "DB", "db", 3, "Secondary", 38, 56), P("DB4", "DB", "db", 4, "Secondary", 62, 56)],
+};
+
 module.exports = {
   key: "cfb",
   name: "College Football",
@@ -39,35 +68,13 @@ module.exports = {
     return null; // K/P/LS/ATH etc. — not placed on the field
   },
   bio: (a) => ({ extra: [a.birthPlace?.city, a.birthPlace?.state].filter(Boolean).join(", "), pos: a.position?.abbreviation || "" }),
-  // Field spacing mirrors the NFL page: the line of scrimmage is at midfield
-  // (high y), the O-line/D-line meet there, and the backfield / secondary spread
-  // toward each end zone. (Surface convention: higher y = closer to the LoS.)
-  layouts: {
-    offense: [
-      { key: "LT", label: "OL", bucket: "ol", faceRank: 1, group: "O-Line", x: 30, y: 88 },
-      { key: "LG", label: "OL", bucket: "ol", faceRank: 2, group: "O-Line", x: 41, y: 88 },
-      { key: "C", label: "OL", bucket: "ol", faceRank: 3, group: "O-Line", x: 50, y: 88 },
-      { key: "RG", label: "OL", bucket: "ol", faceRank: 4, group: "O-Line", x: 59, y: 88 },
-      { key: "RT", label: "OL", bucket: "ol", faceRank: 5, group: "O-Line", x: 70, y: 88 },
-      { key: "TE", label: "TE", bucket: "te", faceRank: 1, group: "Receivers", x: 79, y: 86 },
-      { key: "WR1", label: "WR", bucket: "wr", faceRank: 1, group: "Receivers", x: 9, y: 88 },
-      { key: "WR2", label: "WR", bucket: "wr", faceRank: 2, group: "Receivers", x: 91, y: 88 },
-      { key: "WR3", label: "WR", bucket: "wr", faceRank: 3, group: "Receivers", x: 23, y: 81 },
-      { key: "QB", label: "QB", bucket: "qb", faceRank: 1, group: "Backfield", x: 50, y: 73 },
-      { key: "RB", label: "RB", bucket: "rb", faceRank: 1, group: "Backfield", x: 50, y: 60 },
-    ],
-    defense: [
-      { key: "DL1", label: "DL", bucket: "dl", faceRank: 1, group: "D-Line", x: 20, y: 88 },
-      { key: "DL2", label: "DL", bucket: "dl", faceRank: 2, group: "D-Line", x: 40, y: 88 },
-      { key: "DL3", label: "DL", bucket: "dl", faceRank: 3, group: "D-Line", x: 60, y: 88 },
-      { key: "DL4", label: "DL", bucket: "dl", faceRank: 4, group: "D-Line", x: 80, y: 88 },
-      { key: "LB1", label: "LB", bucket: "lb", faceRank: 1, group: "Linebackers", x: 28, y: 72 },
-      { key: "LB2", label: "LB", bucket: "lb", faceRank: 2, group: "Linebackers", x: 50, y: 72 },
-      { key: "LB3", label: "LB", bucket: "lb", faceRank: 3, group: "Linebackers", x: 72, y: 72 },
-      { key: "DB1", label: "DB", bucket: "db", faceRank: 1, group: "Secondary", x: 9, y: 80 },
-      { key: "DB2", label: "DB", bucket: "db", faceRank: 2, group: "Secondary", x: 91, y: 80 },
-      { key: "DB3", label: "DB", bucket: "db", faceRank: 3, group: "Secondary", x: 38, y: 56 },
-      { key: "DB4", label: "DB", bucket: "db", faceRank: 4, group: "Secondary", x: 62, y: 56 },
-    ],
-  },
+  // Formations, per unit (like the NFL page): offense picks a personnel grouping,
+  // defense picks a front. The client shows one dropdown on each side's controls;
+  // the server re-arranges that unit's roster into the chosen package.
+  formationMode: "unit",
+  unitFormations: { offense: ["11", "12", "21", "10"], defense: ["base", "nickel", "dime", "3-4"] },
+  unitFormationLabels: { offense: "Personnel", defense: "Front" },
+  packages: { offense: OFF, defense: DEF },
+  // Default look for each unit when no formation is chosen: 11 personnel / 4-3 base.
+  layouts: { offense: OFF["11"], defense: DEF["base"] },
 };

@@ -46,7 +46,7 @@ function publicConfig(sport) {
   const cfg = SURFACE[sport];
   return {
     sport: cfg.key, name: cfg.name, emoji: cfg.emoji, title: cfg.title, tagline: cfg.tagline,
-    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit, singleTeam: !!cfg.singleTeam, history: !!cfg.history, seasonEndYear: !!cfg.seasonEndYear, formations: cfg.formations || null, formationMode: cfg.formationMode || null, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
+    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit, singleTeam: !!cfg.singleTeam, history: !!cfg.history, seasonEndYear: !!cfg.seasonEndYear, formations: cfg.formations || null, formationMode: cfg.formationMode || null, unitFormations: cfg.unitFormations || null, unitFormationLabels: cfg.unitFormationLabels || null, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
     teams: cfg.teams.map((t) => ({ id: String(t.id), abbr: t.abbr, name: t.name, short: t.short, color: t.color, alt: t.alt, logo: t.logo, conf: t.conf })),
   };
 }
@@ -367,7 +367,11 @@ const server = http.createServer(async (req, res) => {
           if (Number.isInteger(y) && y >= nowY - 6 && y <= nowY + 1) year = y;
         }
         const fp = params.get("formation");
-        const formation = fp && (SURFACE[sport].formations || []).includes(fp) ? fp : null;
+        // A formation is valid if it's a whole-team option (soccer/basketball) OR a
+        // per-unit package the current unit declares (CFB offense personnel / defense front).
+        const cfgS = SURFACE[sport];
+        const validForm = !!fp && ((cfgS.formations || []).includes(fp) || !!(cfgS.packages && cfgS.packages[unit] && cfgS.packages[unit][fp]));
+        const formation = validForm ? fp : null;
         try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit, year, formation), { "Cache-Control": LINEUP_CACHE }); return done(200); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }

@@ -16,6 +16,7 @@ let compareMode = false;                 // tap-two-players-to-compare mode
 const pinned = { A: null, B: null };     // {face, teamName} pinned per side
 let formationValue = null;               // soccer formation override (server re-arranges)
 let courtSet = null;                     // basketball court alignment set (client re-places)
+const sideForm = { A: null, B: null };   // CFB per-unit package (A=defense front, B=offense personnel); server re-arranges
 // Client-side court alignment presets (basketball), keyed by chip slot.
 const COURT_SETS = {
   "Balanced": { PG: [50, 50], SG: [84, 40], SF: [16, 40], PF: [38, 23], C: [55, 16] },
@@ -85,8 +86,15 @@ function draftPill(d) {
 // ---------------------------------------------------------------------------
 // FETCH (per-side cache: switching the view never refetches a team)
 // ---------------------------------------------------------------------------
-function formationParam() { return CONFIG.formationMode === "server" && formationValue ? `&formation=${encodeURIComponent(formationValue)}` : ""; }
-async function fetchLineup(teamId, fresh, unit, year) {
+// The formation to send to the server for a given side. Soccer ("server") shares
+// one whole-team formation across both sides; CFB ("unit") has an independent
+// package per side; basketball ("court") re-places client-side, so nothing is sent.
+function sideFormation(side) {
+  if (CONFIG.formationMode === "server") return formationValue || null;
+  if (CONFIG.formationMode === "unit") return sideForm[side] || null;
+  return null;
+}
+async function fetchLineup(teamId, fresh, unit, year, formation) {
   // Always ask for fresh data so the lineup updates on every load. The server
   // coalesces this to at most one ESPN pull per team per ~60s (fast + polite).
   // A 20s client timeout means a stuck request drops to the Retry button instead
@@ -95,17 +103,19 @@ async function fetchLineup(teamId, fresh, unit, year) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), year ? 30000 : 20000);
   try {
-    const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1${unit ? `&unit=${unit}` : ""}${year ? `&year=${year}` : ""}${formationParam()}`, { signal: ctrl.signal });
+    const fParam = formation ? `&formation=${encodeURIComponent(formation)}` : "";
+    const res = await fetch(`/api/lineup?sport=${SPORT}&team=${teamId}&fresh=1${unit ? `&unit=${unit}` : ""}${year ? `&year=${year}` : ""}${fParam}`, { signal: ctrl.signal });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     return data;
   } finally { clearTimeout(timer); }
 }
 async function getSide(side, teamId, fresh, unit, year) {
+  const form = sideFormation(side);
   const c = sideCache[side];
-  const ck = `${teamId}:${unit || ""}:${year || ""}:${formationValue || ""}`;
+  const ck = `${teamId}:${unit || ""}:${year || ""}:${form || ""}`;
   if (!fresh && c.key === ck && c.data) return c.data;
-  const data = await fetchLineup(teamId, fresh, unit, year);
+  const data = await fetchLineup(teamId, fresh, unit, year, form);
   c.key = ck; c.data = data;
   return data;
 }
@@ -546,8 +556,13 @@ function setView(m) {
 function writeState() {
   const p = new URLSearchParams({ a: teamASelect.value, b: teamBSelect.value, v: viewMode });
   if (seasonYear) p.set("s", String(seasonYear));
-  const f = CONFIG.formationMode === "court" ? courtSet : formationValue;
-  if (f) p.set("f", f);
+  if (CONFIG.formationMode === "unit") {
+    if (sideForm.A) p.set("fa", sideForm.A);
+    if (sideForm.B) p.set("fb", sideForm.B);
+  } else {
+    const f = CONFIG.formationMode === "court" ? courtSet : formationValue;
+    if (f) p.set("f", f);
+  }
   try { history.replaceState(null, "", "?" + p.toString()); } catch {}
   try { localStorage.setItem(`sdc.${CONFIG.sport}.state`, p.toString()); } catch {}
 }
@@ -562,6 +577,12 @@ function readState() {
   if (seasonSel) { const s = get("s"); if (s != null && [...seasonSel.options].some((o) => o.value === s)) { seasonSel.value = s; seasonYear = s ? Number(s) : null; } }
   const fSel = document.getElementById("formation");
   if (fSel) { const f = get("f"); if (f != null && [...fSel.options].some((o) => o.value === f)) { fSel.value = f; if (CONFIG.formationMode === "court") courtSet = f || null; else formationValue = f || null; } }
+  if (CONFIG.formationMode === "unit") {
+    for (const [selId, key, side] of [["formUnitA", "fa", "A"], ["formUnitB", "fb", "B"]]) {
+      const sel = document.getElementById(selId); const v = get(key);
+      if (sel && v != null && [...sel.options].some((o) => o.value === v)) { sel.value = v; sideForm[side] = v || null; }
+    }
+  }
   // View: an explicit URL ?v= wins (shareable); otherwise a per-DEVICE saved
   // preference, else the device default (desktop → surface, mobile → list). Scoping
   // by device means choosing List on a phone doesn't hide the surface on desktop.
@@ -670,6 +691,30 @@ function fillSeasons(sel) {
         render(false);
       });
     }
+  }
+
+  // Per-unit formation (CFB): one dropdown on each side's controls — offense picks
+  // a personnel grouping, defense picks a front. Each re-fetches only its own side.
+  if (CONFIG.formationMode === "unit" && CONFIG.unitFormations && CONFIG.units) {
+    const labels = CONFIG.unitFormationLabels || {};
+    const wireUnit = (selId, labelId, side, unitName) => {
+      const sel = document.getElementById(selId);
+      const picker = sel && sel.closest(".formation-inline");
+      const opts = CONFIG.unitFormations[unitName] || [];
+      if (!sel || !picker || !opts.length) return;
+      document.getElementById(labelId).textContent = labels[unitName] || "Formation";
+      const auto = document.createElement("option"); auto.value = ""; auto.textContent = "Auto"; sel.appendChild(auto);
+      for (const f of opts) { const o = document.createElement("option"); o.value = f; o.textContent = f; sel.appendChild(o); }
+      picker.classList.remove("hidden");
+      sel.addEventListener("change", () => {
+        sideForm[side] = sel.value || null;
+        sideCache[side] = { key: null, data: null };
+        writeState();
+        render(false);
+      });
+    };
+    wireUnit("formUnitA", "formUnitA-label", "A", CONFIG.units[0]);
+    wireUnit("formUnitB", "formUnitB-label", "B", CONFIG.units[1]);
   }
 
   // Conference filter (college sports whose teams carry a conference). The Conf
