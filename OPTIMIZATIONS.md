@@ -1,5 +1,19 @@
 # Site optimizations
 
+## Batch 7 — 2026-08-27 (historical ratings + soccer spacing)
+
+- **Historical video-game ratings (MLB).** A past MLB season now shows *that
+  season's* MLB The Show ratings, not today's. MLB The Show publishes per-year
+  data (`mlbNN.theshow.com`), so `npm run gen-ratings-history` builds
+  `data/ratings/mlb-YYYY.json` for the last 5 seasons; `ratings.ratingFor/publisher`
+  take a year. **Only MLB** — EA FC (soccer) and Madden (NFL) expose only the
+  current edition, so their past seasons stay badge-less (no fabricated OVRs).
+- **Soccer half-field spacing.** `placeStarters` now spreads each line nearly
+  full-width and stretches the lines from the GK to the attack across most of the
+  half, with a small alternate-player vertical stagger so long names don't collide;
+  the pitch is taller (aspect 0.64) for more room. Formations read clearly and every
+  name is legible.
+
 ## Batch 6 — 2026-08-27 (historical seasons)
 
 A **"Season" selector (last 5 years)** on the sports with rich historical ESPN

@@ -20,10 +20,11 @@ module.exports = {
   kind: "roster",
   classYears: true,
   dualUnit: true,
-  units: ["offense", "defense"],
-  unitLabels: ["Offense", "Defense"],
+  // Defense on top, offense on the bottom — same orientation as the NFL page.
+  units: ["defense", "offense"],
+  unitLabels: ["Defense", "Offense"],
   note: "Roster by class (seniors first) · not a verified depth chart · via ESPN",
-  defaults: { a: "193", b: "195" }, // Miami (OH) offense vs Ohio (Bobcats) defense
+  defaults: { a: "195", b: "193" }, // Ohio (Bobcats) defense (top) vs Miami (OH) offense (bottom)
   teams: TEAMS,
   bucket: (pos) => {
     const a = (pos || "").toUpperCase();

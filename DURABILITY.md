@@ -55,7 +55,10 @@ Sports FC, MLB → MLB The Show** (NFL → Madden, in `lib/nfl.js`). To avoid ha
 EA/Sony from the live server, ratings live in committed maps (`data/ratings/*.json`)
 built by `npm run gen-ratings`; the server only reads them. NBA/WNBA (2K) and NHL/CFB
 have no publicly accessible ratings feed, so they show no badge. Refresh occasionally:
-`npm run gen-ratings` then commit `data/ratings/`. CFB is wired to EA College
+`npm run gen-ratings` then commit `data/ratings/`. **Past seasons:** MLB shows that
+season's MLB The Show ratings from per-year maps (`data/ratings/mlb-YYYY.json`,
+built by `npm run gen-ratings-history`); soccer/NFL keep current-edition ratings
+only (no historical source). CFB is wired to EA College
 Football but EA hasn't published those to the public API yet (empty `cfb.json`); it
 auto-lights-up when they do and you re-run `gen-ratings`. College basketball has no
 video game with public ratings.
