@@ -21,7 +21,7 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const crypto = require("crypto");
-const { stats, cached, buildLineup, writeDisk, readDisk, cacheStats } = require("./lib/espn.js");
+const { stats, cached, buildLineup, writeDisk, readDisk, cacheStats, fetchJson } = require("./lib/espn.js");
 // Load the NFL engine defensively: if it ever fails to load, the NFL routes are
 // disabled but the rest of the site still runs.
 let nfl = null;
@@ -74,6 +74,56 @@ async function getLineup(sport, teamId, fresh, unit, year) {
     if (disk) { console.error(`serving last-good for ${key}: ${err.message}`); return disk; }
     throw err;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Lazy per-player season stat line (fetched only when a depth popover opens).
+// ESPN publishes athlete season stats for the US pro/college sports but not for
+// soccer, so soccer returns an empty line. Cached ~6h per player/season.
+// ---------------------------------------------------------------------------
+const statStore = new Map();
+const numOf = (x) => parseFloat(String(x == null ? "" : x).replace(/,/g, "")) || 0;
+const compact = (pairs) => pairs.filter(([, v]) => v != null && v !== "" && String(v) !== "-").map(([k, v]) => ({ k, v: String(v) }));
+function statLine(group, m) {
+  if (group === "basketball") return compact([["PPG", m.avgPoints], ["RPG", m.avgRebounds], ["APG", m.avgAssists]]);
+  if (group === "hockey") {
+    if (numOf(m.shotsAgainst) > 0) return compact([["GAA", m.avgGoalsAgainst], ["SV%", m.savePct], ["GP", m.games]]);
+    return compact([["G", m.goals], ["A", m.assists], ["PTS", m.points]]);
+  }
+  if (group === "baseball") {
+    if (numOf(m.inningsPitched) > 0 && numOf(m.atBats) < 20) return compact([["ERA", m.ERA], ["W-L", `${m.wins || 0}-${m.losses || 0}`], ["K", m.strikeouts]]);
+    return compact([["AVG", m.avg], ["HR", m.homeRuns], ["RBI", m.RBIs]]);
+  }
+  if (group === "football") {
+    const py = numOf(m.passingYards), ry = numOf(m.rushingYards), rcy = numOf(m.receivingYards);
+    if (py > 0 && py >= ry && py >= rcy) return compact([["YDS", m.passingYards], ["TD", m.passingTouchdowns], ["CMP%", m.completionPct]]);
+    if (ry > 0 && ry >= rcy) return compact([["RUSH", m.rushingYards], ["TD", m.rushingTouchdowns]]);
+    if (rcy > 0) return compact([["REC", m.receptions], ["YDS", m.receivingYards], ["TD", m.receivingTouchdowns]]);
+  }
+  return [];
+}
+async function playerStats(sportKey, id, year) {
+  const espnMap = SURFACE[sportKey] ? SURFACE[sportKey].espn : (sportKey === "nfl" ? { sport: "football", league: "nfl" } : null);
+  if (!espnMap || espnMap.sport === "soccer") return { line: [] }; // no soccer athlete stats upstream
+  const group = espnMap.sport;
+  const key = `${sportKey}:${id}:${year || ""}`;
+  return cached(statStore, key, 6 * 3600e3, async () => {
+    const nowY = new Date().getUTCFullYear();
+    const years = year ? [year] : [nowY, nowY - 1, nowY - 2];
+    for (const yr of years) {
+      try {
+        const d = await fetchJson(`https://sports.core.api.espn.com/v2/sports/${espnMap.sport}/leagues/${espnMap.league}/seasons/${yr}/types/2/athletes/${id}/statistics`, { timeout: 6000, retries: 0 });
+        const cats = d && d.splits && d.splits.categories;
+        if (cats && cats.length) {
+          const m = {};
+          for (const c of cats) for (const s of (c.stats || [])) if (s.name && m[s.name] == null) m[s.name] = s.displayValue;
+          const line = statLine(group, m);
+          if (line.length) return { season: yr, line };
+        }
+      } catch {}
+    }
+    return { line: [] };
+  }).catch(() => ({ line: [] }));
 }
 
 
@@ -318,6 +368,13 @@ const server = http.createServer(async (req, res) => {
         }
         try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit, year), { "Cache-Control": LINEUP_CACHE }); return done(200); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
+      }
+      if (urlPath === "/api/player-stats") {
+        const sport = params.get("sport"), id = params.get("id");
+        if ((!SURFACE[sport] && sport !== "nfl") || !isNumericId(id)) { sendJson(req, res, 400, { error: "bad request" }); return done(400); }
+        const y = Number(params.get("year")); const yr = Number.isInteger(y) ? y : null;
+        try { sendJson(req, res, 200, await playerStats(sport, id, yr), { "Cache-Control": "public, max-age=21600" }); return done(200); }
+        catch { sendJson(req, res, 200, { line: [] }); return done(200); }
       }
       sendJson(req, res, 404, { error: "Not found" }); return done(404);
     }

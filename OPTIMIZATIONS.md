@@ -1,5 +1,23 @@
 # Site optimizations
 
+## Batch 10 — 2026-08-27 (data-rich player popover)
+
+The depth popover now shows far more about each player:
+- **Headshots** — ESPN player photo (`a.espncdn.com/i/headshots/…` from the athlete
+  id already in every chip), circular, with a jersey-tile fallback when a photo 404s.
+- **Season stat line** for the starter — lazy `GET /api/player-stats?sport=&id=&year=`
+  parses the ESPN athlete statistics per sport: NBA/WNBA/CBB PPG·RPG·APG, MLB
+  AVG·HR·RBI (ERA·W-L·K for pitchers), NHL G·A·PTS (GAA·SV% for goalies), NFL/CFB
+  yds·TD·CMP% (auto-picks passing/rushing/receiving). Soccer has no upstream athlete
+  stats, so it shows none.
+- **Full injury detail** — status + what it is + expected return, from the roster
+  data already fetched (no extra call).
+- **Richer bio** — experience years now rendered; height/weight/age/class/college.
+- **"↗ ESPN" profile link** per player, built from the athlete id.
+
+Still queued from the same list: player-vs-player compare drawer, responsive chip
+scaling, desktop-surface default, mobile controls wrap; then the formation filter.
+
 ## Batch 9 — 2026-08-27 (quality-audit fixes)
 
 Resolved the issues the live league audit surfaced:

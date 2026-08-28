@@ -264,7 +264,16 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 .popover .p-age { font-size: 12px; color: var(--muted); }
 .popover .p-ovr { display: inline-flex; align-items: baseline; gap: 2px; font-size: 14px; font-weight: 900; color: #241a00; background: linear-gradient(180deg, #ffd85a, #e8b500); padding: 1px 7px; border-radius: 7px; border: 1px solid #b98f00; }
 .popover .p-ovr i { font-style: normal; font-size: 8px; font-weight: 800; opacity: 0.75; }
-.popover .p-bio { font-size: 11px; color: #8fb0a0; padding-left: 24px; }
+.popover .p-bio { font-size: 11px; color: #8fb0a0; padding-left: 52px; }
+.popover .p-photo { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: #0c2416; border: 1px solid #29513a; flex: 0 0 auto; }
+.popover li.starter .p-photo { width: 46px; height: 46px; }
+.popover .p-photo-blank { display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: var(--muted); }
+.popover .p-espn { color: #7fd4a1; text-decoration: none; font-weight: 800; font-size: 14px; padding: 0 2px; }
+.popover .p-espn:hover { color: var(--ink); }
+.popover .p-injury { font-size: 11px; color: #f0b37e; padding-left: 52px; margin-top: 2px; }
+.popover .p-stats { display: flex; flex-wrap: wrap; gap: 14px; padding: 3px 0 2px 52px; font-size: 12px; color: var(--muted); }
+.popover .p-stats[data-loading] { opacity: 0.55; font-style: italic; }
+.popover .p-stats .stat b { color: var(--ink); font-size: 15px; font-weight: 800; margin-right: 3px; }
 .popover .p-draft { font-size: 11px; font-weight: 700; padding: 2px 8px 2px 24px; margin-top: 2px; }
 .popover .p-draft.drafted { color: #7fd4a1; }
 .popover .p-draft.undrafted { color: #8fb0a0; font-weight: 500; }

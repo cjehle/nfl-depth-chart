@@ -296,6 +296,7 @@ function openDepth(title, players) {
   popoverTitle.textContent = title;
   popoverNote.textContent = (CONFIG && CONFIG.note) || "";
   popoverList.innerHTML = "";
+  const gen = popoverGen;
   players.forEach((p, i) => {
     const li = document.createElement("li");
     if (i === 0) li.className = "starter";
@@ -305,25 +306,47 @@ function openDepth(title, players) {
     const bio = bioLine(p);
     const ovr = p.overall != null ? `<span class="p-ovr" title="${esc(ratingLabel || "")} overall rating">${p.overall}<i>OVR</i></span>` : "";
     const draftHtml = draftPill(p.draft);
+    const photo = p.photo ? `<img class="p-photo" src="${esc(p.photo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : `<span class="p-photo p-photo-blank">${esc(jnum(p.jersey) || "")}</span>`;
+    const link = p.espnUrl ? `<a class="p-espn" href="${esc(p.espnUrl)}" target="_blank" rel="noopener noreferrer" title="Full profile on ESPN" aria-label="${esc(p.name)} on ESPN">↗</a>` : "";
+    // Full injury detail (what + expected return), when ESPN has it.
+    const inj = p.injuryDetail && (p.injuryDetail.detail || p.injuryDetail.ret)
+      ? `<div class="p-injury">⚕ ${esc(p.injury || "Injured")}${p.injuryDetail.detail ? " · " + esc(p.injuryDetail.detail) : ""}${p.injuryDetail.ret ? " · back " + fmtDate(p.injuryDetail.ret) : ""}</div>` : "";
     li.innerHTML = `
       <div class="p-main">
         <span class="rank">${i + 1}</span>
-        <span class="p-num">${jnum(p.jersey)}</span>
-        <span class="p-name">${esc(p.name)}</span>
+        ${photo}
+        <span class="p-name">${esc(p.name)}${p.jersey ? ` <span class="p-num">${jnum(p.jersey)}</span>` : ""}</span>
         ${p.pos ? `<span class="p-pos">${esc(p.pos)}</span>` : ""}
         <span class="p-age">${age}</span>
         ${ovr}
         ${badge}
+        ${link}
       </div>
+      ${i === 0 ? `<div class="p-stats" data-loading>…</div>` : ""}
       ${draftHtml}
+      ${inj}
       ${bio ? `<div class="p-bio">${bio}</div>` : ""}`;
     popoverList.appendChild(li);
+    if (i === 0 && p.id) loadPlayerStats(li.querySelector(".p-stats"), p.id, gen);
   });
   lastFocused = document.activeElement;
   popover.classList.remove("hidden");
   backdrop.classList.remove("hidden");
   setBackgroundInert(true);
   popoverClose.focus();
+}
+// Lazily fetch the starter's season stat line and render it in the popover.
+async function loadPlayerStats(el, id, gen) {
+  if (!el) return;
+  try {
+    const q = `/api/player-stats?sport=${SPORT}&id=${encodeURIComponent(id)}${seasonYear ? `&year=${seasonYear}` : ""}`;
+    const d = await (await fetch(q, { signal: AbortSignal.timeout(12000) })).json();
+    if (gen !== popoverGen || !el.isConnected) return; // popover changed/closed
+    if (d && Array.isArray(d.line) && d.line.length) {
+      el.removeAttribute("data-loading");
+      el.innerHTML = d.line.map((s) => `<span class="stat"><b>${esc(s.v)}</b> ${esc(s.k)}</span>`).join("");
+    } else { el.remove(); }
+  } catch { if (el.isConnected) el.remove(); }
 }
 function closeDepth() {
   if (popover.classList.contains("hidden")) return;
