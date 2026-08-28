@@ -66,6 +66,7 @@
         </div>
         <div class="control-row actions">
           <button id="swap" title="Swap the two teams">⇅ Swap</button>
+          <button id="compare" title="Compare a player from each team" aria-pressed="false">⚖ Compare</button>
           <button id="share" title="Copy a link to this matchup">↗ Share</button>
           <button id="refresh" title="Fetch the latest lineups">↻ Refresh</button>
         </div>
@@ -99,6 +100,8 @@
     <p id="scroll-hint" class="scroll-hint">← the surface scrolls sideways on small screens →</p>
 
     <div id="list-view" class="list-view hidden"></div>
+
+    <div id="compare-drawer" class="compare-drawer hidden" aria-live="polite"></div>
 
     <div id="depth-popover" class="popover hidden" role="dialog" aria-modal="true" aria-labelledby="popover-title">
       <div class="popover-head">

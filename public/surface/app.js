@@ -12,6 +12,8 @@ let CROSS_OK = true; // can pills be dragged across the center line? (false for 
 let ratingLabel = null; // video-game ratings source for this sport (e.g. "EA FC"), or null
 let draftStatus = false; // does this sport carry NHL draft status? (college hockey)
 let seasonYear = null;   // selected past season (null = current)
+let compareMode = false;                 // tap-two-players-to-compare mode
+const pinned = { A: null, B: null };     // {face, teamName} pinned per side
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -154,7 +156,7 @@ function makeDraggable(chip, onClick, onMoved) {
 // ---------------------------------------------------------------------------
 // A CLICKABLE, KEYBOARD-ACCESSIBLE PLAYER CHIP
 // ---------------------------------------------------------------------------
-function makeChip(chipData, teamAbbr, teamColor, onMoved) {
+function makeChip(chipData, teamAbbr, teamColor, onMoved, side, teamName) {
   const face = chipData.face;
   const chip = document.createElement("div");
   chip.className = "chip";
@@ -172,10 +174,16 @@ function makeChip(chipData, teamAbbr, teamColor, onMoved) {
     <div class="name">${esc(face.name)}</div>
     ${ovr}${badge}${depthHtml}
   `;
-  const open = () => openDepth(`${teamAbbr} — ${chipData.label}`, chipData.players);
+  const open = () => activateChip(chipData, teamAbbr, side, teamName);
   chip.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
   makeDraggable(chip, open, onMoved);
   return chip;
+}
+// A chip click either opens the depth popover, or — in Compare mode — pins that
+// player (as their team's side) into the compare drawer.
+function activateChip(chipData, teamAbbr, side, teamName) {
+  if (compareMode && side) pinPlayer(chipData.face, teamName || teamAbbr, side);
+  else openDepth(`${teamAbbr} — ${chipData.label}`, chipData.players);
 }
 
 // ---------------------------------------------------------------------------
@@ -190,9 +198,10 @@ function renderTeamOnSurface(containerId, data, mirror, sig) {
     return;
   }
   const saved = layouts[sig] || {};
+  const side = containerId === "playersA" ? "A" : "B";
   data.chips.forEach((ch, i) => {
     const chipKey = `${ch.key}#${i}`;
-    const chip = makeChip(ch, data.team.abbr, data.team.color, () => persistChip(sig, chipKey, chip));
+    const chip = makeChip(ch, data.team.abbr, data.team.color, () => persistChip(sig, chipKey, chip), side, data.team.name);
     chip.style.left = ch.x + "%";
     chip.style.top = (mirror ? 100 - ch.y : ch.y) + "%";
     const pos = saved[chipKey];
@@ -228,11 +237,11 @@ function decorateBand(bandEl, tintEl, data, mirror) {
 function renderList(dataA, dataB) {
   const el = document.getElementById("list-view");
   el.innerHTML = "";
-  el.appendChild(listTeam(dataA));
+  el.appendChild(listTeam(dataA, "A"));
   if (!dataB) return; // single-team sports (baseball) show only one lineup
-  el.appendChild(listTeam(dataB));
+  el.appendChild(listTeam(dataB, "B"));
 }
-function listTeam(data) {
+function listTeam(data, side) {
   const sec = document.createElement("section");
   sec.className = "list-team";
   const h = document.createElement("h2");
@@ -265,7 +274,7 @@ function listTeam(data) {
         <span class="list-pos">${esc(ch.label)}</span>
         <span class="list-name">${esc(face.name)} <span class="list-num">${jnum(face.jersey)}</span></span>
         ${ovr}${dr}${badge}${depth}`;
-      btn.addEventListener("click", () => openDepth(`${data.team.abbr} — ${ch.label}`, ch.players));
+      btn.addEventListener("click", () => activateChip(ch, data.team.abbr, side, data.team.name));
       sec.appendChild(btn);
     }
   }
@@ -444,6 +453,64 @@ function flashStatus(msg) {
   flashStatus._t = setTimeout(() => { if (s.textContent === msg) s.textContent = ""; }, 2500);
 }
 
+// ---- compare two players (one per team) ----
+function setCompareMode(on) {
+  compareMode = on;
+  const btn = document.getElementById("compare");
+  if (btn) { btn.classList.toggle("active", on); btn.setAttribute("aria-pressed", String(on)); }
+  if (!on) { pinned.A = null; pinned.B = null; }
+  document.getElementById("compare-drawer").classList.toggle("hidden", !on);
+  if (on) { renderCompare(); flashStatus("Compare: tap a player on each side"); }
+}
+function pinPlayer(face, teamName, side) {
+  pinned[side] = { face, teamName };
+  renderCompare();
+}
+function compareCol(pin, sideLabel) {
+  if (!pin) return `<div class="cmp-col cmp-empty"><span>Tap a ${sideLabel} player</span></div>`;
+  const p = pin.face;
+  const photo = p.photo ? `<img class="cmp-photo" src="${esc(p.photo)}" alt="" onerror="this.style.visibility='hidden'">` : `<span class="cmp-photo"></span>`;
+  const ovr = p.overall != null ? `<span class="cmp-ovr">${p.overall}<i>OVR</i></span>` : "";
+  const bits = [p.pos, p.classYear || (p.age != null ? p.age + " yrs" : ""), p.height].filter(Boolean).join(" · ");
+  return `<div class="cmp-col" data-id="${esc(p.id || "")}">
+      ${photo}
+      <div class="cmp-name">${esc(p.name)}</div>
+      <div class="cmp-team">${esc(pin.teamName || "")}</div>
+      ${ovr}
+      <div class="cmp-bio">${esc(bits)}</div>
+      <div class="cmp-stats" data-loading>…</div>
+    </div>`;
+}
+async function renderCompare() {
+  const d = document.getElementById("compare-drawer");
+  if (!compareMode) { d.classList.add("hidden"); return; }
+  d.classList.remove("hidden");
+  d.innerHTML = `<button class="cmp-close" aria-label="Close compare">✕</button>
+    <div class="cmp-grid">${compareCol(pinned.A, "top")}<div class="cmp-vs">vs</div>${compareCol(pinned.B, "bottom")}</div>`;
+  d.querySelector(".cmp-close").addEventListener("click", () => setCompareMode(false));
+  // Fetch both stat lines, then bold the better value on each shared stat.
+  const cols = d.querySelectorAll(".cmp-col[data-id]");
+  const lines = await Promise.all([...cols].map(async (col) => {
+    const id = col.getAttribute("data-id"); const el = col.querySelector(".cmp-stats");
+    if (!id) { el.remove(); return null; }
+    try {
+      const r = await (await fetch(`/api/player-stats?sport=${SPORT}&id=${encodeURIComponent(id)}${seasonYear ? `&year=${seasonYear}` : ""}`, { signal: AbortSignal.timeout(12000) })).json();
+      if (r && r.line && r.line.length) { el.removeAttribute("data-loading"); el.dataset.done = "1"; return { el, line: r.line }; }
+      el.remove(); return null;
+    } catch { el.remove(); return null; }
+  }));
+  const [a, b] = lines;
+  const paint = (mine, other) => {
+    if (!mine) return;
+    mine.el.innerHTML = mine.line.map((s) => {
+      const o = other && other.line.find((x) => x.k === s.k);
+      const better = o && parseFloat(String(s.v).replace(/[^0-9.-]/g, "")) > parseFloat(String(o.v).replace(/[^0-9.-]/g, ""));
+      return `<span class="stat${better ? " better" : ""}"><b>${esc(s.v)}</b> ${esc(s.k)}</span>`;
+    }).join("");
+  };
+  paint(a, b); paint(b, a);
+}
+
 // ---- view toggle ----
 function applyView() {
   document.querySelector(".surface-scroll").classList.toggle("hidden", viewMode !== "field");
@@ -598,6 +665,11 @@ function fillSeasons(sel) {
   });
   const shareBtn = document.getElementById("share");
   if (shareBtn) shareBtn.addEventListener("click", () => shareMatchup(shareBtn));
+  const cmpBtn = document.getElementById("compare");
+  if (cmpBtn) {
+    if (CONFIG.singleTeam) cmpBtn.style.display = "none"; // compare needs two teams
+    else cmpBtn.addEventListener("click", () => setCompareMode(!compareMode));
+  }
   teamASelect.addEventListener("change", () => { syncConf(confA, teamASelect); render(false); });
   teamBSelect.addEventListener("change", () => { syncConf(confB, teamBSelect); render(false); });
   document.querySelectorAll(".view-toggle button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));

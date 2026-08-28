@@ -15,8 +15,13 @@ The depth popover now shows far more about each player:
 - **Richer bio** — experience years now rendered; height/weight/age/class/college.
 - **"↗ ESPN" profile link** per player, built from the athlete id.
 
-Still queued from the same list: player-vs-player compare drawer, responsive chip
-scaling, desktop-surface default, mobile controls wrap; then the formation filter.
+Also shipped from the same list: **player-vs-player compare drawer** (tap "⚖ Compare",
+then a player on each side → a bottom drawer with both players' headshot, OVR, bio and
+season stats, the higher value in each shared stat highlighted); **responsive chips**
+(container-query scaling so chips shrink with the surface — no overlap/clipping on
+narrow/tablet); **device-scoped view default** (desktop lands on the visual surface even
+if a phone chose List); **mobile controls wrap** (Court/List toggle no longer truncates).
+Remaining: the formation filter (soccer / CFB / NBA-CBB court sets).
 
 ## Batch 9 — 2026-08-27 (quality-audit fixes)
 
