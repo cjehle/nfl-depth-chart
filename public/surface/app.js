@@ -19,6 +19,8 @@ let seasonYear = null;   // selected past season (null = current)
 function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+// Jersey number as "#N", or "" when the player has none (avoids a bare "#").
+function jnum(j) { return j ? `#${esc(j)}` : ""; }
 function hexToRgba(hex, alpha) {
   const h = String(hex || "#333333").replace("#", "");
   const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
@@ -166,7 +168,7 @@ function makeChip(chipData, teamAbbr, teamColor, onMoved) {
   const depthHtml = depth > 0 ? `<div class="depth-count">+${depth} behind</div>` : "";
   const ovr = face.overall != null ? `<div class="chip-ovr" title="${esc(ratingLabel || "")} overall rating">${face.overall}</div>` : "";
   chip.innerHTML = `
-    <div class="pos">${esc(chipData.label)} · #${esc(face.jersey || "--")}</div>
+    <div class="pos">${esc(chipData.label)}${face.jersey ? " · " + jnum(face.jersey) : ""}</div>
     <div class="name">${esc(face.name)}</div>
     ${ovr}${badge}${depthHtml}
   `;
@@ -261,7 +263,7 @@ function listTeam(data) {
       const dr = face.draft && face.draft.drafted ? `<span class="list-draft" title="NHL Draft: ${esc(face.draft.label)}">${esc(face.draft.team)} R${face.draft.round}</span>` : "";
       btn.innerHTML = `
         <span class="list-pos">${esc(ch.label)}</span>
-        <span class="list-name">${esc(face.name)} <span class="list-num">#${esc(face.jersey || "--")}</span></span>
+        <span class="list-name">${esc(face.name)} <span class="list-num">${jnum(face.jersey)}</span></span>
         ${ovr}${dr}${badge}${depth}`;
       btn.addEventListener("click", () => openDepth(`${data.team.abbr} — ${ch.label}`, ch.players));
       sec.appendChild(btn);
@@ -306,7 +308,7 @@ function openDepth(title, players) {
     li.innerHTML = `
       <div class="p-main">
         <span class="rank">${i + 1}</span>
-        <span class="p-num">#${esc(p.jersey || "--")}</span>
+        <span class="p-num">${jnum(p.jersey)}</span>
         <span class="p-name">${esc(p.name)}</span>
         ${p.pos ? `<span class="p-pos">${esc(p.pos)}</span>` : ""}
         <span class="p-age">${age}</span>

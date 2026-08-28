@@ -529,7 +529,7 @@ function nextGameText(next) {
   if (!next || !next.opp) return "";
   var day = "";
   if (next.date) { var d = new Date(next.date); if (!isNaN(d)) day = d.toLocaleDateString(undefined, { weekday: "short" }); }
-  return "Next: " + next.homeAway + " " + next.opp + (day ? " · " + day : "");
+  return "Next: " + next.homeAway + " " + next.opp + (day ? " · " + day : "") + (next.pre ? " · Preseason" : "");
 }
 function decorateHalf(teamId, unitWord, formationName, season, record, next, labelEl, tintEl) {
   const team = TEAM_BY_ID.get(String(teamId));

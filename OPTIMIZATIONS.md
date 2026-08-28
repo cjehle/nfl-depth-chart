@@ -1,5 +1,22 @@
 # Site optimizations
 
+## Batch 9 — 2026-08-27 (quality-audit fixes)
+
+Resolved the issues the live league audit surfaced:
+- **CBB always shows 5 (distinct) players.** The offseason roster fallback now
+  backfills a court slot whose position bucket is empty from surplus players (extra
+  guards fill a wing, etc.) and gives each slot its own depth list, so no team
+  renders 3-4 chips or duplicate PG/SG dropdowns. `resolveRosterLineup` court path.
+- **Soccer rating name-matching hardened.** `ratings.ratingFor` now folds special
+  letters (ı ł ø …) and hyphens and does an unambiguous token-subset match, so
+  Vinícius Júnior (89), Alisson (89), Kenan Yıldız (79) and Kim Min-jae (82) — all
+  present in EA FC under longer/short names — now resolve.
+- **NBA offseason subtitle** reads "projected starting five · ESPN depth chart"
+  instead of "Starting Lineup" (matches the depth-chart fallback reality).
+- **NHL empty jersey** no longer renders a bare "#": the jersey helper omits it.
+- **NFL preseason** is labeled ("Next: vs PIT · Preseason") so a preseason record
+  isn't mistaken for regular season.
+
 ## Batch 8 — 2026-08-27 (conference filter + audit fixes)
 
 - **Conference filter** on the college sports (CBB, CFB, College Hockey). A "Conf"
