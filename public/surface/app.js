@@ -452,13 +452,24 @@ function readState() {
   viewMode = ["field", "list"].includes(v) ? v : (window.matchMedia("(max-width: 760px)").matches ? "list" : "field");
 }
 
-function fillTeams(sel) {
-  const teams = [...CONFIG.teams].sort((a, b) => a.name.localeCompare(b.name)); // alphabetical
+function fillTeams(sel, conf) {
+  sel.innerHTML = "";
+  const teams = [...CONFIG.teams]
+    .filter((t) => !conf || t.conf === conf)
+    .sort((a, b) => a.name.localeCompare(b.name)); // alphabetical
   for (const t of teams) {
     const opt = document.createElement("option");
     opt.value = t.id; opt.textContent = t.name;
     sel.appendChild(opt);
   }
+}
+// Conference filter helpers (college sports whose teams carry a `conf`).
+const teamConf = (id) => (CONFIG.teams.find((t) => String(t.id) === String(id)) || {}).conf || "";
+function fillConfs(sel) {
+  const confs = [...new Set(CONFIG.teams.map((t) => t.conf).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  sel.innerHTML = "";
+  const all = document.createElement("option"); all.value = ""; all.textContent = "All conferences"; sel.appendChild(all);
+  for (const c of confs) { const o = document.createElement("option"); o.value = c; o.textContent = c; sel.appendChild(o); }
 }
 // Season options: "Current" (auto) + the previous 5 seasons. Two-calendar-year
 // leagues (NBA/CBB) are labeled by end year ("2024-25"); the rest by calendar year.
@@ -522,18 +533,42 @@ function fillSeasons(sel) {
     }
   }
 
+  // Conference filter (college sports whose teams carry a conference). The Conf
+  // dropdown filters the Team dropdown; picking a team syncs the Conf shown.
+  const hasConf = CONFIG.teams.some((t) => t.conf);
+  const confA = document.getElementById("confA"), confB = document.getElementById("confB");
+  const syncConf = (confSel, teamSel) => { if (confSel) confSel.value = teamConf(teamSel.value) || ""; };
+  const refill = (teamSel, conf, prefer) => { fillTeams(teamSel, conf || null); if (prefer && [...teamSel.options].some((o) => o.value === String(prefer))) teamSel.value = String(prefer); };
+  if (hasConf) {
+    for (const [confSel, teamSel, side] of [[confA, teamASelect, "A"], [confB, teamBSelect, "B"]]) {
+      if (!confSel) continue;
+      confSel.closest(".conf-picker").classList.remove("hidden");
+      fillConfs(confSel);
+      confSel.value = teamConf(teamSel.value) || ""; // reflect the default team's conference
+      confSel.addEventListener("change", () => {
+        refill(teamSel, confSel.value, teamSel.value);
+        sideCache[side] = { key: null, data: null };
+        render(false);
+      });
+    }
+  }
+
   document.getElementById("refresh").addEventListener("click", () => render(true));
   document.getElementById("swap").addEventListener("click", () => {
-    const a = teamASelect.value; teamASelect.value = teamBSelect.value; teamBSelect.value = a;
+    const a = teamASelect.value, b = teamBSelect.value;
+    if (hasConf) { refill(teamASelect, "", b); refill(teamBSelect, "", a); syncConf(confA, teamASelect); syncConf(confB, teamBSelect); }
+    else { teamASelect.value = b; teamBSelect.value = a; }
     sideCache.A = { key: null, data: null }; sideCache.B = { key: null, data: null };
     render(false);
   });
   const shareBtn = document.getElementById("share");
   if (shareBtn) shareBtn.addEventListener("click", () => shareMatchup(shareBtn));
-  [teamASelect, teamBSelect].forEach((s) => s.addEventListener("change", () => render(false)));
+  teamASelect.addEventListener("change", () => { syncConf(confA, teamASelect); render(false); });
+  teamBSelect.addEventListener("change", () => { syncConf(confB, teamBSelect); render(false); });
   document.querySelectorAll(".view-toggle button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 
   readState();
+  if (hasConf) { syncConf(confA, teamASelect); syncConf(confB, teamBSelect); }
   applyView();
   render();
 

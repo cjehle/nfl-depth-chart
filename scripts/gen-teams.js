@@ -30,6 +30,20 @@ async function fromIds(sport, league, ids) { // NBA's list endpoint is flaky; fe
   for (const id of ids) { const d = await jt(`${site}/${sport}/${league}/teams/${id}`); if (!d.__e && d.team) out.push(norm(d.team)); }
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
+// Full team list + conference labels from the standings endpoint (used for CBB,
+// which has ~362 D1 teams across 31 conferences the group tree doesn't fully list).
+async function fromListWithConf(sport, league, season = 2025) {
+  const clean = (s) => (s || "").replace(/\s+Conference$/, "").replace(/\s+Athletic Association$/, "").trim();
+  const conf = {};
+  const st = await jt(`https://site.api.espn.com/apis/v2/sports/${sport}/${league}/standings?season=${season}`);
+  for (const c of (st.children || [])) {
+    const label = clean(c.shortName || c.abbreviation || c.name);
+    for (const e of (c.standings?.entries || [])) { const id = String(e.team?.id || (/(teams\/(\d+))/.exec(e.team?.$ref || "") || [])[2] || ""); if (id) conf[id] = label; }
+  }
+  const teams = await fromList(sport, league);
+  for (const t of teams) t.conf = conf[t.id] || "Other";
+  return teams;
+}
 async function fromConferences(sport, league, confMap, { hashColors = false, season = 2025 } = {}) {
   const out = [], seen = new Set();
   for (const [cid, label] of Object.entries(confMap)) {
@@ -54,8 +68,10 @@ async function fromConferences(sport, league, confMap, { hashColors = false, sea
   save("cfb-teams.json", await fromConferences("football", "college-football",
     { 1: "ACC", 151: "American", 4: "Big 12", 5: "Big Ten", 12: "C-USA", 18: "Independents", 15: "MAC", 17: "Mountain West", 9: "Pac-12", 8: "SEC", 37: "Sun Belt" },
     { season: 2026 }), 120);
-  // College basketball: every D1 team (~362) straight from the teams endpoint.
-  save("cbb-teams.json", await fromList("basketball", "mens-college-basketball"), 300);
+  // College basketball: every D1 team (~362), with conference labels attached from
+  // the standings endpoint (complete 31-conference coverage — the group tree is
+  // incomplete pre-season).
+  save("cbb-teams.json", await fromListWithConf("basketball", "mens-college-basketball"), 300);
   save("mch-teams.json", await fromConferences("hockey", "mens-college-hockey", { 52: "Hockey East", 62: "Big Ten", 63: "NCHC", 54: "CCHA", 61: "Atlantic Hockey", 53: "ECAC" }, { hashColors: true }), 40);
   console.error("Done. Review `git diff data/` before committing.");
 })();

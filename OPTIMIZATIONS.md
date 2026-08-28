@@ -1,5 +1,17 @@
 # Site optimizations
 
+## Batch 8 — 2026-08-27 (conference filter + audit fixes)
+
+- **Conference filter** on the college sports (CBB, CFB, College Hockey). A "Conf"
+  dropdown next to each team dropdown filters the team list to that conference;
+  picking a team syncs the conference shown (bidirectional). CBB team list rebuilt
+  with complete conference labels for all 362 D1 teams (31 conferences) from the
+  standings endpoint — `gen-teams` now uses `fromListWithConf`. CFB/MCH already
+  carried conferences.
+- **Live quality-audit fix:** past-season lineups no longer show the *current*
+  season's team record/rank/next-game (they were echoing live values) — those are
+  nulled for historical views since a season-specific record isn't fetched.
+
 ## Batch 7 — 2026-08-27 (historical ratings + soccer spacing)
 
 - **Historical video-game ratings (MLB).** A past MLB season now shows *that
