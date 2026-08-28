@@ -68,7 +68,7 @@ async function getLineup(sport, teamId, fresh, unit, year, formation) {
       const data = await buildLineup(SURFACE[sport], surfaceTeamSets[sport].get(String(teamId)), unit, year || null, formation || null);
       writeDisk(key, data);
       return data;
-    });
+    }, 600); // bound: ~1000 teams × units × seasons × formations is unbounded otherwise
   } catch (err) {
     const disk = readDisk(key);
     if (disk) { console.error(`serving last-good for ${key}: ${err.message}`); return disk; }
@@ -123,7 +123,7 @@ async function playerStats(sportKey, id, year) {
       } catch {}
     }
     return { line: [] };
-  }).catch(() => ({ line: [] }));
+  }, 2000).catch(() => ({ line: [] })); // bound: one entry per player/season viewed
 }
 
 
@@ -152,18 +152,32 @@ const SECURITY_HEADERS = {
 };
 function respond(req, res, status, body, contentType, extra = {}) {
   const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
-  const headers = { "Content-Type": contentType, ...SECURITY_HEADERS, ...extra };
+  // Precomputed compressed variants (static assets + rendered pages, compressed
+  // once per mtime) ride in on `extra`; strip them out so they don't leak into headers.
+  const { gz: preGz, br: preBr, ...hdrExtra } = extra;
+  const headers = { "Content-Type": contentType, ...SECURITY_HEADERS, ...hdrExtra };
   const compressible = /text|json|javascript|svg/.test(contentType);
-  const gzip = /\bgzip\b/.test(req.headers["accept-encoding"] || "") && compressible && buf.length > 512;
   const isHead = req.method === "HEAD";
   // Always Vary on Accept-Encoding for compressible types so a shared/CDN cache
-  // never hands a gzipped body to a client that didn't ask for it (cache mixing).
+  // never hands a compressed body to a client that didn't ask for it (cache mixing).
   if (compressible) headers["Vary"] = "Accept-Encoding";
-  if (gzip) {
-    const gz = zlib.gzipSync(buf);
-    res.writeHead(status, { ...headers, "Content-Encoding": "gzip", "Content-Length": gz.length });
-    res.end(isHead ? undefined : gz);
-  } else { res.writeHead(status, { ...headers, "Content-Length": buf.length }); res.end(isHead ? undefined : buf); }
+  // Content negotiation: prefer Brotli, then gzip. Precomputed buffers cost nothing
+  // per request (the hot path for static/pages); dynamic JSON with no precomputed
+  // form falls back to inline gzip (as before). Brotli is only ever served precomputed.
+  let enc = null, out = null;
+  if (compressible && buf.length > 512) {
+    const ae = req.headers["accept-encoding"] || "";
+    if (preBr && /\bbr\b/.test(ae)) { enc = "br"; out = preBr; }
+    else if (preGz && /\bgzip\b/.test(ae)) { enc = "gzip"; out = preGz; }
+    else if (/\bgzip\b/.test(ae)) { enc = "gzip"; out = zlib.gzipSync(buf); }
+  }
+  if (enc) {
+    res.writeHead(status, { ...headers, "Content-Encoding": enc, "Content-Length": out.length });
+    res.end(isHead ? undefined : out);
+  } else {
+    res.writeHead(status, { ...headers, "Content-Length": buf.length });
+    res.end(isHead ? undefined : buf);
+  }
 }
 const sendJson = (req, res, status, obj, extra) => respond(req, res, status, JSON.stringify(obj), MIME[".json"], extra);
 
@@ -176,7 +190,14 @@ function serveFile(req, res, filePath) {
   let entry = staticCache.get(filePath);
   if (!entry || entry.mtimeMs !== stat.mtimeMs) {
     const body = fs.readFileSync(filePath);
-    entry = { body, mtimeMs: stat.mtimeMs, etag: '"' + crypto.createHash("sha1").update(body).digest("hex").slice(0, 16) + '"', mime: MIME[path.extname(filePath)] || "application/octet-stream" };
+    const mime = MIME[path.extname(filePath)] || "application/octet-stream";
+    entry = { body, mtimeMs: stat.mtimeMs, etag: '"' + crypto.createHash("sha1").update(body).digest("hex").slice(0, 16) + '"', mime };
+    // Compress once per mtime (gzip 9 / brotli 11) so the hot path never re-compresses
+    // identical bytes — only for compressible types large enough to benefit.
+    if (/text|json|javascript|svg/.test(mime) && body.length > 512) {
+      entry.gz = zlib.gzipSync(body, { level: 9 });
+      entry.br = zlib.brotliCompressSync(body, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } });
+    }
     staticCache.set(filePath, entry);
   }
   if (req.headers["if-none-match"] === entry.etag) { res.writeHead(304, { ETag: entry.etag, ...SECURITY_HEADERS }); return res.end(); }
@@ -185,7 +206,7 @@ function serveFile(req, res, filePath) {
   const ext = path.extname(filePath);
   const longLived = /\.(png|jpe?g|gif|svg|ico|webp|avif|woff2?)$/i.test(ext);
   const cc = longLived ? "public, max-age=604800" : "public, max-age=0, must-revalidate";
-  respond(req, res, 200, entry.body, entry.mime, { ETag: entry.etag, "Cache-Control": cc });
+  respond(req, res, 200, entry.body, entry.mime, { ETag: entry.etag, "Cache-Control": cc, gz: entry.gz, br: entry.br });
 }
 // ---- Per-route <head> injection: social share cards, icons, PWA, analytics ----
 const SITE = process.env.SITE_URL || "https://billsdepthchart.com";
@@ -241,6 +262,14 @@ function headFor(key) {
     // Structured data (not executed, so it's exempt from script-src CSP).
     `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", name: "Depth Charts", url: SITE + o.path, description: o.desc })}</script>`,
   ];
+  // Preload the per-sport config JSON so its request starts during HTML parse — in
+  // parallel with the app.js download — instead of waiting for the script to execute
+  // before firing. Surface sports only (NFL ships static teams + uses /api/depth; the
+  // home hub loads no config). The `crossorigin` attribute is REQUIRED even though the
+  // fetch is same-origin: `as="fetch"` preloads carry a credentials mode, and a bare
+  // fetch() defaults to credentials:"same-origin" — without crossorigin the modes
+  // mismatch and the browser ignores the preload + double-fetches (verified in-browser).
+  if (SURFACE[key]) parts.push(`<link rel="preload" as="fetch" href="/api/config?sport=${key}" crossorigin>`);
   if (process.env.ANALYTICS_TOKEN) parts.push(`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${process.env.ANALYTICS_TOKEN}"}'></script>`);
   return parts.join("\n    ");
 }
@@ -254,10 +283,13 @@ function renderPage(req, res, rel, ogKey) {
     const html = fs.readFileSync(filePath, "utf8").replace("<!--HEAD-->", headFor(ogKey));
     const body = Buffer.from(html);
     entry = { body, mtimeMs: stat.mtimeMs, etag: '"' + crypto.createHash("sha1").update(body).digest("hex").slice(0, 16) + '"' };
+    // Compress the rendered page once per mtime (per OG variant) — never re-gzip on the hot path.
+    entry.gz = zlib.gzipSync(body, { level: 9 });
+    entry.br = zlib.brotliCompressSync(body, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } });
     pageCache.set(cacheKey, entry);
   }
   if (req.headers["if-none-match"] === entry.etag) { res.writeHead(304, { ETag: entry.etag, ...SECURITY_HEADERS }); return res.end(); }
-  respond(req, res, 200, entry.body, MIME[".html"], { ETag: entry.etag, "Cache-Control": "public, max-age=0, must-revalidate" });
+  respond(req, res, 200, entry.body, MIME[".html"], { ETag: entry.etag, "Cache-Control": "public, max-age=0, must-revalidate", gz: entry.gz, br: entry.br });
 }
 
 // Trusted client IP for rate limiting. Behind Cloudflare→Render, `CF-Connecting-IP`
