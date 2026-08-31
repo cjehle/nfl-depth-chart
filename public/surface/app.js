@@ -128,9 +128,12 @@ function saveLayouts(o) { try { localStorage.setItem("sdc.layout", JSON.stringif
 let layouts = loadLayouts();
 function persistChip(sig, chipKey, chip) {
   const box = chip.parentElement;
-  const left = (parseFloat(chip.style.left) / box.clientWidth) * 100;
-  const top = (parseFloat(chip.style.top) / box.clientHeight) * 100;
+  let left = (parseFloat(chip.style.left) / box.clientWidth) * 100;
+  let top = (parseFloat(chip.style.top) / box.clientHeight) * 100;
   if (!isFinite(left) || !isFinite(top)) return;
+  // Never store a position outside the chip's own half on a two-team surface — that
+  // is exactly what strands a chip over the other team.
+  if (!CONFIG.singleTeam) { left = Math.max(0, Math.min(100, left)); top = Math.max(0, Math.min(100, top)); }
   (layouts[sig] = layouts[sig] || {})[chipKey] = { left: left + "%", top: top + "%" };
   saveLayouts(layouts);
 }
@@ -228,7 +231,16 @@ function renderTeamOnSurface(containerId, data, mirror, sig) {
     chip.style.left = cx + "%";
     chip.style.top = (mirror ? 100 - cy : cy) + "%";
     const pos = saved[chipKey];
-    if (pos) { chip.style.left = pos.left; chip.style.top = pos.top; }
+    if (pos) {
+      const L = parseFloat(pos.left), T = parseFloat(pos.top);
+      // Honor a saved (dragged) position only if it sits inside this team's own half.
+      // A stale out-of-half position — from the old cross-midline drag that stranded
+      // and froze a chip over the OTHER team — is discarded (the chip falls back to its
+      // formation spot) and purged, so corrupted saved layouts self-heal on load.
+      if (CONFIG.singleTeam || (L >= 0 && L <= 100 && T >= 0 && T <= 100)) {
+        chip.style.left = pos.left; chip.style.top = pos.top;
+      } else { delete saved[chipKey]; saveLayouts(layouts); }
+    }
     container.appendChild(chip);
   });
 }
@@ -642,7 +654,12 @@ function fillSeasons(sel) {
   document.getElementById("field-label").textContent = `${CONFIG.emoji} ${surfaceWord(CONFIG.surface)}`;
   document.getElementById("midlabel").textContent = midWord(CONFIG.surface);
   document.getElementById("surface").dataset.surface = CONFIG.surface;
-  CROSS_OK = CONFIG.surface !== "field"; // football (CFB field) keeps players on their side; everything else can cross
+  // Each team owns its half of the surface (A on top, B on the bottom), so a chip
+  // must stay in its own half — otherwise a dragged chip can be stranded over the
+  // OTHER team and, once its out-of-half position is saved, stays frozen there on
+  // every render. Only a lone team (single-team MLB, which fills the whole surface)
+  // may be dragged anywhere.
+  CROSS_OK = !!CONFIG.singleTeam;
   if (CONFIG.singleTeam) {
     // One team fills the whole surface: hide the second team's controls + swap.
     document.getElementById("surface").classList.add("single");
