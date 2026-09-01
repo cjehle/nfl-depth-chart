@@ -88,4 +88,24 @@ body.landing {
 .sport-card p { margin: 0; color: var(--nav-muted); font-size: 13px; line-height: 1.45; }
 .sport-card.soon { opacity: 0.55; pointer-events: none; }
 .sport-card .tag { display: inline-block; margin-top: 10px; font-size: 11px; font-weight: 800; color: #06140b; background: var(--card, #3ea06a); padding: 2px 8px; border-radius: 999px; }
+/* Per-sport card accent, keyed by route. Was an inline style="--card:..." on each card,
+   but our CSP (style-src 'self', no unsafe-inline) blocks inline style attributes, so the
+   colors never applied and every card fell back to green. Static rules apply cleanly. */
+.sport-card[href="/nfl"] { --card: #00338d; }
+.sport-card[href="/mlb"] { --card: #d1533f; }
+.sport-card[href="/nba"] { --card: #c8102e; }
+.sport-card[href="/nhl"] { --card: #00468b; }
+.sport-card[href="/mls"] { --card: #1f7a43; }
+.sport-card[href="/wnba"] { --card: #c9518f; }
+.sport-card[href="/cfb"] { --card: #8a6d3b; }
+.sport-card[href="/cbb"] { --card: #b1562f; }
+.sport-card[href="/mch"] { --card: #4a90d9; }
+.sport-card[href="/epl"] { --card: #3d195b; }
+.sport-card[href="/laliga"] { --card: #ee8707; }
+.sport-card[href="/bundesliga"] { --card: #d20515; }
+.sport-card[href="/seriea"] { --card: #0468b1; }
+.sport-card[href="/ligue1"] { --card: #091c3e; }
+.sport-card[href="/ligamx"] { --card: #006847; }
+.sport-card[href="/nwsl"] { --card: #1a2b5e; }
+.sport-card[href="/ucl"] { --card: #1b1464; }
 .landing-foot { text-align: center; color: var(--nav-muted); font-size: 12px; padding-bottom: 40px; }

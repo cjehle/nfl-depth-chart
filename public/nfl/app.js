@@ -431,7 +431,7 @@ function openDepth(title, players) {
     // Headshot + ESPN profile link built from the espn id (parity with the other 15
     // sports). img-src allows *.espncdn.com; a broken headshot just hides itself.
     const photo = p.id
-      ? `<img class="p-photo" src="https://a.espncdn.com/i/headshots/nfl/players/full/${esc(p.id)}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+      ? `<img class="p-photo" src="https://a.espncdn.com/i/headshots/nfl/players/full/${esc(p.id)}.png" alt="" loading="lazy">`
       : `<span class="p-photo p-photo-blank">#${esc(p.jersey || "")}</span>`;
     const link = p.id ? `<a class="p-espn" href="https://www.espn.com/nfl/player/_/id/${esc(p.id)}" target="_blank" rel="noopener noreferrer" title="Full profile on ESPN" aria-label="${esc(p.name)} on ESPN">↗</a>` : "";
     li.innerHTML = `

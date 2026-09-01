@@ -336,7 +336,7 @@ function openDepth(title, players) {
     const bio = bioLine(p);
     const ovr = p.overall != null ? `<span class="p-ovr" title="${esc(ratingLabel || "")} overall rating">${p.overall}<i>OVR</i></span>` : "";
     const draftHtml = draftPill(p.draft);
-    const photo = p.photo ? `<img class="p-photo" src="${esc(p.photo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : `<span class="p-photo p-photo-blank">${esc(jnum(p.jersey) || "")}</span>`;
+    const photo = p.photo ? `<img class="p-photo" src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="p-photo p-photo-blank">${esc(jnum(p.jersey) || "")}</span>`;
     const link = p.espnUrl ? `<a class="p-espn" href="${esc(p.espnUrl)}" target="_blank" rel="noopener noreferrer" title="Full profile on ESPN" aria-label="${esc(p.name)} on ESPN">↗</a>` : "";
     // Full injury detail (what + expected return), when ESPN has it.
     const inj = p.injuryDetail && (p.injuryDetail.detail || p.injuryDetail.ret)
@@ -540,7 +540,7 @@ function pinPlayer(face, teamName, side) {
 function compareCol(pin, sideLabel) {
   if (!pin) return `<div class="cmp-col cmp-empty"><span>Tap a ${sideLabel} player</span></div>`;
   const p = pin.face;
-  const photo = p.photo ? `<img class="cmp-photo" src="${esc(p.photo)}" alt="" onerror="this.style.visibility='hidden'">` : `<span class="cmp-photo"></span>`;
+  const photo = p.photo ? `<img class="cmp-photo" src="${esc(p.photo)}" alt="">` : `<span class="cmp-photo"></span>`;
   const ovr = p.overall != null ? `<span class="cmp-ovr">${p.overall}<i>OVR</i></span>` : "";
   const bits = [p.pos, p.classYear || (p.age != null ? p.age + " yrs" : ""), p.height].filter(Boolean).join(" · ");
   return `<div class="cmp-col" data-id="${esc(p.id || "")}">
