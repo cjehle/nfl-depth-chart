@@ -262,32 +262,41 @@ body {
   width: min(360px, 92vw);
   max-height: 80vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: #10261a;
   border: 2px solid #2e7d46;
   border-radius: 12px;
   box-shadow: 0 12px 40px #000000aa;
-  z-index: 50;
+  z-index: 301; /* ABOVE the sticky site-nav (200) so its tall mobile rows can't hide the ✕ */
 }
 .popover.hidden { display: none; }
 .popover-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   padding: 12px 14px;
   border-bottom: 1px solid #2c5a3c;
   font-weight: 800;
+  position: sticky; /* keep the ✕ visible no matter how many players scroll past */
+  top: 0;
+  z-index: 1;
+  background: #10261a;
 }
+.popover-head > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #popover-close {
-  background: none;
-  border: none;
-  color: #cfe0d6;
+  flex: 0 0 auto;    /* never shrink / get pushed off by a long title */
+  background: #17442a;
+  border: 1px solid #2c5a3c;
+  color: #eaf2ec;
   font-size: 18px;
   cursor: pointer;
   min-width: 44px;   /* comfortable tap target */
   min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
   border-radius: 8px;
 }
-#popover-close:hover { background: #ffffff1a; }
+#popover-close:hover { background: #1e5836; }
 .popover ol { margin: 0; padding: 8px 0; list-style: none; }
 .popover li {
   display: flex;
@@ -345,8 +354,8 @@ body {
 .backdrop {
   position: fixed;
   inset: 0;
-  background: #00000066;
-  z-index: 40;
+  background: #000000aa;
+  z-index: 300; /* above the sticky site-nav (200) so tap-to-close works over the whole screen */
 }
 .backdrop.hidden { display: none; }
 
@@ -455,6 +464,12 @@ body {
   .chip { width: 74px; min-height: 44px; }
   .chip .name { font-size: 11px; }
 
-  /* Popover fills more of a small screen. */
-  .popover { width: 94vw; }
+  /* Depth popover as a bottom sheet on phones: full width, anchored to the bottom, ✕
+     header pinned at the top and always visible however many players a position has. */
+  .popover {
+    top: auto; bottom: 0; left: 0; right: 0; transform: none;
+    width: 100%; max-width: 100%; max-height: 85vh;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
