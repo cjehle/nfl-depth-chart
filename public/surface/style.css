@@ -93,7 +93,7 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 .half.bottom .team-band { bottom: 0; }
 .team-band img { height: 20px; width: 20px; object-fit: contain; }
 .team-band .band-next { margin-left: auto; font-size: 10px; font-weight: 600; opacity: 0.82; white-space: nowrap; }
-@media (max-width: 620px) { .team-band .band-next { display: none; } }
+/* Next-game stays visible on phones too — the band wraps rather than truncating. */
 .midline { position: absolute; top: 50%; left: 0; right: 0; height: 0; z-index: 5; transform: translateY(-50%); text-align: center; }
 .midline span { font-size: 9px; letter-spacing: 2px; color: #ffffffb0; background: #00000030; padding: 1px 8px; border-radius: 6px; }
 
@@ -233,7 +233,8 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 
 /* ---- list view ---- */
 .list-view { max-width: 720px; margin: 8px auto 40px; padding: 0 14px; display: grid; gap: 18px; }
-.list-team h2 { font-size: 15px; margin: 0 0 8px; padding-left: 10px; border-left: 4px solid #666; }
+.list-team h2 { font-size: 15px; margin: 0 0 2px; padding-left: 10px; border-left: 4px solid #666; }
+.list-meta { font-size: 12px; color: var(--muted); margin: 0 0 8px; padding-left: 14px; }
 .list-group { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 12px 0 4px; }
 .list-row {
   width: 100%; display: flex; align-items: center; gap: 10px;

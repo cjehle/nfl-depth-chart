@@ -71,25 +71,8 @@ let lastFocused = null;              // element to restore focus to when the mod
 // ---------------------------------------------------------------------------
 function logoUrl(abbr) { return `https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png`; }
 
-function hexToRgba(hex, alpha) {
-  const h = hex.replace("#", "");
-  const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function esc(s) {
-  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => (
-    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
-  ));
-}
-
-function injuryClass(status) {
-  if (!status) return null;
-  const s = status.toLowerCase();
-  if (s.includes("out") || s.includes("ir") || s.includes("reserve") || s.includes("pup")) return "out";
-  if (s.includes("question") || s.includes("doubt")) return "questionable";
-  return "other";
-}
+// esc(), hexToRgba(), injuryClass(), relTime() now live in /common.js (shared with the
+// surface app, loaded via <script src="/common.js" defer> before this file).
 
 function spreadX(n, minX, maxX) {
   if (n <= 1) return [(minX + maxX) / 2];
@@ -410,7 +393,7 @@ backdrop.className = "backdrop hidden";
 document.body.appendChild(backdrop);
 
 function setBackgroundInert(on) {
-  document.querySelectorAll(".topbar, .field-scroll, #list-view, .status").forEach((el) => {
+  document.querySelectorAll(".site-nav, .topbar, .field-scroll, #list-view, .status").forEach((el) => {
     if (!el) return;
     el.inert = on;             // modern browsers
     if (on) el.setAttribute("aria-hidden", "true"); else el.removeAttribute("aria-hidden");
@@ -445,18 +428,27 @@ function openDepth(title, players) {
     const bioParts = [p.height, p.weight, p.college].filter(Boolean);
     if (p.exp != null) bioParts.push(p.exp === 0 ? "Rookie" : `${p.exp} yr${p.exp === 1 ? "" : "s"} exp`);
     const bio = bioParts.map(esc).join(" · ");
+    // Headshot + ESPN profile link built from the espn id (parity with the other 15
+    // sports). img-src allows *.espncdn.com; a broken headshot just hides itself.
+    const photo = p.id
+      ? `<img class="p-photo" src="https://a.espncdn.com/i/headshots/nfl/players/full/${esc(p.id)}.png" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+      : `<span class="p-photo p-photo-blank">#${esc(p.jersey || "")}</span>`;
+    const link = p.id ? `<a class="p-espn" href="https://www.espn.com/nfl/player/_/id/${esc(p.id)}" target="_blank" rel="noopener noreferrer" title="Full profile on ESPN" aria-label="${esc(p.name)} on ESPN">↗</a>` : "";
     li.innerHTML = `
       <div class="p-main">
         <span class="rank">${i + 1}</span>
-        <span class="p-num">#${esc(p.jersey || "--")}</span>
-        <span class="p-name">${esc(p.name)}</span>
+        ${photo}
+        <span class="p-name">${esc(p.name)}${p.jersey ? ` <span class="p-num">#${esc(p.jersey)}</span>` : ""}</span>
         <span class="p-ovr">${ovrText}</span>
         <span class="p-age" data-id="${esc(p.id || "")}">${ageText}</span>
         ${badge}
+        ${link}
       </div>
+      ${i === 0 ? `<div class="p-stats" data-loading>…</div>` : ""}
       ${bio ? `<div class="p-bio">${bio}</div>` : ""}
     `;
     popoverList.appendChild(li);
+    if (i === 0 && p.id) loadPlayerStats(li.querySelector(".p-stats"), p.id, season, gen);
   });
 
   lastFocused = document.activeElement;
@@ -465,6 +457,21 @@ function openDepth(title, players) {
   setBackgroundInert(true);
   popoverClose.focus();
   fillAges(players, gen);
+}
+// Lazily fetch the starter's season stat line (passing/rushing/receiving) — the
+// backend already serves sport=nfl. Stale-guarded against a newer popover.
+async function loadPlayerStats(el, id, season, gen) {
+  if (!el) return;
+  try {
+    const now = window.currentNflSeason();
+    const yr = season && season !== now ? season : "";
+    const d = await (await fetch(`/api/player-stats?sport=nfl&id=${encodeURIComponent(id)}${yr ? `&year=${yr}` : ""}`, { signal: AbortSignal.timeout(12000) })).json();
+    if (gen !== popoverGen || !el.isConnected) return;
+    if (d && Array.isArray(d.line) && d.line.length) {
+      el.removeAttribute("data-loading");
+      el.innerHTML = d.line.map((s) => `<span class="stat"><b>${esc(s.v)}</b> ${esc(s.k)}</span>`).join("");
+    } else { el.remove(); }
+  } catch { if (el.isConnected) el.remove(); }
 }
 
 // Batch the age lookups for the open popover into one request, then fill rows —
@@ -499,9 +506,16 @@ function closeDepth() {
 popoverClose.addEventListener("click", closeDepth);
 backdrop.addEventListener("click", closeDepth);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDepth(); });
-// Trap focus inside the dialog (only the close button is interactive).
+// Keep focus in the dialog as a wrap-around cycle so the in-popover ESPN links are
+// keyboard-reachable (the popover now has interactive content beyond Close).
 popover.addEventListener("keydown", (e) => {
-  if (e.key === "Tab") { e.preventDefault(); popoverClose.focus(); }
+  if (e.key !== "Tab") return;
+  const f = [...popover.querySelectorAll('button, a[href], select, [tabindex]:not([tabindex="-1"])')]
+    .filter((el) => !el.disabled && el.offsetParent !== null);
+  if (!f.length) { e.preventDefault(); popoverClose.focus(); return; }
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
 
 // ---------------------------------------------------------------------------
@@ -514,17 +528,16 @@ const formationSelect = document.getElementById("formation-select");
 const offenseSeasonSelect = document.getElementById("offense-season");
 const defenseSeasonSelect = document.getElementById("defense-season");
 const statusEl = document.getElementById("status");
+// Honest "saved data" cue when the server fell back to a seed/last-good copy (ESPN down).
+function setStaleBanner(source) {
+  const el = document.getElementById("stale-banner"); if (!el) return;
+  if (!source) { el.classList.add("hidden"); el.textContent = ""; return; }
+  el.textContent = "⚠ Showing a saved lineup — live data is temporarily unavailable. This page keeps retrying and will refresh itself.";
+  el.classList.remove("hidden");
+}
 let viewMode = "field"; // or "list"
 
 // One half's header band: team logo (built as DOM, no inline handlers), name, etc.
-function relTime(iso) {
-  if (!iso) return "just now";
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 90) return "just now";
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  if (s < 86400) return `${Math.round(s / 3600)} hr ago`;
-  return `${Math.round(s / 86400)} d ago`;
-}
 function nextGameText(next) {
   if (!next || !next.opp) return "";
   var day = "";
@@ -568,6 +581,9 @@ async function render(fresh) {
       getSideData("defense", defenseId, defenseYear, fresh),
     ]);
     if (gen !== renderGen) return; // a newer selection superseded this fetch
+    // Honest freshness: if the server served a saved copy (ESPN down), say so instead
+    // of presenting a possibly weeks-old seed as live — parity with every other sport.
+    setStaleBanner((offData.stale && offData.source) || (defData.stale && defData.source) || null);
 
     const offChips = buildOffense(offData.offense, personnel);
     const defChips = buildDefense(defData.defense, formation);

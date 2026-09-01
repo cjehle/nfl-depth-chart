@@ -108,6 +108,8 @@ body {
   font-size: 14px;
 }
 .status .retry { margin-left: 8px; background: #17442a; color: #eaf2ec; border: 1px solid #2c5c3d; border-radius: 8px; padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.stale-banner { max-width: 640px; margin: 0 auto 8px; padding: 8px 14px; border-radius: 8px; background: #3a2a0e; color: #f0cd8a; border: 1px solid #6b501a; font-size: 13px; text-align: center; }
+.stale-banner.hidden { display: none; }
 .updated { margin-left: 10px; font-size: 11px; color: #9fb0a4; white-space: nowrap; }
 .field.loading { opacity: 0.5; transition: opacity 0.15s ease; }
 
@@ -323,6 +325,15 @@ body {
   text-align: center;
 }
 .popover .p-age { color: #a9c3b3; font-size: 12px; min-width: 42px; text-align: right; }
+/* Rich popover parity with the other sports: headshot, ESPN link, lazy stat line. */
+.popover .p-photo { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: #0c2416; border: 1px solid #29513a; flex: 0 0 auto; }
+.popover li.starter .p-photo { width: 46px; height: 46px; }
+.popover .p-photo-blank { display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #a9c3b3; }
+.popover .p-espn { color: #7fd4a1; text-decoration: none; font-weight: 800; font-size: 14px; padding: 0 2px; }
+.popover .p-espn:hover { color: #eaf2ec; }
+.popover .p-stats { display: flex; flex-wrap: wrap; gap: 14px; padding: 3px 0 2px 42px; font-size: 12px; color: #a9c3b3; }
+.popover .p-stats[data-loading] { opacity: 0.55; font-style: italic; }
+.popover .p-stats .stat b { color: #eaf2ec; font-size: 15px; font-weight: 800; margin-right: 3px; }
 .popover-note {
   padding: 8px 14px 12px;
   font-size: 10px;

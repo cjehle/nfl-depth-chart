@@ -28,23 +28,10 @@ const COURT_SETS = {
 // ---------------------------------------------------------------------------
 // Small helpers
 // ---------------------------------------------------------------------------
-function esc(s) {
-  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
+// esc(), hexToRgba(), injuryClass(), relTime() now live in /common.js (shared with the
+// NFL app, loaded via <script src="/common.js" defer> before this file).
 // Jersey number as "#N", or "" when the player has none (avoids a bare "#").
 function jnum(j) { return j ? `#${esc(j)}` : ""; }
-function hexToRgba(hex, alpha) {
-  const h = String(hex || "#333333").replace("#", "");
-  const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
-  return `rgba(${r || 40}, ${g || 40}, ${b || 40}, ${alpha})`;
-}
-function injuryClass(status) {
-  if (!status) return null;
-  const s = String(status).toLowerCase();
-  if (s.includes("out") || s.includes("ir") || s.includes("reserve") || s.includes("susp")) return "out";
-  if (s.includes("question") || s.includes("doubt") || s.includes("day")) return "questionable";
-  return "other";
-}
 function expText(exp) {
   if (exp == null) return "";
   if (exp === 0) return "Rookie";
@@ -55,14 +42,6 @@ function bioLine(p) {
   const e = expText(p.exp);
   if (e) parts.push(e);
   return parts.map(esc).join(" · ");
-}
-function relTime(iso) {
-  if (!iso) return "just now";
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 90) return "just now";
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  if (s < 86400) return `${Math.round(s / 3600)} hr ago`;
-  return `${Math.round(s / 86400)} d ago`;
 }
 // Short calendar date like "Aug 12" (for the game a lineup is derived from).
 function fmtDate(iso) {
@@ -279,10 +258,17 @@ function renderList(dataA, dataB) {
 function listTeam(data, side) {
   const sec = document.createElement("section");
   sec.className = "list-team";
+  const t = data.team;
   const h = document.createElement("h2");
-  h.textContent = `${data.team.name} · ${data.subtitle || ""}`;
-  h.style.borderLeftColor = data.team.color || "#666";
+  // Match the field band's context — AP rank + W-L record — so List/mobile users (the
+  // majority) don't lose the record/ranking the payload already carries.
+  const rank = t.rank ? `#${t.rank} ` : "";
+  const rec = t.record && !/^0-0/.test(t.record) ? ` (${t.record})` : "";
+  h.textContent = `${rank}${t.name}${rec} · ${data.subtitle || ""}`;
+  h.style.borderLeftColor = t.color || "#666";
   sec.appendChild(h);
+  const ng = nextGame(t.next);
+  if (ng) { const m = document.createElement("div"); m.className = "list-meta"; m.textContent = ng; sec.appendChild(m); }
   // group chips by their line, in first-seen order
   const groups = [];
   const byGroup = new Map();
@@ -660,10 +646,16 @@ function fillTeams(sel, conf) {
   const teams = [...CONFIG.teams]
     .filter((t) => !conf || t.conf === conf)
     .sort((a, b) => a.name.localeCompare(b.name)); // alphabetical
-  for (const t of teams) {
-    const opt = document.createElement("option");
-    opt.value = t.id; opt.textContent = t.name;
-    sel.appendChild(opt);
+  const mkOpt = (t) => { const o = document.createElement("option"); o.value = t.id; o.textContent = t.name; return o; };
+  // Group by conference with native <optgroup> when teams carry one (CBB 362 / CFB 138 /
+  // college hockey) so the huge pickers are scannable in a single interaction. Plain flat
+  // list otherwise (NBA/MLB/soccer). option.value stays the team id, so state/sync are unaffected.
+  if (!teams.some((t) => t.conf)) { for (const t of teams) sel.appendChild(mkOpt(t)); return; }
+  const confs = [...new Set(teams.map((t) => t.conf || "Other"))].sort((a, b) => a.localeCompare(b));
+  for (const c of confs) {
+    const g = document.createElement("optgroup"); g.label = c;
+    for (const t of teams.filter((t) => (t.conf || "Other") === c)) g.appendChild(mkOpt(t));
+    sel.appendChild(g);
   }
 }
 // Conference filter helpers (college sports whose teams carry a `conf`).
