@@ -265,14 +265,13 @@ function headFor(key) {
     // Structured data (not executed, so it's exempt from script-src CSP).
     `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", name: "Depth Charts", url: SITE + o.path, description: o.desc })}</script>`,
   ];
-  // Preload the per-sport config JSON so its request starts during HTML parse — in
-  // parallel with the app.js download — instead of waiting for the script to execute
-  // before firing. Surface sports only (NFL ships static teams + uses /api/depth; the
-  // home hub loads no config). The `crossorigin` attribute is REQUIRED even though the
-  // fetch is same-origin: `as="fetch"` preloads carry a credentials mode, and a bare
-  // fetch() defaults to credentials:"same-origin" — without crossorigin the modes
-  // mismatch and the browser ignores the preload + double-fetches (verified in-browser).
-  if (SURFACE[key]) parts.push(`<link rel="preload" as="fetch" href="/api/config?sport=${key}" crossorigin>`);
+  // Inline the per-sport config as a non-executed JSON data island so the client can
+  // read it synchronously at startup — this removes the serial config round-trip
+  // (HTML → run app.js → fetch /api/config → then fetch lineup) from every surface
+  // load. Same CSP-safe technique as the ld+json above (script-src 'self', not executed);
+  // the config rides inside the already-brotli'd page. Escape "<" so a value can't break
+  // out of the <script>. The client keeps a fetch fallback if the island is ever absent.
+  if (SURFACE[key]) parts.push(`<script type="application/json" id="sdc-config">${JSON.stringify(publicConfig(key)).replace(/</g, "\\u003c")}</script>`);
   if (process.env.ANALYTICS_TOKEN) parts.push(`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${process.env.ANALYTICS_TOKEN}"}'></script>`);
   return parts.join("\n    ");
 }

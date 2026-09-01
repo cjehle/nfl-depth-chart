@@ -329,7 +329,7 @@ backdrop.className = "backdrop hidden";
 document.body.appendChild(backdrop);
 
 function setBackgroundInert(on) {
-  document.querySelectorAll(".topbar, .surface-scroll, #list-view, .status").forEach((el) => {
+  document.querySelectorAll(".site-nav, .topbar, .surface-scroll, #list-view, .status").forEach((el) => {
     if (!el) return;
     el.inert = on;
     if (on) el.setAttribute("aria-hidden", "true"); else el.removeAttribute("aria-hidden");
@@ -402,7 +402,19 @@ function closeDepth() {
 popoverClose.addEventListener("click", closeDepth);
 backdrop.addEventListener("click", closeDepth);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDepth(); });
-popover.addEventListener("keydown", (e) => { if (e.key === "Tab") { e.preventDefault(); popoverClose.focus(); } });
+// Keep focus inside the dialog, but as a proper WRAP-AROUND cycle so every control —
+// including each player's ESPN ↗ link — is keyboard-reachable (the old trap slammed
+// focus back to Close on every Tab, hiding those links from keyboard/AT users).
+popover.addEventListener("keydown", (e) => {
+  if (e.key !== "Tab") return;
+  const f = [...popover.querySelectorAll('button, a[href], select, [tabindex]:not([tabindex="-1"])')]
+    .filter((el) => !el.disabled && el.offsetParent !== null);
+  if (!f.length) { e.preventDefault(); popoverClose.focus(); return; }
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  // else: let the browser move focus naturally to the next control in the dialog
+});
 
 // ---------------------------------------------------------------------------
 // MAIN
@@ -677,7 +689,10 @@ function fillSeasons(sel) {
 // ---- startup ----
 (async function start() {
   try {
-    CONFIG = await (await fetch(`/api/config?sport=${SPORT}`)).json();
+    // Prefer the inlined config data island (no round-trip); fall back to the API.
+    const el = document.getElementById("sdc-config");
+    if (el) { try { CONFIG = JSON.parse(el.textContent); } catch {} }
+    if (!CONFIG) CONFIG = await (await fetch(`/api/config?sport=${SPORT}`)).json();
   } catch {
     document.getElementById("status").textContent = "Could not load configuration.";
     return;
