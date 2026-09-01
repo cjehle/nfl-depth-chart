@@ -5,7 +5,9 @@
 // exercised loosely against the committed maps. Network-free (node --test).
 const test = require("node:test");
 const assert = require("node:assert");
-const { fold, tokenSubset, ratingFor } = require("../lib/ratings.js");
+const { fold, tokenSubset, ratingFor, surnameInitial } = require("../lib/ratings.js");
+// idx factory for surnameInitial tests: [name, ovr] → the {first,last,toks,val} shape.
+const mkIdx = (pairs) => ({ entries: pairs.map(([n, v]) => { const p = n.split(" "); return { toks: new Set(p), first: p[0], last: p[p.length - 1], val: v }; }) });
 
 test("fold flattens special letters normName's accent-strip misses", () => {
   assert.equal(fold("Yıldız"), "yildiz");        // ı (dotless i) → i
@@ -55,6 +57,25 @@ test("ratingFor returns a plausible OVR for a well-known top-flight name (pipeli
   // the exact→folded pipeline resolves against the committed maps.
   const messi = ratingFor("mls", "Lionel Messi");
   assert.ok(messi === null || (typeof messi === "number" && messi >= 60 && messi <= 99), `unexpected OVR ${messi}`);
+});
+
+test("surnameInitial matches a first-name spelling/transliteration variant (surname + initial, unique)", () => {
+  // Ben ⊂ Benjamin (prefix); Matvei/Matvey and Odisseas/Odysseas (1-char translit).
+  assert.equal(surnameInitial(mkIdx([["benjamin white", 83], ["morgan gibbs white", 70]]), ["ben", "white"]), 83);
+  assert.equal(surnameInitial(mkIdx([["matvey safonov", 78]]), ["matvei", "safonov"]), 78);
+  assert.equal(surnameInitial(mkIdx([["odysseas vlachodimos", 72]]), ["odisseas", "vlachodimos"]), 72);
+});
+
+test("surnameInitial refuses a DIFFERENT player (wrong initial, dissimilar first name, or ambiguity)", () => {
+  // Different first initial → no match (Miguel vs Robert Navarro).
+  assert.equal(surnameInitial(mkIdx([["robert navarro", 75]]), ["miguel", "navarro"]), null);
+  // Same initial but not a near-variant first name (Ricardo vs Robert) → no match.
+  assert.equal(surnameInitial(mkIdx([["ricardo navarro", 75]]), ["robert", "navarro"]), null);
+  // Two candidates that BOTH look like the query first name, different ratings → null.
+  assert.equal(surnameInitial(mkIdx([["jon smith", 80], ["jonathan smith", 70]]), ["jon", "smith"]), null);
+  // Too-short surname or single token → refuse.
+  assert.equal(surnameInitial(mkIdx([["al bo", 90]]), ["al", "bo"]), null);
+  assert.equal(surnameInitial(mkIdx([["messi", 90]]), ["messi"]), null);
 });
 
 test("ratingFor is null for an obvious non-player and empty input", () => {
