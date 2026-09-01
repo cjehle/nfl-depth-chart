@@ -111,8 +111,14 @@ async function playerStats(sportKey, id, year) {
   const group = espnMap.sport;
   const key = `${sportKey}:${id}:${year || ""}`;
   return cached(statStore, key, 6 * 3600e3, async () => {
-    const nowY = new Date().getUTCFullYear();
-    const years = year ? [year] : [nowY, nowY - 1, nowY - 2];
+    // Probe the CURRENT season first. ESPN labels NBA/NHL seasons by their END year
+    // (2027 = the 2026-27 season) and rolls over in the fall — matching the lineup
+    // builders — so mid-season we must ask for the end-year, not the raw calendar year,
+    // or the popover shows LAST season's PPG/GAA next to a current-season lineup.
+    const now = new Date(), nowY = now.getUTCFullYear();
+    const cfg = SURFACE[sportKey];
+    const cur = cfg && cfg.seasonEndYear ? (now.getUTCMonth() >= 8 ? nowY + 1 : nowY) : nowY;
+    const years = year ? [year] : [cur, cur - 1, cur - 2];
     for (const yr of years) {
       try {
         const d = await fetchJson(`https://sports.core.api.espn.com/v2/sports/${espnMap.sport}/leagues/${espnMap.league}/seasons/${yr}/types/2/athletes/${id}/statistics`, { timeout: 6000, retries: 0 });
@@ -294,23 +300,33 @@ function renderPage(req, res, rel, ogKey) {
   respond(req, res, 200, entry.body, MIME[".html"], { ETag: entry.etag, "Cache-Control": "public, max-age=0, must-revalidate", gz: entry.gz, br: entry.br });
 }
 
-// Trusted client IP for rate limiting. Behind Cloudflare→Render, `CF-Connecting-IP`
-// is the real visitor IP and is set by Cloudflare (not spoofable end-to-end);
-// prefer it. Fall back to the first (leftmost = original client) X-Forwarded-For
-// hop, then the socket address. Using the leftmost XFF — not the attacker-
-// appendable rightmost — avoids both spoofing and shared-proxy mis-attribution.
+// Trusted client IP for rate limiting. Cloudflare sets CF-Connecting-IP to the real
+// visitor and strips any inbound copy, so it can't be spoofed end-to-end — prefer it.
+// X-Forwarded-For is only honored when TRUST_PROXY is set (i.e. a proxy YOU control
+// puts the client IP there and strips client-supplied values). On the raw Render
+// origin (the …onrender.com mirror, no Cloudflare) XFF is fully attacker-supplied, so
+// trusting it would let anyone mint a fresh bucket per request and bypass the limiter;
+// there we fall back to the socket address instead.
+const TRUST_PROXY = process.env.TRUST_PROXY === "1" || process.env.TRUST_PROXY === "true";
 function clientIp(req) {
   const cf = req.headers["cf-connecting-ip"];
   if (cf) return String(cf).trim();
-  const xff = req.headers["x-forwarded-for"];
-  if (xff) return String(xff).split(",")[0].trim();
+  if (TRUST_PROXY) { const xff = req.headers["x-forwarded-for"]; if (xff) return String(xff).split(",")[0].trim(); }
   return req.socket.remoteAddress || "unknown";
 }
 const buckets = new Map();
+const BUCKET_CAP = 10000;
 function rateLimited(ip) {
   const now = Date.now(), cap = 120, refill = 2;
   let b = buckets.get(ip);
-  if (!b) { if (buckets.size > 10000) for (const [k, v] of buckets) if (Math.min(cap, v.tokens + ((now - v.last) / 1000) * refill) >= cap) buckets.delete(k); b = { tokens: cap, last: now }; buckets.set(ip, b); }
+  if (!b) {
+    // Hard-bound the map: a flood of unique IPs never refills to cap, so a "delete only
+    // buckets at cap" predicate would never fire and the Map would grow unbounded (OOM
+    // on the 512MB tier). Evict the oldest-inserted entry per new insert — one-shot
+    // flood IPs are exactly those, so the map stays pinned at its ceiling.
+    if (buckets.size >= BUCKET_CAP) { const oldest = buckets.keys().next().value; if (oldest !== undefined) buckets.delete(oldest); }
+    b = { tokens: cap, last: now }; buckets.set(ip, b);
+  }
   b.tokens = Math.min(cap, b.tokens + ((now - b.last) / 1000) * refill); b.last = now;
   if (b.tokens < 1) return true; b.tokens -= 1; return false;
 }
@@ -339,6 +355,10 @@ function healthVerdict() {
   const reasons = [];
   if (r.total >= 8 && r.errorRate >= 0.5) reasons.push(`upstream error rate ${Math.round(r.errorRate * 100)}% (${r.fail}/${r.total}) over ~15m`);
   else if (r.total >= 8 && r.ok === 0) reasons.push(`no upstream success in ${r.fail} recent attempts`);
+  // Silent-drift signal: fetches "succeed" (200) but builders produce EMPTY lineups —
+  // the exact ESPN-schema-drift failure the fallback machinery exists for. Without this,
+  // the verdict stayed "ok" through the outage it was built to catch.
+  if (r.built >= 8 && r.emptyRate >= 0.5) reasons.push(`empty-build rate ${Math.round(r.emptyRate * 100)}% (${r.empty}/${r.built}) over ~15m`);
   return { status: reasons.length ? "degraded" : "ok", reasons, recentUpstream: r };
 }
 

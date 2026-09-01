@@ -14,13 +14,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // One pass over the EA FC database, bucketed into PER-LEAGUE maps. Keeping each
 // league separate means a same-named player from another league can't be borrowed
 // (e.g. the LALIGA Lewandowski is a different person from the Fire's).
+// Each `re` matches the TOP flight only; `not` excludes lower/women's divisions that
+// share the league word (e.g. La Liga's 2nd tier is "LALIGA HYPERMOTION", Spain's
+// women's league is "Liga F"). Without these guards a second-division namesake can
+// win the folded-name index and show the wrong OVR on a top-flight starter.
 const FC_LEAGUES = [
   { key: "mls", re: /major league soccer|\bmls\b/i },
-  { key: "epl", re: /premier league/i },
-  { key: "laliga", re: /laliga|la liga/i },
-  { key: "bundesliga", re: /bundesliga/i, not: /2\.?\s*bundesliga/i },
+  { key: "epl", re: /premier league/i, not: /women|wsl|national league|championship/i },
+  { key: "laliga", re: /laliga|la liga/i, not: /hypermotion|laliga\s*2|segunda|liga f|women|femen/i },
+  { key: "bundesliga", re: /bundesliga/i, not: /2\.?\s*bundesliga|bundesliga\s*2|frauen|women|ö\.|öster|austria/i },
   { key: "seriea", re: /serie a/i, not: /femm|women|serie b/i },
-  { key: "ligue1", re: /ligue 1/i },
+  { key: "ligue1", re: /ligue 1/i, not: /ligue 2|women|féminin|feminin/i },
   { key: "nwsl", re: /nwsl/i },
 ];
 async function fcSoccer() {
