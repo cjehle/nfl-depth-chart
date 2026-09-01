@@ -21,7 +21,7 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 const crypto = require("crypto");
-const { stats, cached, buildLineup, writeDisk, readDisk, cacheStats, fetchJson } = require("./lib/espn.js");
+const { stats, cached, buildLineup, writeDisk, readDisk, cacheStats, fetchJson, lineupKey, recentUpstream } = require("./lib/espn.js");
 // Load the NFL engine defensively: if it ever fails to load, the NFL routes are
 // disabled but the rest of the site still runs.
 let nfl = null;
@@ -59,7 +59,7 @@ const LINEUP_CACHE = "public, s-maxage=120, stale-while-revalidate=600";
 // Surface lineup cache (TTL + single-flight + disk last-good), keyed by sport+team.
 const lineupStore = new Map();
 async function getLineup(sport, teamId, fresh, unit, year, formation) {
-  const key = `${sport}:${teamId}:${unit || ""}:${year || ""}:${formation || ""}`;
+  const key = lineupKey(sport, teamId, unit, year, formation);
   const existing = lineupStore.get(key);
   if (fresh) { if (existing && "value" in existing && Date.now() - existing.time > 60000) lineupStore.delete(key); }
   else if (existing && "value" in existing) stats.cacheHits++;
@@ -70,8 +70,11 @@ async function getLineup(sport, teamId, fresh, unit, year, formation) {
       return data;
     }, 600); // bound: ~1000 teams × units × seasons × formations is unbounded otherwise
   } catch (err) {
-    const disk = readDisk(key);
-    if (disk) { console.error(`serving last-good for ${key}: ${err.message}`); return disk; }
+    // Upstream failed on a cold key (no in-memory value) → serve the durable copy:
+    // this instance's last-good, else the committed seed. Tag it stale so the client
+    // can say so honestly instead of passing a canned snapshot off as live.
+    const hit = readDisk(key);
+    if (hit) { console.error(`serving ${hit.source} for ${key}: ${err.message}`); return { ...hit.data, stale: true, source: hit.source }; }
     throw err;
   }
 }
@@ -328,6 +331,18 @@ const PAGE_ROUTES = {
   "/nwsl": { rel: "surface/index.html", og: "nwsl" }, "/ucl": { rel: "surface/index.html", og: "ucl" },
 };
 
+// Health verdict from the ROLLING upstream window (not cumulative-since-boot, so a
+// bad last 15 min isn't drowned by a month of history). Volume-gated so a couple of
+// early hiccups don't flip it. This catches the scariest 10-year failure: ESPN drifts,
+// still returns 200, builders fall through to empty lineups → an operator can SEE it.
+function healthVerdict() {
+  const r = recentUpstream();
+  const reasons = [];
+  if (r.total >= 8 && r.errorRate >= 0.5) reasons.push(`upstream error rate ${Math.round(r.errorRate * 100)}% (${r.fail}/${r.total}) over ~15m`);
+  else if (r.total >= 8 && r.ok === 0) reasons.push(`no upstream success in ${r.fail} recent attempts`);
+  return { status: reasons.length ? "degraded" : "ok", reasons, recentUpstream: r };
+}
+
 const server = http.createServer(async (req, res) => {
   const t0 = Date.now();
   stats.requests++;
@@ -341,15 +356,22 @@ const server = http.createServer(async (req, res) => {
       // Freshness of each warmed lineup (age in seconds since it was cached).
       const lineups = {};
       for (const [k, v] of lineupStore) if (v && v.time) lineups[k] = Math.round((now - v.time) / 1000);
-      sendJson(req, res, 200, {
-        status: "ok",
+      const v = healthVerdict();
+      // Plain /healthz ALWAYS returns 200 (Render's liveness probe must not kill a
+      // serving-but-degraded instance). An external monitor asks for ?strict=1, which
+      // returns 503 only when degraded — so a silent drift raises a real alert.
+      const strict = /[?&]strict=1(\b|&|$)/.test(req.url);
+      sendJson(req, res, strict && v.status === "degraded" ? 503 : 200, {
+        status: v.status,
+        ...(v.reasons.length ? { degradedReasons: v.reasons } : {}),
         uptimeSec: Math.round((now - stats.started) / 1000),
         ...stats,
+        recentUpstream: v.recentUpstream,
         memoryMB: { rss: mb(mem.rss), heapUsed: mb(mem.heapUsed) },
         caches: { lineups: lineupStore.size, buckets: buckets.size, static: staticCache.size, pages: pageCache.size, ...cacheStats() },
         lineupAgeSec: lineups,
       });
-      return done(200);
+      return done(res.statusCode);
     }
 
     if (urlPath.startsWith("/api/")) {

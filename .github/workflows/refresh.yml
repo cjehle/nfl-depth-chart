@@ -20,7 +20,7 @@ jobs:
           echo "NFL (Bills):"
           curl -fsS --max-time 90 "$BASE/api/depth?team=2&fresh=1" -o /dev/null && echo "  ok" || echo "  (asleep; will refresh on next visit)"
           echo "All other sports (default matchups):"
-          for q in "sport=nhl&team=2&unit=line1" "sport=nba&team=13" "sport=mls&team=182" "sport=mlb&team=16" "sport=wnba&team=19" "sport=cfb&team=193&unit=offense" "sport=cbb&team=305" "sport=mch&team=130"; do
+          for q in "sport=nhl&team=2&unit=line1" "sport=nba&team=13" "sport=mls&team=182" "sport=mlb&team=16" "sport=wnba&team=19" "sport=cfb&team=193&unit=offense" "sport=cbb&team=305" "sport=mch&team=130" "sport=epl&team=382" "sport=laliga&team=86" "sport=bundesliga&team=132" "sport=seriea&team=110" "sport=ligue1&team=160" "sport=ligamx&team=227" "sport=nwsl&team=15362" "sport=ucl&team=86"; do
             curl -fsS --max-time 90 "$BASE/api/lineup?$q&fresh=1" -o /dev/null && echo "  ok: $q" || echo "  (skip: $q)"
           done
           # Confirm it's serving again after the refresh.
@@ -36,3 +36,19 @@ jobs:
             echo "attempt $i: unreachable, retrying in 20s…"; sleep 20
           done
           echo "::error::billsdepthchart.com is unreachable after 4 attempts"; exit 1
+
+      - name: Alert if the site is up but DEGRADED (ESPN drifting/down)
+        # /healthz?strict=1 returns 503 only when the rolling-window verdict is
+        # "degraded" (sustained upstream failures / empty builds). We require it to
+        # persist across spaced checks so a transient ESPN blip doesn't page you.
+        run: |
+          BASE="https://billsdepthchart.com"
+          bad=0
+          for i in 1 2 3; do
+            code=$(curl -s -o /tmp/h.json -w "%{http_code}" --max-time 90 "$BASE/healthz?strict=1" || echo "000")
+            echo "check $i: HTTP $code"; cat /tmp/h.json 2>/dev/null | head -c 400; echo
+            if [ "$code" = "503" ]; then bad=$((bad+1)); fi
+            [ $i -lt 3 ] && sleep 45
+          done
+          if [ "$bad" -ge 3 ]; then echo "::error::site is DEGRADED (upstream/ESPN) on all 3 strict checks"; exit 1; fi
+          echo "not degraded (or only transiently)"

@@ -26,9 +26,22 @@ and it's built to keep running untouched for years.
   responses are rejected before they can OOM, failed fetches are never negatively
   cached, and every successful pull is saved to disk — so if a data source is briefly
   down the site serves the last-good copy instead of erroring. If a source changes for
-  one sport, only that sport shows "no lineup"; the others are unaffected.
-- **Bounded memory.** All caches are keyed by a finite set (teams, files, athletes) and
-  the rate-limiter evicts idle entries, so memory can't grow without bound over time.
+  one sport, only that sport shows "no lineup"; the others are unaffected. When a saved
+  copy is served, the page shows an honest "Showing a saved lineup" banner rather than
+  passing canned data off as live. **Every sport's default matchup ships a committed
+  seed** (`data/seed/`, keyed by the same key the server reads — a test guards this), so
+  even a cold start that coincides with a total ESPN outage still renders a real page.
+- **You'll know if it silently drifts.** The scariest 10-year failure is ESPN changing
+  its JSON shape while still returning `200` — fetches "succeed" but lineups come back
+  empty. `/healthz` reports a rolling-window `ok|degraded` verdict (with upstream error
+  rate, fallback-serve and empty-build counts), and `/healthz?strict=1` returns `503`
+  when degraded so the daily Action emails you on a *sustained* drift, not just downtime.
+- **Bounded memory.** Every cache has an explicit size cap with oldest-first eviction
+  (lineups, stats, records, athletes) and the rate-limiter evicts idle entries, so memory
+  stays bounded over months of uptime regardless of how many teams/seasons are browsed.
+- **No date time-bombs.** Season/"current year" math is all derived from the clock (never
+  hardcoded), and the NFL cold-start seed is keyed season-agnostically, so nothing breaks
+  when the season rolls over year after year.
 
 ## Freshness
 Each page load asks for fresh data; the server coalesces that to at most one upstream
@@ -74,8 +87,9 @@ Refresh after each June draft: `npm run gen-draft` then commit `data/draft/`.
   call per team per ~60s); pages also auto-refresh every 4 min while open.
 - **It survives cold starts.** On boot the server pre-warms every sport's default
   matchup, so the first visitor after a free-tier spin-down gets an instant page.
-- **A daily GitHub Action** warms all sports and, if the site is ever unreachable,
-  **fails the run so GitHub emails you** — a free uptime alert.
+- **A daily GitHub Action** warms all sports and emails you (by failing the run) if the
+  site is ever unreachable **or stays degraded** (via `/healthz?strict=1`) — a free
+  uptime + silent-drift alert.
 - **The site does NOT depend on that Action, on the cron, or on Claude.** Even if the
   Action is disabled, the site keeps serving and updating on every visit.
 
@@ -88,7 +102,10 @@ Nothing here needs code or Claude — it's account hygiene:
 3. **GitHub Actions 60-day rule:** GitHub auto-disables *scheduled* workflows after 60
    days with no repo commits. If that happens you only lose the daily warm + uptime
    email — the site still runs. Re-enable anytime: repo → **Actions → Daily refresh →
-   Enable**, or just push any commit (resets the clock).
+   Enable**, or just push any commit (resets the clock). For a truly hands-off decade,
+   also point a free external monitor (e.g. UptimeRobot) at
+   `https://billsdepthchart.com/healthz?strict=1` — it doesn't age out and alerts on
+   both downtime and sustained ESPN drift.
 4. **Roll back a bad change:** `git revert HEAD && git push`, or Render dashboard → an
    older deploy → **Redeploy**.
 5. **A sport shows "no lineup" for a while:** almost always an upstream (ESPN) format
@@ -98,7 +115,9 @@ Nothing here needs code or Claude — it's account hygiene:
    `npm run gen-teams` (regenerates `data/*-teams.json` from ESPN; skips any list
    that comes back short, so a glitchy pull can't blank a dropdown), then commit
    `data/`. Refresh the cold-start fallback copies with `npm run gen-seeds`, then
-   commit `data/seed/`.
+   commit `data/seed/` — worth doing once a season (and after an NFL rollover) so the
+   saved lineups stay recent. `npm test` fails if any sport's default seed is missing,
+   so a drift here can't slip by unnoticed.
 7. **Refresh video-game ratings** (occasionally): `npm run gen-ratings`, then commit
    `data/ratings/`. The live server never fetches these — it only reads the committed maps.
 8. **Optional keys** (set as env vars in Render; never in code): `ANALYTICS_TOKEN` turns

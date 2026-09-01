@@ -432,6 +432,14 @@ function buildActiveView() {
     }
   }
 }
+// Honest degradation cue: when the server served a saved copy because ESPN was
+// unreachable, say so plainly instead of passing canned data off as live.
+function setStaleBanner(source) {
+  const el = document.getElementById("stale-banner"); if (!el) return;
+  if (!source) { el.classList.add("hidden"); el.textContent = ""; return; }
+  el.textContent = "⚠ Showing a saved lineup — live data is temporarily unavailable. This page keeps retrying and will refresh itself.";
+  el.classList.remove("hidden");
+}
 function updateUpdatedLabel(dataA, dataB) {
   const u = document.getElementById("updated");
   if (!u) return;
@@ -460,6 +468,8 @@ async function render(fresh, auto) {
       [dataA, dataB] = await Promise.all([getSide("A", idA, fresh, unitA, seasonYear), getSide("B", idB, fresh, unitB, seasonYear)]);
     }
     if (gen !== renderGen) return;
+    // Be honest when the server had to fall back to a saved copy (upstream down).
+    setStaleBanner((dataA && dataA.stale && dataA.source) || (dataB && dataB.stale && dataB.source) || null);
 
     // Auto-refresh that returns identical data → refresh only the "Updated N ago"
     // label and skip the DOM teardown/rebuild entirely (lineups rarely change
