@@ -411,58 +411,85 @@ const teamASelect = document.getElementById("teamA");
 const teamBSelect = document.getElementById("teamB");
 const statusEl = document.getElementById("status");
 
-async function render(fresh) {
+// Build ONLY the currently-visible view's DOM. The other view is constructed
+// lazily the first time the user switches to it (setView). On phones the default
+// is List, so first paint skips building the entire hidden Field surface — dozens
+// of chips plus ~5 drag listeners each — which is the biggest avoidable main-thread
+// cost on the exact device that defaults to List.
+function buildActiveView() {
+  const st = render._state; if (!st) return;
+  if (viewMode === "list") {
+    if (!st.builtList) { renderList(st.dataA, st.dataB); st.builtList = true; }
+  } else {
+    if (!st.builtField) {
+      decorateBand(document.getElementById("bandA"), document.getElementById("tintA"), st.dataA, false);
+      renderTeamOnSurface("playersA", st.dataA, false, st.sigA);
+      if (!st.single) {
+        decorateBand(document.getElementById("bandB"), document.getElementById("tintB"), st.dataB, true);
+        renderTeamOnSurface("playersB", st.dataB, true, st.sigB);
+      }
+      st.builtField = true;
+    }
+  }
+}
+function updateUpdatedLabel(dataA, dataB) {
+  const u = document.getElementById("updated");
+  if (!u) return;
+  // "as of" = the game/match date the lineup is derived from (may be days old in a
+  // break), so an old typical lineup can't masquerade as freshly updated.
+  const asOf = fmtDate((dataA && dataA.asOf) || (dataB && dataB.asOf));
+  u.textContent = "Updated " + relTime((dataA && dataA.updated) || (dataB && dataB.updated)) + (asOf ? ` · lineup as of ${asOf}` : "");
+}
+// render(fresh) — user-initiated (shows loading, rebuilds the active view).
+// render(true, true) — the background auto-refresh: silent (no loading flash), and
+// if the data is byte-identical to what's shown it only refreshes the timestamp.
+async function render(fresh, auto) {
   const gen = ++renderGen;
   closeDepth();
-  statusEl.textContent = fresh ? "⟳ Refreshing…" : "⟳ Loading lineups…";
-  document.getElementById("surface").classList.add("loading");
+  const surfaceEl = document.getElementById("surface");
+  if (!auto) { statusEl.textContent = fresh ? "⟳ Refreshing…" : "⟳ Loading lineups…"; surfaceEl.classList.add("loading"); }
   const idA = teamASelect.value, idB = teamBSelect.value;
   writeState();
   try {
-    // Single-team sports (baseball): one lineup across the whole surface.
-    if (CONFIG.singleTeam) {
-      const dataA = await getSide("A", idA, fresh, null, seasonYear);
-      if (gen !== renderGen) return;
-      ratingLabel = dataA.ratingLabel || null;
-      draftStatus = !!dataA.draftStatus;
-      const sigA = `${CONFIG.sport}:A:${idA}`;
-      decorateBand(document.getElementById("bandA"), document.getElementById("tintA"), dataA, false);
-      renderTeamOnSurface("playersA", dataA, false, sigA);
-      renderList(dataA, null);
-      render._sigs = [sigA];
-      statusEl.textContent = "";
-      const u1 = document.getElementById("updated");
-      if (u1) { const asOf = fmtDate(dataA.asOf); u1.textContent = "Updated " + relTime(dataA.updated) + (asOf ? ` · lineup as of ${asOf}` : ""); }
-      return;
+    const single = !!CONFIG.singleTeam;
+    let dataA, dataB = null;
+    if (single) {
+      dataA = await getSide("A", idA, fresh, null, seasonYear);
+    } else {
+      const unitA = CONFIG.dualUnit ? CONFIG.units[0] : null, unitB = CONFIG.dualUnit ? CONFIG.units[1] : null;
+      [dataA, dataB] = await Promise.all([getSide("A", idA, fresh, unitA, seasonYear), getSide("B", idB, fresh, unitB, seasonYear)]);
     }
-    const unitA = CONFIG.dualUnit ? CONFIG.units[0] : null, unitB = CONFIG.dualUnit ? CONFIG.units[1] : null;
-    const [dataA, dataB] = await Promise.all([getSide("A", idA, fresh, unitA, seasonYear), getSide("B", idB, fresh, unitB, seasonYear)]);
     if (gen !== renderGen) return;
-    ratingLabel = dataA.ratingLabel || dataB.ratingLabel || null;
-    draftStatus = !!(dataA.draftStatus || dataB.draftStatus);
-    const sigA = `${CONFIG.sport}:A:${idA}`, sigB = `${CONFIG.sport}:B:${idB}`;
-    decorateBand(document.getElementById("bandA"), document.getElementById("tintA"), dataA, false);
-    decorateBand(document.getElementById("bandB"), document.getElementById("tintB"), dataB, true);
-    renderTeamOnSurface("playersA", dataA, false, sigA);
-    renderTeamOnSurface("playersB", dataB, true, sigB);
-    renderList(dataA, dataB);
-    render._sigs = [sigA, sigB];
-    statusEl.textContent = "";
-    const u = document.getElementById("updated");
-    if (u) {
-      // "as of" = the game/match date the lineup is derived from (may be days old
-      // in a break), so an old typical lineup can't masquerade as freshly updated.
-      const asOf = fmtDate(dataA.asOf || dataB.asOf);
-      u.textContent = "Updated " + relTime(dataA.updated || dataB.updated) + (asOf ? ` · lineup as of ${asOf}` : "");
+
+    // Auto-refresh that returns identical data → refresh only the "Updated N ago"
+    // label and skip the DOM teardown/rebuild entirely (lineups rarely change
+    // between pulls; rebuilding every 4 min is wasted reflow + battery on mobile).
+    const stamp = `${(dataA && dataA.updated) || ""}|${(dataB && dataB.updated) || ""}`;
+    const prev = render._state;
+    const unchanged = auto && prev && prev.stamp === stamp && prev.idA === idA && prev.idB === idB;
+
+    ratingLabel = (dataA && dataA.ratingLabel) || (dataB && dataB.ratingLabel) || null;
+    draftStatus = !!((dataA && dataA.draftStatus) || (dataB && dataB.draftStatus));
+    const sigA = `${CONFIG.sport}:A:${idA}`, sigB = single ? null : `${CONFIG.sport}:B:${idB}`;
+    render._sigs = single ? [sigA] : [sigA, sigB];
+    if (unchanged) {
+      prev.stamp = stamp; // (already equal) keep for the next comparison
+    } else {
+      render._state = { single, dataA, dataB, sigA, sigB, idA, idB, stamp, builtField: false, builtList: false };
+      buildActiveView(); // build the visible view now; the other builds on switch
     }
+    updateUpdatedLabel(dataA, dataB);
+    statusEl.textContent = "";
   } catch (err) {
-    statusEl.textContent = "Couldn't load right now. ";
-    const b = document.createElement("button");
-    b.className = "retry"; b.textContent = "Retry";
-    b.addEventListener("click", () => render(true));
-    statusEl.appendChild(b);
+    if (!auto) {
+      statusEl.textContent = "Couldn't load right now. ";
+      const b = document.createElement("button");
+      b.className = "retry"; b.textContent = "Retry";
+      b.addEventListener("click", () => render(true));
+      statusEl.appendChild(b);
+    }
   } finally {
-    document.getElementById("surface").classList.remove("loading");
+    surfaceEl.classList.remove("loading");
   }
 }
 
@@ -495,6 +522,7 @@ function setCompareMode(on) {
   if (btn) { btn.classList.toggle("active", on); btn.setAttribute("aria-pressed", String(on)); }
   if (!on) { pinned.A = null; pinned.B = null; }
   document.getElementById("compare-drawer").classList.toggle("hidden", !on);
+  document.body.classList.toggle("cmp-open", on); // reserve bottom space so the fixed drawer never hides the last players (phones)
   if (on) { renderCompare(); flashStatus("Compare: tap a player on each side"); }
 }
 function pinPlayer(face, teamName, side) {
@@ -561,6 +589,7 @@ function setView(m) {
   viewMode = m;
   const dc = window.matchMedia("(max-width: 760px)").matches ? "m" : "d";
   try { localStorage.setItem("sdc.view." + dc, m); } catch {}
+  buildActiveView(); // construct the newly-shown view if it wasn't built yet (build while hidden, then reveal)
   applyView(); writeState();
 }
 
@@ -784,7 +813,7 @@ function fillSeasons(sel) {
     if (document.visibilityState !== "visible") return;
     if (!popover.classList.contains("hidden")) return;
     if (document.querySelector(".chip.dragging")) return;
-    render(true);
+    render(true, true); // silent background refresh: no loading flash, skips rebuild when unchanged
   }, 240000);
 })();
 

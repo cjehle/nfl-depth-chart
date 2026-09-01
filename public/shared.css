@@ -25,7 +25,10 @@ a:focus-visible, button:focus-visible, select:focus-visible, [tabindex]:focus-vi
 /* ---- top nav (on every page) ---- */
 .site-nav {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  padding: 8px 16px; background: var(--nav-bg); border-bottom: 1px solid #1c3b28;
+  /* env() insets keep the brand/links clear of the notch in landscape; they resolve
+     to 0 on non-notched devices, so desktop is unchanged. */
+  padding: 8px calc(16px + env(safe-area-inset-right)) 8px calc(16px + env(safe-area-inset-left));
+  background: var(--nav-bg); border-bottom: 1px solid #1c3b28;
   position: sticky; top: 0; z-index: 200;
 }
 .site-nav .site-brand { color: var(--nav-ink); font-weight: 800; text-decoration: none; font-size: 15px; letter-spacing: 0.2px; }
@@ -65,7 +68,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, [tabindex]:focus-vi
 
 /* ---- landing page ---- */
 body.landing {
-  margin: 0; color: var(--nav-ink); min-height: 100vh;
+  margin: 0; color: var(--nav-ink); min-height: 100vh; min-height: 100dvh;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: radial-gradient(1200px 600px at 50% -10%, #12331f, #0b1f12);
 }
