@@ -238,12 +238,15 @@ function makeChip(posAbbr, players, sideLabel, onMoved, teamColor) {
 // move counts as a click; a real move fires onMoved so the spot is remembered.
 function makeDraggable(chip, onClick, onMoved) {
   let dragging = false, moved = false, startX = 0, startY = 0, cx0 = 0, cy0 = 0;
+  // Geometry cached once at pointerdown so pointermove never reads layout (no reflow storm).
+  let boxW = 0, boxH = 0, hw = 0, hh = 0;
   chip.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     dragging = true; moved = false; startX = e.clientX; startY = e.clientY;
     const box = chip.parentElement.getBoundingClientRect();
     const c = chip.getBoundingClientRect();
     cx0 = c.left + c.width / 2 - box.left; cy0 = c.top + c.height / 2 - box.top;
+    boxW = box.width; boxH = box.height; hw = chip.offsetWidth / 2; hh = chip.offsetHeight / 2;
     try { chip.setPointerCapture(e.pointerId); } catch {}
     chip.classList.add("dragging");
   });
@@ -251,10 +254,8 @@ function makeDraggable(chip, onClick, onMoved) {
     if (!dragging) return;
     const dx = e.clientX - startX, dy = e.clientY - startY;
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
-    const box = chip.parentElement.getBoundingClientRect();
-    const hw = chip.offsetWidth / 2, hh = chip.offsetHeight / 2;
-    chip.style.left = Math.max(hw, Math.min(box.width - hw, cx0 + dx)) + "px";
-    chip.style.top = Math.max(hh, Math.min(box.height - hh, cy0 + dy)) + "px";
+    chip.style.left = Math.max(hw, Math.min(boxW - hw, cx0 + dx)) + "px";
+    chip.style.top = Math.max(hh, Math.min(boxH - hh, cy0 + dy)) + "px";
   });
   const finish = (e) => {
     if (!dragging) return;
@@ -431,7 +432,7 @@ function openDepth(title, players) {
     // Headshot + ESPN profile link built from the espn id (parity with the other 15
     // sports). img-src allows *.espncdn.com; a broken headshot just hides itself.
     const photo = p.id
-      ? `<img class="p-photo" src="https://a.espncdn.com/i/headshots/nfl/players/full/${esc(p.id)}.png" alt="" loading="lazy">`
+      ? `<img class="p-photo" src="${esc(sized(`https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`, 96))}" alt="" loading="lazy" width="46" height="46" decoding="async">`
       : `<span class="p-photo p-photo-blank">#${esc(p.jersey || "")}</span>`;
     const link = p.id ? `<a class="p-espn" href="https://www.espn.com/nfl/player/_/id/${esc(p.id)}" target="_blank" rel="noopener noreferrer" title="Full profile on ESPN" aria-label="${esc(p.name)} on ESPN">↗</a>` : "";
     li.innerHTML = `
@@ -550,8 +551,8 @@ function decorateHalf(teamId, unitWord, formationName, season, record, next, lab
   labelEl.textContent = "";
   if (team) {
     const img = document.createElement("img");
-    img.src = logoUrl(team.abbr);
-    img.alt = "";
+    img.src = sized(logoUrl(team.abbr), 48); // 500px crest → 48px combiner (~96% smaller)
+    img.alt = ""; img.width = 24; img.height = 24; img.decoding = "async"; // fixed box → no layout shift
     img.addEventListener("error", () => { img.style.display = "none"; });
     labelEl.appendChild(img);
   }
@@ -564,59 +565,78 @@ function decorateHalf(teamId, unitWord, formationName, season, record, next, lab
   tintEl.style.background = `linear-gradient(${hexToRgba(color, 0.3)}, ${hexToRgba(color, 0.1)})`;
 }
 
-async function render(fresh) {
-  const gen = ++renderGen; // if a newer render starts, this one won't paint stale data
+function nflUpdatedLabel() {
+  const st = render._state, u = document.getElementById("updated");
+  if (u && st) u.textContent = "Updated " + relTime((st.offData && st.offData.fetchedAt) || (st.defData && st.defData.fetchedAt));
+}
+// Build ONLY the active view's DOM; the other two build lazily on switch. NFL has three
+// containers (field halves, list, special teams) but a phone shows one at a time — so
+// first paint (List by default) no longer builds ~44 field chips + special teams unseen.
+function buildActiveView() {
+  const st = render._state; if (!st) return;
+  if (viewMode === "field") {
+    if (st.builtField) return;
+    decorateHalf(st.defenseId, "DEFENSE", DEFENSE_FORMATION[st.formation].short, st.defData.season, st.defData.record, st.defData.next,
+      document.getElementById("defense-formation"), document.getElementById("defense-tint"));
+    decorateHalf(st.offenseId, "OFFENSE", OFFENSE_PERSONNEL[st.personnel].short, st.offData.season, st.offData.record, st.offData.next,
+      document.getElementById("offense-formation"), document.getElementById("offense-tint"));
+    renderSide(document.getElementById("defense-players"), st.defChips, `${st.defData.teamAbbr} D`, st.defSig, st.defColor);
+    renderSide(document.getElementById("offense-players"), st.offChips, `${st.offData.teamAbbr} O`, st.offSig, st.offColor);
+    st.builtField = true;
+  } else if (viewMode === "list") {
+    if (st.builtList) return;
+    renderList(st.offChips, st.defChips, st.offTitle, st.defTitle); st.builtList = true;
+  } else if (viewMode === "special") {
+    if (st.builtSpecial) return;
+    renderSpecialTeams(st.offData, st.defData); st.builtSpecial = true;
+  }
+}
+// render(fresh) — user-initiated (loading UI, rebuild). render(true,true) — the 4-min
+// auto-refresh: silent, and when the data is unchanged it only refreshes the timestamp.
+async function render(fresh, auto) {
+  const gen = ++renderGen;
   closeDepth();
-  statusEl.textContent = fresh ? "⟳ Refreshing…" : "⟳ Loading latest lineups…";
-  document.getElementById("field").classList.add("loading");
-
+  const fieldEl = document.getElementById("field");
+  if (!auto) { statusEl.textContent = fresh ? "⟳ Refreshing…" : "⟳ Loading latest lineups…"; fieldEl.classList.add("loading"); }
   const offenseId = offenseSelect.value, defenseId = defenseSelect.value;
   const personnel = personnelSelect.value, formation = formationSelect.value;
   const offenseYear = offenseSeasonSelect.value, defenseYear = defenseSeasonSelect.value;
   writeState();
-
   try {
     const [offData, defData] = await Promise.all([
       getSideData("offense", offenseId, offenseYear, fresh),
       getSideData("defense", defenseId, defenseYear, fresh),
     ]);
-    if (gen !== renderGen) return; // a newer selection superseded this fetch
-    // Honest freshness: if the server served a saved copy (ESPN down), say so instead
-    // of presenting a possibly weeks-old seed as live — parity with every other sport.
+    if (gen !== renderGen) return;
     setStaleBanner((offData.stale && offData.source) || (defData.stale && defData.source) || null);
+    // Silent auto-refresh with identical data + selections → refresh the label only.
+    const stamp = `${offData.fetchedAt || ""}|${defData.fetchedAt || ""}|${offenseId}|${defenseId}|${personnel}|${formation}|${offData.season}|${defData.season}`;
+    if (auto && render._state && render._state.stamp === stamp) { nflUpdatedLabel(); statusEl.textContent = ""; return; }
 
     const offChips = buildOffense(offData.offense, personnel);
     const defChips = buildDefense(defData.defense, formation);
-
-    const offTitle = `${offData.team} OFFENSE · ${OFFENSE_PERSONNEL[personnel].short} (${offData.season})`;
-    const defTitle = `${defData.team} DEFENSE · ${DEFENSE_FORMATION[formation].short} (${defData.season})`;
-
-    decorateHalf(defenseId, "DEFENSE", DEFENSE_FORMATION[formation].short, defData.season, defData.record, defData.next,
-      document.getElementById("defense-formation"), document.getElementById("defense-tint"));
-    decorateHalf(offenseId, "OFFENSE", OFFENSE_PERSONNEL[personnel].short, offData.season, offData.record, offData.next,
-      document.getElementById("offense-formation"), document.getElementById("offense-tint"));
-
-    const offSig = `off:${offenseId}:${offData.season}:${personnel}`;
-    const defSig = `def:${defenseId}:${defData.season}:${formation}`;
-    const offColor = (TEAM_BY_ID.get(offenseId) || {}).color;
-    const defColor = (TEAM_BY_ID.get(defenseId) || {}).color;
-    renderSide(document.getElementById("defense-players"), defChips, `${defData.teamAbbr} D`, defSig, defColor);
-    renderSide(document.getElementById("offense-players"), offChips, `${offData.teamAbbr} O`, offSig, offColor);
-    renderList(offChips, defChips, offTitle, defTitle);
-    renderSpecialTeams(offData, defData);
-    render._sigs = [offSig, defSig];
-
+    render._state = {
+      offData, defData, offChips, defChips,
+      offTitle: `${offData.team} OFFENSE · ${OFFENSE_PERSONNEL[personnel].short} (${offData.season})`,
+      defTitle: `${defData.team} DEFENSE · ${DEFENSE_FORMATION[formation].short} (${defData.season})`,
+      offSig: `off:${offenseId}:${offData.season}:${personnel}`, defSig: `def:${defenseId}:${defData.season}:${formation}`,
+      offColor: (TEAM_BY_ID.get(offenseId) || {}).color, defColor: (TEAM_BY_ID.get(defenseId) || {}).color,
+      offenseId, defenseId, personnel, formation, stamp, builtField: false, builtList: false, builtSpecial: false,
+    };
+    render._sigs = [render._state.offSig, render._state.defSig];
+    buildActiveView(); // build only the visible view; the others build on switch
+    nflUpdatedLabel();
     statusEl.textContent = "";
-    const u = document.getElementById("updated");
-    if (u) u.textContent = "Updated " + relTime(offData.fetchedAt || defData.fetchedAt);
   } catch (err) {
-    statusEl.textContent = "Couldn't load right now. ";
-    const b = document.createElement("button");
-    b.className = "retry"; b.textContent = "Retry";
-    b.addEventListener("click", () => render(true));
-    statusEl.appendChild(b);
+    if (!auto) {
+      statusEl.textContent = "Couldn't load right now. ";
+      const b = document.createElement("button");
+      b.className = "retry"; b.textContent = "Retry";
+      b.addEventListener("click", () => render(true));
+      statusEl.appendChild(b);
+    }
   } finally {
-    document.getElementById("field").classList.remove("loading");
+    fieldEl.classList.remove("loading");
   }
 }
 
@@ -638,6 +658,7 @@ function setView(mode) {
   viewMode = mode;
   const dc = window.matchMedia("(max-width: 760px)").matches ? "m" : "d";
   try { localStorage.setItem("nfl.view." + dc, mode); } catch {}
+  buildActiveView(); // construct the newly-shown view if it wasn't built yet
   applyView(); writeState();
 }
 
@@ -743,5 +764,5 @@ setInterval(() => {
   if (document.visibilityState !== "visible") return;
   if (!popover.classList.contains("hidden")) return;
   if (document.querySelector(".chip.dragging")) return;
-  render(true);
+  render(true, true); // silent background refresh: no loading flash, skips rebuild when unchanged
 }, 240000);

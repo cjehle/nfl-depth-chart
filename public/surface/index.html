@@ -4,9 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0b1f12" />
-    <!--HEAD-->
+    <!-- Render-blocking CSS first, before the ~12 meta/OG tags + config island, so the
+         preload scanner discovers it in the first bytes (faster FCP on mobile). -->
     <link rel="stylesheet" href="/shared.css" />
     <link rel="stylesheet" href="/surface/style.css" />
+    <!--HEAD-->
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>

@@ -31,6 +31,16 @@ function injuryClass(status) {
   return "other";
 }
 
+// Rewrite an ESPN headshot/team-logo URL through ESPN's image combiner at a target pixel
+// size, so a 34-46px avatar or a 20px crest pulls a ~1-11KB image instead of the 230-270KB
+// full-res original (~96% less mobile data). Only rewrites espncdn headshot/teamlogo URLs;
+// anything else (or an already-combiner URL) is returned untouched. CSP img-src allows *.espncdn.com.
+function sized(url, px) {
+  if (!url || typeof url !== "string") return url;
+  const m = url.match(/^https:\/\/a\.espncdn\.com(\/i\/(?:headshots|teamlogos)\/.+)$/);
+  return m ? `https://a.espncdn.com/combiner/i?img=${m[1]}&w=${px}&h=${px}` : url;
+}
+
 // A broken player headshot hides itself. Inline `onerror=` attributes are blocked by
 // our CSP (script-src 'self', no unsafe-inline), so one delegated capture-phase listener
 // handles it for every popover/compare image (error events don't bubble → capture).

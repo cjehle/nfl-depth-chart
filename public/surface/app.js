@@ -4,7 +4,6 @@
 // Which sport this page is (from the URL path: /nhl, /nba, /mls).
 const SPORT = (location.pathname.replace(/\/+$/, "").split("/").filter(Boolean)[0]) || "nhl";
 let CONFIG = null;                       // filled from /api/config on startup
-let TEAM_BY_ID = new Map();              // id -> team {id,abbr,name,color,alt,logo}
 const sideCache = { A: { key: null, data: null }, B: { key: null, data: null } };
 let popoverGen = 0, renderGen = 0, lastFocused = null;
 let viewMode = "field";
@@ -118,12 +117,17 @@ function persistChip(sig, chipKey, chip) {
 }
 function makeDraggable(chip, onClick, onMoved) {
   let dragging = false, moved = false, sx = 0, sy = 0, cx0 = 0, cy0 = 0;
+  // Geometry cached ONCE at pointerdown — none of it changes during a drag — so
+  // pointermove only writes styles and never reads layout (was a per-move reflow storm).
+  let parentBox = null, surfBox = null, hw = 0, hh = 0;
   chip.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     dragging = true; moved = false; sx = e.clientX; sy = e.clientY;
-    const box = chip.parentElement.getBoundingClientRect();
+    parentBox = chip.parentElement.getBoundingClientRect();
     const c = chip.getBoundingClientRect();
-    cx0 = c.left + c.width / 2 - box.left; cy0 = c.top + c.height / 2 - box.top;
+    cx0 = c.left + c.width / 2 - parentBox.left; cy0 = c.top + c.height / 2 - parentBox.top;
+    hw = chip.offsetWidth / 2; hh = chip.offsetHeight / 2;
+    surfBox = CROSS_OK ? document.getElementById("surface").getBoundingClientRect() : null;
     try { chip.setPointerCapture(e.pointerId); } catch {}
     chip.classList.add("dragging");
   });
@@ -131,18 +135,14 @@ function makeDraggable(chip, onClick, onMoved) {
     if (!dragging) return;
     const dx = e.clientX - sx, dy = e.clientY - sy;
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
-    const parent = chip.parentElement.getBoundingClientRect();
-    const hw = chip.offsetWidth / 2, hh = chip.offsetHeight / 2;
     const nx = cx0 + dx, ny = cy0 + dy;
-    if (CROSS_OK) {
-      // Most sports: a pill can be dragged anywhere on the surface, including
-      // across the center line. (Football keeps players on their own side.)
-      const s = document.getElementById("surface").getBoundingClientRect();
-      chip.style.left = Math.max((s.left - parent.left) + hw, Math.min((s.right - parent.left) - hw, nx)) + "px";
-      chip.style.top = Math.max((s.top - parent.top) + hh, Math.min((s.bottom - parent.top) - hh, ny)) + "px";
+    if (surfBox) {
+      // Most sports: a pill can be dragged anywhere on the surface (single-team MLB).
+      chip.style.left = Math.max((surfBox.left - parentBox.left) + hw, Math.min((surfBox.right - parentBox.left) - hw, nx)) + "px";
+      chip.style.top = Math.max((surfBox.top - parentBox.top) + hh, Math.min((surfBox.bottom - parentBox.top) - hh, ny)) + "px";
     } else {
-      chip.style.left = Math.max(hw, Math.min(parent.width - hw, nx)) + "px";
-      chip.style.top = Math.max(hh, Math.min(parent.height - hh, ny)) + "px";
+      chip.style.left = Math.max(hw, Math.min(parentBox.width - hw, nx)) + "px";
+      chip.style.top = Math.max(hh, Math.min(parentBox.height - hh, ny)) + "px";
     }
   });
   const finish = (e) => {
@@ -229,7 +229,7 @@ function decorateBand(bandEl, tintEl, data, mirror) {
   bandEl.textContent = "";
   if (t.logo) {
     const img = document.createElement("img");
-    img.src = t.logo; img.alt = "";
+    img.src = sized(t.logo, 48); img.alt = ""; img.width = 24; img.height = 24; img.decoding = "async"; // 500px crest → 48px combiner (~96% smaller) + fixed box (no CLS)
     img.addEventListener("error", () => { img.style.display = "none"; });
     bandEl.appendChild(img);
   }
@@ -336,7 +336,7 @@ function openDepth(title, players) {
     const bio = bioLine(p);
     const ovr = p.overall != null ? `<span class="p-ovr" title="${esc(ratingLabel || "")} overall rating">${p.overall}<i>OVR</i></span>` : "";
     const draftHtml = draftPill(p.draft);
-    const photo = p.photo ? `<img class="p-photo" src="${esc(p.photo)}" alt="" loading="lazy">` : `<span class="p-photo p-photo-blank">${esc(jnum(p.jersey) || "")}</span>`;
+    const photo = p.photo ? `<img class="p-photo" src="${esc(sized(p.photo, 96))}" alt="" loading="lazy" width="46" height="46" decoding="async">` : `<span class="p-photo p-photo-blank">${esc(jnum(p.jersey) || "")}</span>`;
     const link = p.espnUrl ? `<a class="p-espn" href="${esc(p.espnUrl)}" target="_blank" rel="noopener noreferrer" title="Full profile on ESPN" aria-label="${esc(p.name)} on ESPN">↗</a>` : "";
     // Full injury detail (what + expected return), when ESPN has it.
     const inj = p.injuryDetail && (p.injuryDetail.detail || p.injuryDetail.ret)
@@ -540,7 +540,7 @@ function pinPlayer(face, teamName, side) {
 function compareCol(pin, sideLabel) {
   if (!pin) return `<div class="cmp-col cmp-empty"><span>Tap a ${sideLabel} player</span></div>`;
   const p = pin.face;
-  const photo = p.photo ? `<img class="cmp-photo" src="${esc(p.photo)}" alt="">` : `<span class="cmp-photo"></span>`;
+  const photo = p.photo ? `<img class="cmp-photo" src="${esc(sized(p.photo, 120))}" alt="" width="56" height="56" decoding="async">` : `<span class="cmp-photo"></span>`;
   const ovr = p.overall != null ? `<span class="cmp-ovr">${p.overall}<i>OVR</i></span>` : "";
   const bits = [p.pos, p.classYear || (p.age != null ? p.age + " yrs" : ""), p.height].filter(Boolean).join(" · ");
   return `<div class="cmp-col" data-id="${esc(p.id || "")}">
@@ -693,7 +693,6 @@ function fillSeasons(sel) {
     document.getElementById("status").textContent = "This sport is temporarily unavailable.";
     return;
   }
-  TEAM_BY_ID = new Map(CONFIG.teams.map((t) => [String(t.id), t]));
   document.title = `${CONFIG.name} Starting Lineups`;
   document.getElementById("title").textContent = `${CONFIG.emoji} ${CONFIG.title}`;
   document.getElementById("tagline").textContent = CONFIG.tagline || "";

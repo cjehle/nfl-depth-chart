@@ -2,7 +2,7 @@
 // Strategy: precache the static shell; navigations (HTML) network-first with a
 // cached fallback; /api/* and static assets stale-while-revalidate (instant from
 // cache, refreshed in the background). Bump VERSION to force a clean rollover.
-const VERSION = "v6-2026-09-01";
+const VERSION = "v7-2026-08-31";
 const STATIC = `static-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 const PRECACHE = [
@@ -44,13 +44,19 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // never intercept ESPN/CDN/analytics
 
-  // HTML navigations: network-first (freshest markup), fall back to the last
-  // cached copy of this page, then the hub, so offline still shows something.
+  // HTML navigations: stale-while-revalidate — paint the cached shell INSTANTLY (hides
+  // Render free-tier cold-start TTFB on a repeat visit), then refresh it in the background.
+  // First visit (no cache) waits on the network, then falls back to the hub. The shell
+  // rarely changes and lineups are fetched fresh via /api, so a page may be at most one
+  // deploy behind until the background copy lands (VERSION bump bounds staleness).
   if (req.mode === "navigate") {
     e.respondWith(
-      fetch(req)
-        .then((res) => { const copy = res.clone(); caches.open(RUNTIME).then((c) => c.put(req, copy)); return res; })
-        .catch(() => caches.match(req).then((r) => r || caches.match("/")))
+      caches.open(RUNTIME).then((cache) => cache.match(req).then((cached) => {
+        const network = fetch(req)
+          .then((res) => { if (res && res.ok) cache.put(req, res.clone()); return res; })
+          .catch(() => cached || caches.match("/"));
+        return cached || network;
+      }))
     );
     return;
   }

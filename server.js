@@ -48,7 +48,11 @@ function publicConfig(sport) {
   return {
     sport: cfg.key, name: cfg.name, emoji: cfg.emoji, title: cfg.title, tagline: cfg.tagline,
     surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit, singleTeam: !!cfg.singleTeam, history: !!cfg.history, seasonEndYear: !!cfg.seasonEndYear, formations: cfg.formations || null, formationMode: cfg.formationMode || null, unitFormations: cfg.unitFormations || null, unitFormationLabels: cfg.unitFormationLabels || null, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
-    teams: cfg.teams.map((t) => ({ id: String(t.id), abbr: t.abbr, name: t.name, short: t.short, color: t.color, alt: t.alt, logo: t.logo, conf: t.conf })),
+    // Only the fields the client actually reads: id + name (pickers), conf (optgroups +
+    // conference filter). The rendered team's abbr/color/logo come from the LINEUP payload,
+    // not here — so dropping them keeps the inlined config data-island small (biggest win
+    // on CBB's 362-team page, ~56% smaller brotli) without changing anything on screen.
+    teams: cfg.teams.map((t) => ({ id: String(t.id), name: t.name, conf: t.conf })),
   };
 }
 
@@ -57,6 +61,15 @@ function publicConfig(sport) {
 // the background. Keeps the cold Render origin + ESPN off most requests' critical
 // path; the client still auto-refreshes every 4 min, so users stay current.
 const LINEUP_CACHE = "public, s-maxage=120, stale-while-revalidate=600";
+// Weak content ETag from stable parts only (NOT the volatile `updated`/`fetchedAt`
+// timestamps), so a no-op rebuild yields the same tag and the client's 4-min refresh /
+// a CDN revalidation gets a 304 (headers only) instead of re-downloading identical JSON.
+const weakEtag = (parts) => 'W/"' + crypto.createHash("sha1").update(JSON.stringify(parts)).digest("hex").slice(0, 20) + '"';
+// Serve JSON with an ETag + 304 support. Returns the status actually sent.
+function sendJsonEtag(req, res, data, etag, headers) {
+  if (req.headers["if-none-match"] === etag) { res.writeHead(304, { ETag: etag, ...SECURITY_HEADERS, ...headers }); res.end(); return 304; }
+  sendJson(req, res, 200, data, { ...headers, ETag: etag }); return 200;
+}
 // Surface lineup cache (TTL + single-flight + disk last-good), keyed by sport+team.
 const lineupStore = new Map();
 async function getLineup(sport, teamId, fresh, unit, year, formation) {
@@ -213,10 +226,13 @@ function serveFile(req, res, filePath) {
     const mime = MIME[path.extname(filePath)] || "application/octet-stream";
     entry = { body, mtimeMs: stat.mtimeMs, etag: '"' + crypto.createHash("sha1").update(body).digest("hex").slice(0, 16) + '"', mime };
     // Compress once per mtime (gzip 9 / brotli 11) so the hot path never re-compresses
-    // identical bytes — only for compressible types large enough to benefit.
+    // identical bytes — only for compressible types large enough to benefit. gzip is
+    // computed sync (~1ms); brotli-11 is ~30ms and single-threaded, so it's done ASYNC
+    // and the first request(s) serve gzip until entry.br lands — no request ever blocks
+    // the event loop on brotli (critical on Render's throttled cold-start CPU).
     if (/text|json|javascript|svg/.test(mime) && body.length > 512) {
       entry.gz = zlib.gzipSync(body, { level: 9 });
-      entry.br = zlib.brotliCompressSync(body, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } });
+      zlib.brotliCompress(body, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } }, (err, buf) => { if (!err) entry.br = buf; });
     }
     staticCache.set(filePath, entry);
   }
@@ -302,9 +318,10 @@ function renderPage(req, res, rel, ogKey) {
     const html = fs.readFileSync(filePath, "utf8").replace("<!--HEAD-->", headFor(ogKey));
     const body = Buffer.from(html);
     entry = { body, mtimeMs: stat.mtimeMs, etag: '"' + crypto.createHash("sha1").update(body).digest("hex").slice(0, 16) + '"' };
-    // Compress the rendered page once per mtime (per OG variant) — never re-gzip on the hot path.
+    // Compress the rendered page once per mtime (per OG variant): gzip sync, brotli async
+    // (first hits serve gzip until entry.br lands) so no request blocks on brotli-11.
     entry.gz = zlib.gzipSync(body, { level: 9 });
-    entry.br = zlib.brotliCompressSync(body, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } });
+    zlib.brotliCompress(body, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } }, (err, buf) => { if (!err) entry.br = buf; });
     pageCache.set(cacheKey, entry);
   }
   if (req.headers["if-none-match"] === entry.etag) { res.writeHead(304, { ETag: entry.etag, ...SECURITY_HEADERS }); return res.end(); }
@@ -427,7 +444,7 @@ const server = http.createServer(async (req, res) => {
         const cur = nfl.currentNflSeason();
         let year = Number(params.get("year")) || cur;
         year = Math.min(cur, Math.max(nfl.SEASON.OLDEST, year));
-        try { sendJson(req, res, 200, await nfl.getTeamData(teamId, year, params.get("fresh") === "1"), { "Cache-Control": LINEUP_CACHE }); return done(200); }
+        try { const d = await nfl.getTeamData(teamId, year, params.get("fresh") === "1"); const et = weakEtag([d.offense, d.defense, d.specialTeams, d.team, d.season]); return done(sendJsonEtag(req, res, d, et, { "Cache-Control": LINEUP_CACHE })); }
         catch (err) { console.error("depth error:", err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }
       if (urlPath === "/api/ages") {
@@ -463,7 +480,7 @@ const server = http.createServer(async (req, res) => {
         const cfgS = SURFACE[sport];
         const validForm = !!fp && ((cfgS.formations || []).includes(fp) || !!(cfgS.packages && cfgS.packages[unit] && cfgS.packages[unit][fp]));
         const formation = validForm ? fp : null;
-        try { sendJson(req, res, 200, await getLineup(sport, teamId, params.get("fresh") === "1", unit, year, formation), { "Cache-Control": LINEUP_CACHE }); return done(200); }
+        try { const d = await getLineup(sport, teamId, params.get("fresh") === "1", unit, year, formation); const et = weakEtag([d.chips, d.team, d.formation, d.subtitle, d.season, unit]); return done(sendJsonEtag(req, res, d, et, { "Cache-Control": LINEUP_CACHE })); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }
       if (urlPath === "/api/player-stats") {
