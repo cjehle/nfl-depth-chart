@@ -82,3 +82,22 @@ test("ratingFor is null for an obvious non-player and empty input", () => {
   assert.equal(ratingFor("mls", ""), null);
   assert.equal(ratingFor("mls", "Zzzqqx Notaplayer"), null);
 });
+
+test("golden corpus: a name VARIANT resolves like its canonical form (locks matcher tiers)", () => {
+  // canonical (exact/fold key) vs variant (surnameInitial/transliteration). Assert they
+  // resolve to the SAME OVR, so a matcher/map regression that drops or re-points a badge
+  // fails CI. Tolerant of individual transfers (skip if the canonical itself has left EA).
+  const GOLDEN = [
+    ["epl", "Benjamin White", "Ben White"],
+    ["ligue1", "Matvey Safonov", "Matvei Safonov"],
+    ["ligue1", "Alexandr Golovin", "Aleksandr Golovin"],
+    ["laliga", "Odysseas Vlachodimos", "Odisseas Vlachodimos"],
+  ];
+  let skipped = 0;
+  for (const [lg, canon, variant] of GOLDEN) {
+    const c = ratingFor(lg, canon);
+    if (c == null) { skipped++; continue; }
+    assert.equal(ratingFor(lg, variant), c, `${lg}: "${variant}" should resolve like "${canon}" (${c})`);
+  }
+  assert.ok(skipped <= 2, `too many golden anchors vanished (${skipped}/${GOLDEN.length}) — matcher/maps likely broke`);
+});

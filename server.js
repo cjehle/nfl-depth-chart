@@ -22,6 +22,7 @@ const path = require("path");
 const zlib = require("zlib");
 const crypto = require("crypto");
 const { stats, cached, buildLineup, writeDisk, readDisk, cacheStats, fetchJson, lineupKey, recentUpstream } = require("./lib/espn.js");
+const ratings = require("./lib/ratings.js"); // coverageSnapshot() for /healthz staleness
 // Load the NFL engine defensively: if it ever fails to load, the NFL routes are
 // disabled but the rest of the site still runs.
 let nfl = null;
@@ -66,6 +67,16 @@ async function getLineup(sport, teamId, fresh, unit, year, formation) {
   try {
     return await cached(lineupStore, key, LINEUP_TTL, async () => {
       const data = await buildLineup(SURFACE[sport], surfaceTeamSets[sport].get(String(teamId)), unit, year || null, formation || null);
+      // Completeness gate: a build with far fewer chips than expected (partial ESPN
+      // drift) must NOT be persisted as last-good — that would poison the durable
+      // cold-start fallback. Prefer the committed disk copy when we have one; otherwise
+      // serve the thin build (never leave a surface empty) but still don't write it.
+      const n = (data.chips || []).length, exp = data.expectedSlots || 0;
+      if (exp && n < 0.6 * exp) {
+        const hit = readDisk(key);
+        if (hit) { console.error(`degraded build ${key}: ${n}/${exp} chips — serving ${hit.source}`); return { ...hit.data, stale: true, source: hit.source }; }
+        return data;
+      }
       writeDisk(key, data);
       return data;
     }, 600); // bound: ~1000 teams × units × seasons × formations is unbounded otherwise
@@ -355,11 +366,16 @@ function healthVerdict() {
   const reasons = [];
   if (r.total >= 8 && r.errorRate >= 0.5) reasons.push(`upstream error rate ${Math.round(r.errorRate * 100)}% (${r.fail}/${r.total}) over ~15m`);
   else if (r.total >= 8 && r.ok === 0) reasons.push(`no upstream success in ${r.fail} recent attempts`);
-  // Silent-drift signal: fetches "succeed" (200) but builders produce EMPTY lineups —
-  // the exact ESPN-schema-drift failure the fallback machinery exists for. Without this,
-  // the verdict stayed "ok" through the outage it was built to catch.
-  if (r.built >= 8 && r.emptyRate >= 0.5) reasons.push(`empty-build rate ${Math.round(r.emptyRate * 100)}% (${r.empty}/${r.built}) over ~15m`);
-  return { status: reasons.length ? "degraded" : "ok", reasons, recentUpstream: r };
+  // Silent-drift signal: fetches "succeed" (200) but builders produce EMPTY or THIN
+  // (degraded) lineups — the ESPN-schema-drift failure the fallback machinery exists for.
+  // The degraded rate catches PARTIAL drift that empty-only counting would miss.
+  if (r.built >= 8 && r.degradedRate >= 0.5) reasons.push(`degraded-build rate ${Math.round(r.degradedRate * 100)}% (${r.empty + r.degraded}/${r.built} empty-or-thin) over ~15m`);
+  // Stale rankings: a rated map far past its refresh cadence (the auto-refresh cron may
+  // have silently stopped). Generous threshold so a missed cycle, not a late day, trips it.
+  const rc = ratings.coverageSnapshot();
+  const stale = Object.entries(rc).filter(([, v]) => v.count > 0 && v.ageDays != null && v.ageDays > 400).map(([s, v]) => `${s}(${v.ageDays}d)`);
+  if (stale.length) reasons.push(`rating maps stale >400d: ${stale.join(", ")}`);
+  return { status: reasons.length ? "degraded" : "ok", reasons, recentUpstream: r, ratings: rc };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -386,6 +402,8 @@ const server = http.createServer(async (req, res) => {
         uptimeSec: Math.round((now - stats.started) / 1000),
         ...stats,
         recentUpstream: v.recentUpstream,
+        ratings: v.ratings,        // per-league OVR-map coverage + age (staleness)
+        sports: prewarmStatus,     // per-sport default-matchup completeness (chips vs expected)
         memoryMB: { rss: mb(mem.rss), heapUsed: mb(mem.heapUsed) },
         caches: { lineups: lineupStore.size, buckets: buckets.size, static: staticCache.size, pages: pageCache.size, ...cacheStats() },
         lineupAgeSec: lineups,
@@ -500,12 +518,22 @@ server.headersTimeout = 66000;
 // start the caches are empty — this fills them in the background so the first
 // visitor gets an instant, working page instead of waiting on (or erroring from)
 // a slow first upstream call. Entirely best-effort; failures are ignored.
+// Per-sport default-matchup completeness (chips vs expected), surfaced on /healthz so a
+// single sport's endpoint drifting is visible even while the 15 others are fine (which
+// the aggregate degraded-rate would never cross the global 50% threshold to reveal).
+const prewarmStatus = {};
 async function prewarm() {
   const jobs = [];
   if (nfl) jobs.push(nfl.getTeamData("2", nfl.currentNflSeason(), false).catch(() => {}));
+  const rec = (sport, p) => p.then((data) => {
+    if (data && Array.isArray(data.chips)) {
+      const chips = data.chips.length, expected = data.expectedSlots || chips || 1;
+      prewarmStatus[sport] = { chips, expected, ok: chips >= 0.6 * expected };
+    }
+  }).catch(() => {});
   for (const [sport, cfg] of Object.entries(SURFACE)) {
     const d = cfg.defaults || {};
-    if (d.a) jobs.push(getLineup(sport, d.a, false, cfg.units ? cfg.units[0] : null).catch(() => {}));
+    if (d.a) jobs.push(rec(sport, getLineup(sport, d.a, false, cfg.units ? cfg.units[0] : null)));
     if (cfg.dualUnit && d.b) jobs.push(getLineup(sport, d.b, false, cfg.units ? cfg.units[1] : null).catch(() => {}));
   }
   await Promise.allSettled(jobs);

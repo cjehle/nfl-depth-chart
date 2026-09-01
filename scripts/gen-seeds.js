@@ -18,7 +18,25 @@ const SPORTS = fs.readdirSync(SPORTS_DIR).filter((f) => f.endsWith(".js") && f !
 
 (async () => {
   fs.mkdirSync(SEED, { recursive: true });
-  const write = (key, data) => { const f = safeKey(key); fs.writeFileSync(path.join(SEED, f), JSON.stringify(data)); console.error(`  seed ${f} (${(data.chips || []).length} chips)`); };
+  // Comparable "content" size for both shapes: surface lineups carry chips[], the NFL
+  // envelope carries offense/defense/specialTeams position groups.
+  const contentCount = (d) => {
+    if (!d) return 0;
+    if (Array.isArray(d.chips)) return d.chips.length;
+    let n = 0; const walk = (o) => { if (Array.isArray(o)) o.forEach(walk); else if (o && typeof o === "object") { if (Array.isArray(o.players)) n++; else for (const k in o) walk(o[k]); } };
+    walk(d.offense); walk(d.defense); walk(d.specialTeams); return n;
+  };
+  // Shrink-guard: seeds are the ONLY durable cold-start fallback, so never replace a
+  // committed seed with a SMALLER build (a transient ESPN outage would otherwise gut it).
+  // A brand-new seed (no prior file) always writes. Refusal sets a non-zero exit.
+  const write = (key, data) => {
+    const f = safeKey(key), file = path.join(SEED, f);
+    const newN = contentCount(data);
+    let oldN = 0; try { oldN = contentCount(JSON.parse(fs.readFileSync(file, "utf8"))); } catch {}
+    if (oldN > 0 && newN < oldN) { console.error(`  skip seed ${f}: ${newN} < committed ${oldN} (transient outage?) — keeping last-good`); process.exitCode = 1; return; }
+    fs.writeFileSync(file, JSON.stringify(data));
+    console.error(`  seed ${f} (${newN} ${Array.isArray(data.chips) ? "chips" : "slots"})`);
+  };
 
   // NFL: write under the SEASON-AGNOSTIC key (nfl:<team>) that getTeamData reads for
   // the current season, so the seed keeps matching after every season rollover.

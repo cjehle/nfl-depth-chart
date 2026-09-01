@@ -1,0 +1,55 @@
+# Monthly auto-refresh of the committed video-game rating maps so OVR badges stay
+# current without anyone running gen-ratings by hand. Safe by construction: the
+# generators self-guard (refuse to overwrite a good map with an empty/<80% one and exit
+# non-zero), the test suite gates the commit, and a refused pull FAILS the run so GitHub
+# emails you — a bad month is a no-op + an alert, never a bad commit. Committing also
+# resets GitHub's 60-day scheduled-workflow disable clock, keeping this and refresh.yml alive.
+name: Refresh ratings
+
+on:
+  schedule:
+    - cron: "0 9 1 * *" # 09:00 UTC on the 1st of each month
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Regenerate rating maps (self-guarded; refusal → non-zero)
+        id: gen
+        run: |
+          set +e
+          npm run gen-ratings;         R1=$?
+          npm run gen-ratings-history; R2=$?
+          if [ "$R1" -ne 0 ] || [ "$R2" -ne 0 ]; then echo "refused=yes" >> "$GITHUB_OUTPUT"; else echo "refused=no" >> "$GITHUB_OUTPUT"; fi
+          exit 0   # keep going: good maps written, refused ones kept last-good; we alert at the end
+
+      - name: Test gate (blocks committing a broken/collapsed map)
+        run: npm test
+
+      - name: Commit refreshed maps if anything changed
+        run: |
+          git config user.name "depthchart-bot"
+          git config user.email "depthchart-bot@users.noreply.github.com"
+          git add data/ratings
+          if git diff --cached --quiet; then
+            echo "No rating changes this month."
+          else
+            git commit -m "chore(ratings): monthly auto-refresh"
+            git push
+            echo "Committed refreshed rating maps."
+          fi
+
+      - name: Alert if a pull was refused (kept last-good)
+        if: steps.gen.outputs.refused == 'yes'
+        run: |
+          echo "::error::gen-ratings refused a write (flaky EA/Sony pull kept last-good) — inspect the logs above."
+          exit 1

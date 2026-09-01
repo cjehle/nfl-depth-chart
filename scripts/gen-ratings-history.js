@@ -14,6 +14,12 @@ const j = async (u) => { for (let i = 0; i < 4; i++) { try { const r = await fet
 
 // The Show edition per calendar season: mlb{NN}.theshow.com hosts season 20NN.
 async function showYear(year) {
+  const file = path.join(OUT, `mlb-${year}.json`);
+  // Past-season ratings NEVER change, so a completed season is frozen once captured:
+  // skip it if we already have a non-empty map. This makes the historical archive grow
+  // monotonically and immune to The Show retiring an old mlbNN host (which would else
+  // re-pull as empty and overwrite a good file).
+  try { if (Object.keys(JSON.parse(fs.readFileSync(file, "utf8"))).length > 0) { console.error(`  mlb-${year}.json: frozen (already captured), skip`); return; } } catch {}
   const host = `mlb${String(year).slice(2)}.theshow.com`;
   const map = {}; let page = 1, totalPages = 1, failed = 0;
   while (page <= totalPages && page <= 300) {
@@ -28,7 +34,9 @@ async function showYear(year) {
     }
     page++; await sleep(120);
   }
-  fs.writeFileSync(path.join(OUT, `mlb-${year}.json`), JSON.stringify(map));
+  // Never write an empty result over nothing meaningful (a fully-failed host yields {}).
+  if (!Object.keys(map).length) { console.error(`  mlb-${year}.json: 0 players (host unreachable?) — not writing`); process.exitCode = 1; return; }
+  fs.writeFileSync(file, JSON.stringify(map));
   console.error(`  mlb-${year}.json: ${Object.keys(map).length} players (${page - 1} pages${failed ? `, ${failed} skipped` : ""})`);
 }
 

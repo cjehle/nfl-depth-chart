@@ -67,8 +67,17 @@ Each player's overall shows in the popover like the NFL page's Madden OVR: **MLS
 Sports FC, MLB → MLB The Show** (NFL → Madden, in `lib/nfl.js`). To avoid hammering
 EA/Sony from the live server, ratings live in committed maps (`data/ratings/*.json`)
 built by `npm run gen-ratings`; the server only reads them. NBA/WNBA (2K) and NHL/CFB
-have no publicly accessible ratings feed, so they show no badge. Refresh occasionally:
-`npm run gen-ratings` then commit `data/ratings/`. **Past seasons:** MLB shows that
+have no publicly accessible ratings feed, so they show no badge. **These maps stay
+current on their own:** a monthly GitHub Action (`refresh-ratings.yml`) re-runs the
+generators, runs the tests, and commits any changes — and the generators self-guard,
+refusing to overwrite a good map with an empty or <80%-smaller one on a flaky pull (they
+exit non-zero so the run fails and emails you rather than committing corruption). Each
+run also writes `data/ratings/.manifest.json` (per-map count + date), which `/healthz`
+surfaces as `ratings` and flags `degraded` (→ the daily strict alert emails you) if any
+map goes >400 days stale — so a silently-stopped refresh becomes an actionable page.
+Name-matching escalates exact → folded → token-subset → surname+initial → cross-league,
+and a golden-corpus test locks that resolution so a matcher change can't silently drop
+badges. You can still refresh by hand anytime: `npm run gen-ratings` then commit. **Past seasons:** MLB shows that
 season's MLB The Show ratings from per-year maps (`data/ratings/mlb-YYYY.json`,
 built by `npm run gen-ratings-history`); soccer/NFL keep current-edition ratings
 only (no historical source). CFB is wired to EA College

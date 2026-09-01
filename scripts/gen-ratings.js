@@ -11,6 +11,33 @@ const OUT = path.join(__dirname, "..", "data", "ratings");
 const j = async (u) => { const r = await fetch(u, { headers: H, signal: AbortSignal.timeout(20000) }); if (!r.ok) throw new Error(r.status); return r.json(); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// --- Shrink/empty write-guard + generation manifest -------------------------
+// gen-ratings pages FLAKY third-party endpoints with retry-then-skip; a partially
+// blocked pass yields a decimated map. Writing it straight over the committed file
+// would silently blank every OVR badge for that league. guardedWrite refuses to
+// overwrite a good map with an empty one or one <80% of the committed size, keeps
+// the last-good file, and sets a non-zero exit so an automated run FAILS (and emails)
+// instead of committing corruption. It also records {count, generatedAt} into a
+// SIDECAR .manifest.json (never inline — a meta key would pollute the folded-name index)
+// so staleness is observable on /healthz.
+const MANIFEST = path.join(OUT, ".manifest.json");
+let manifest = {}; try { manifest = JSON.parse(fs.readFileSync(MANIFEST, "utf8")); } catch {}
+const GEN_AT = new Date().toISOString();
+function guardedWrite(key, map) {
+  const file = path.join(OUT, `${key}.json`);
+  const newN = Object.keys(map).length;
+  let oldN = 0; try { oldN = Object.keys(JSON.parse(fs.readFileSync(file, "utf8"))).length; } catch {}
+  if (oldN > 0 && (newN === 0 || newN < 0.8 * oldN)) {
+    console.error(`  REFUSE ${key}.json: fresh ${newN} < 80% of committed ${oldN} — keeping last-good (likely a flaky pull)`);
+    process.exitCode = 1;
+    return false;
+  }
+  fs.writeFileSync(file, JSON.stringify(map));
+  manifest[key] = { count: newN, generatedAt: GEN_AT };
+  return true;
+}
+function writeManifest() { try { fs.writeFileSync(MANIFEST, JSON.stringify(manifest)); } catch {} }
+
 // One pass over the EA FC database, bucketed into PER-LEAGUE maps. Keeping each
 // league separate means a same-named player from another league can't be borrowed
 // (e.g. the LALIGA Lewandowski is a different person from the Fire's).
@@ -54,8 +81,7 @@ async function fcSoccer() {
     offset += 100; pages++; if (pages % 25 === 0) console.error(`    …FC ${offset}/${total}`); await sleep(150);
   }
   for (const l of FC_LEAGUES) {
-    fs.writeFileSync(path.join(OUT, `${l.key}.json`), JSON.stringify(maps[l.key]));
-    console.error(`  ${l.key}.json: ${Object.keys(maps[l.key]).length} players`);
+    if (guardedWrite(l.key, maps[l.key])) console.error(`  ${l.key}.json: ${Object.keys(maps[l.key]).length} players`);
   }
   if (failed) console.error(`  (${failed} FC pages skipped after retries)`);
 }
@@ -78,8 +104,7 @@ async function theShowMLB() {
     }
     page++; if (page % 25 === 0) console.error(`    …Show ${page}/${totalPages}`); await sleep(150);
   }
-  fs.writeFileSync(path.join(OUT, "mlb.json"), JSON.stringify(map));
-  console.error(`  mlb.json: ${Object.keys(map).length} MLB players (scanned ${page - 1} Show pages${failed ? `, ${failed} skipped` : ""})`);
+  if (guardedWrite("mlb", map)) console.error(`  mlb.json: ${Object.keys(map).length} MLB players (scanned ${page - 1} Show pages${failed ? `, ${failed} skipped` : ""})`);
 }
 
 // EA Sports College Football (CFB). EA exposes the same drop-api shape as Madden/
@@ -106,7 +131,7 @@ async function eaCFB() {
     }
     offset += 100; pages++; await sleep(150);
   }
-  fs.writeFileSync(path.join(OUT, "cfb.json"), JSON.stringify(map));
+  guardedWrite("cfb", map); // oldN===0 today, so an empty cfb map is allowed by design
   console.error(`  cfb.json: ${Object.keys(map).length} CFB players${Object.keys(map).length ? "" : " (EA hasn't published these to the public API yet — empty, will fill when they do)"}`);
 }
 
@@ -116,5 +141,6 @@ async function eaCFB() {
   await fcSoccer();
   await theShowMLB();
   await eaCFB();
-  console.error("Done → data/ratings/. Commit them: git add data/ratings && git commit");
+  writeManifest();
+  console.error(`Done → data/ratings/${process.exitCode ? " (SOME WRITES REFUSED — see WARN above; last-good kept)" : ""}. Commit them: git add data/ratings && git commit`);
 })();
