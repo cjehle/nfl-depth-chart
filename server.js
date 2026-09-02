@@ -344,7 +344,14 @@ function renderPage(req, res, rel, ogKey) {
     pageCache.set(cacheKey, entry);
   }
   if (req.headers["if-none-match"] === entry.etag) { res.writeHead(304, { ETag: entry.etag, ...SECURITY_HEADERS }); return res.end(); }
-  respond(req, res, 200, entry.body, MIME[".html"], { ETag: entry.etag, "Cache-Control": "public, max-age=0, must-revalidate", gz: entry.gz, br: entry.br });
+  // Browsers still revalidate every load (max-age=0 → cheap 304 via ETag), but a shared
+  // edge cache (Cloudflare, with a "Cache Everything" rule for HTML) may hold the page
+  // for 5 min and serve a day-stale copy while it revalidates in the background — so the
+  // marquee cold-start case (first HTML view after a Render spin-down) is served from the
+  // edge instead of waking a spun-down origin. NOTE: Cloudflare does not cache text/html
+  // by default; this header is inert until a Cache Rule enables it. Bounded staleness is
+  // fine here — lineups load via /api, and the SW already SWRs navigations.
+  respond(req, res, 200, entry.body, MIME[".html"], { ETag: entry.etag, "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400", gz: entry.gz, br: entry.br });
 }
 
 // Trusted client IP for rate limiting. Cloudflare sets CF-Connecting-IP to the real
