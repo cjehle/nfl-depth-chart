@@ -58,8 +58,28 @@ const DEF = {
   ],
 };
 
+// Team roster + season config come from a NON-executed JSON data island the server
+// inlines (<script type="application/json" id="sdc-nfl-teams">), so the page no longer
+// needs the /nfl/teams.js <script>. If the island is missing/unparseable we fall back to
+// the window.* globals teams.js used to set (defensive — keeps the page working either way).
+const NFL_ISLAND = (() => {
+  try { const el = document.getElementById("sdc-nfl-teams"); return el ? JSON.parse(el.textContent) : null; } catch { return null; }
+})();
+const NFL_TEAMS = (NFL_ISLAND && NFL_ISLAND.teams) || window.NFL_TEAMS;
+const DEFAULT_TEAM_ID = (NFL_ISLAND && NFL_ISLAND.defaultId != null) ? NFL_ISLAND.defaultId : window.DEFAULT_TEAM_ID;
+const SEASON = (NFL_ISLAND && NFL_ISLAND.season) || window.SEASON;
+// The current NFL season year, computed client-side so the season rollover survives without a
+// redeploy: Jan/Feb still belong to the prior year's season, everything else the current year.
+const currentNflSeason = (now) => { const d = now || new Date(); return d.getMonth() < 2 ? d.getFullYear() - 1 : d.getFullYear(); };
+
 // Quick lookup + small state.
-const TEAM_BY_ID = new Map(window.NFL_TEAMS.map((t) => [String(t.id), t]));
+const TEAM_BY_ID = new Map(NFL_TEAMS.map((t) => [String(t.id), t]));
+let searchQuery = "";                // [A] player-search filter (lowercased)
+let compareMode = false;             // [C] tap-two-players-to-compare mode
+const pinned = { A: null, B: null }; // {face, teamName} pinned per side (A=offense, B=defense)
+let popoverSeq = null;               // [D] ordered open sequence for prev/next stepping
+let popoverIdx = -1;                 // index within popoverSeq of the open position
+let pendingPos = null;               // [D] ?pos= deep-link to open once after the first render
 const ageCache = new Map();          // `${id}:${season}` -> age|null
 const sideCache = { offense: { key: null, data: null }, defense: { key: null, data: null } };
 let popoverGen = 0;                  // bumped each time a popover opens (stale-write guard)
@@ -208,11 +228,12 @@ function persistChip(sig, chipKey, chip) {
 // ---------------------------------------------------------------------------
 // A CLICKABLE, KEYBOARD-ACCESSIBLE PLAYER CHIP
 // ---------------------------------------------------------------------------
-function makeChip(posAbbr, players, sideLabel, onMoved, teamColor) {
+function makeChip(posAbbr, players, sideLabel, onMoved, teamColor, sideKey, teamName, posId) {
   const starter = players[0];
   const chip = document.createElement("div");
   chip.className = "chip";
   chip.tabIndex = 0;
+  chip.dataset.name = (starter.name || "").toLowerCase(); // [A] search filters on this
   chip.setAttribute("role", "button");
   chip.setAttribute("aria-label", `${starter.name}, ${posAbbr}. Open depth chart.`);
   if (teamColor) chip.style.borderTopColor = teamColor; // team-colored accent bar
@@ -228,10 +249,19 @@ function makeChip(posAbbr, players, sideLabel, onMoved, teamColor) {
     ${depthHtml}
   `;
 
-  const open = () => openDepth(`${sideLabel} — ${posAbbr}`, players);
+  const open = () => activateChip(players, `${sideLabel} — ${posAbbr}`, sideKey, teamName, starter, posId);
   chip.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
   makeDraggable(chip, open, onMoved);
   return chip;
+}
+// A chip / list-row activation either opens the depth popover (stepping through the
+// matchup's ordered position sequence so prev/next + deep-link work), or — in Compare
+// mode — pins that player as their side (offense→A, defense→B) into the compare drawer.
+function activateChip(players, title, sideKey, teamName, face, posId) {
+  if (compareMode && sideKey) { pinPlayer(face || players[0], teamName, sideKey); return; }
+  const seq = (render._state && render._state.seq) || [];
+  const i = posId != null ? seq.findIndex((s) => s.posId === posId) : -1;
+  if (i >= 0) openAt(seq, i); else openDepth(title, players);
 }
 
 // Drag within the chip's own half (can't cross the line of scrimmage). A tiny
@@ -239,13 +269,14 @@ function makeChip(posAbbr, players, sideLabel, onMoved, teamColor) {
 function makeDraggable(chip, onClick, onMoved) {
   let dragging = false, moved = false, startX = 0, startY = 0, cx0 = 0, cy0 = 0;
   // Geometry cached once at pointerdown so pointermove never reads layout (no reflow storm).
-  let boxW = 0, boxH = 0, hw = 0, hh = 0;
+  let boxW = 0, boxH = 0, hw = 0, hh = 0, lastCX = 0, lastCY = 0;
   chip.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     dragging = true; moved = false; startX = e.clientX; startY = e.clientY;
     const box = chip.parentElement.getBoundingClientRect();
     const c = chip.getBoundingClientRect();
     cx0 = c.left + c.width / 2 - box.left; cy0 = c.top + c.height / 2 - box.top;
+    lastCX = cx0; lastCY = cy0;
     boxW = box.width; boxH = box.height; hw = chip.offsetWidth / 2; hh = chip.offsetHeight / 2;
     try { chip.setPointerCapture(e.pointerId); } catch {}
     chip.classList.add("dragging");
@@ -254,15 +285,24 @@ function makeDraggable(chip, onClick, onMoved) {
     if (!dragging) return;
     const dx = e.clientX - startX, dy = e.clientY - startY;
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
-    chip.style.left = Math.max(hw, Math.min(boxW - hw, cx0 + dx)) + "px";
-    chip.style.top = Math.max(hh, Math.min(boxH - hh, cy0 + dy)) + "px";
+    // Move via transform only (no left/top writes → no per-move layout). left/top stay at the
+    // pre-drag values; we translate the CENTER by the clamped delta from the pointerdown center.
+    lastCX = Math.max(hw, Math.min(boxW - hw, cx0 + dx));
+    lastCY = Math.max(hh, Math.min(boxH - hh, cy0 + dy));
+    chip.style.transform = "translate(-50%, -50%) translate(" + (lastCX - cx0) + "px, " + (lastCY - cy0) + "px)";
   });
   const finish = (e) => {
     if (!dragging) return;
     dragging = false;
     chip.classList.remove("dragging");
     try { chip.releasePointerCapture(e.pointerId); } catch {}
-    if (moved) { if (onMoved) onMoved(); } else onClick();
+    if (moved) {
+      // Bake the transform back into left/top so persistChip reads px, then reset the transform.
+      chip.style.left = lastCX + "px";
+      chip.style.top = lastCY + "px";
+      chip.style.transform = "translate(-50%, -50%)";
+      if (onMoved) onMoved();
+    } else onClick();
   };
   chip.addEventListener("pointerup", finish);
   chip.addEventListener("pointercancel", finish);
@@ -271,7 +311,7 @@ function makeDraggable(chip, onClick, onMoved) {
 // ---------------------------------------------------------------------------
 // RENDER — field view
 // ---------------------------------------------------------------------------
-function renderSide(container, chips, sideLabel, sig, teamColor) {
+function renderSide(container, chips, sideLabel, sig, teamColor, sideKey, teamName, posPrefix) {
   container.innerHTML = "";
   if (!chips.length) {
     container.innerHTML = `<p class="status">No lineup available for this team/season.</p>`;
@@ -280,7 +320,7 @@ function renderSide(container, chips, sideLabel, sig, teamColor) {
   const saved = layouts[sig] || {};
   chips.forEach((ch, i) => {
     const chipKey = `${ch.label}#${i}`;
-    const chip = makeChip(ch.label, ch.players, sideLabel, () => persistChip(sig, chipKey, chip), teamColor);
+    const chip = makeChip(ch.label, ch.players, sideLabel, () => persistChip(sig, chipKey, chip), teamColor, sideKey, teamName, `${posPrefix}.${i}`);
     chip.style.left = ch.x + "%";
     chip.style.top = 100 - ch.y + "%";
     const pos = saved[chipKey];
@@ -292,13 +332,21 @@ function renderSide(container, chips, sideLabel, sig, teamColor) {
 // ---------------------------------------------------------------------------
 // RENDER — list view (mobile-friendly, no horizontal scroll, a11y fallback)
 // ---------------------------------------------------------------------------
-function renderList(offChips, defChips, offTitle, defTitle) {
+function renderList(st) {
   const el = document.getElementById("list-view");
   el.innerHTML = "";
-  el.appendChild(listSection(defTitle, defChips, "defense"));
-  el.appendChild(listSection(offTitle, offChips, "offense"));
+  // Defense first, then offense — matching the open-sequence order (seq) so prev/next
+  // and deep-links line up with what the list shows.
+  el.appendChild(listSection(st.defTitle, st.defChips, "defense", "B", (TEAM_BY_ID.get(st.defenseId) || {}).name, "def", `${st.defData.teamAbbr} D`));
+  el.appendChild(listSection(st.offTitle, st.offChips, "offense", "A", (TEAM_BY_ID.get(st.offenseId) || {}).name, "off", `${st.offData.teamAbbr} O`));
 }
-function listSection(title, chips, sideName) {
+// [F] a round headshot for a list row from the espn id (or a blank placeholder).
+function listPhoto(id) {
+  return id
+    ? `<img class="list-photo" src="${esc(sized(`https://a.espncdn.com/i/headshots/nfl/players/full/${id}.png`, 40))}" width="34" height="34" decoding="async" loading="lazy" alt="">`
+    : `<span class="list-photo list-photo-blank"></span>`;
+}
+function listSection(title, chips, sideName, sideKey, teamName, posPrefix, rowLabel) {
   const sec = document.createElement("section");
   sec.className = `list-section ${sideName}`;
   const h = document.createElement("h2");
@@ -311,23 +359,25 @@ function listSection(title, chips, sideName) {
     sec.appendChild(p);
     return sec;
   }
-  const sideLabel = sideName === "offense" ? "O" : "D";
-  for (const ch of chips) {
+  chips.forEach((ch, i) => {
     const p = ch.players[0];
     const btn = document.createElement("button");
     btn.className = "list-row";
+    btn.dataset.name = (p.name || "").toLowerCase(); // [A] search filters on this
     btn.setAttribute("aria-label", `${p.name}, ${ch.label}. Open depth chart.`);
     const badgeClass = injuryClass(p.injury);
     const badge = badgeClass ? `<span class="badge ${badgeClass}">${esc(p.injury)}</span>` : "";
     const depth = ch.players.length - 1 > 0 ? `<span class="list-depth">+${ch.players.length - 1}</span>` : "";
+    const ovr = p.overall != null ? `<span class="list-ovr">${esc(p.overall)}</span>` : "";
     btn.innerHTML = `
+      ${listPhoto(p.id)}
       <span class="list-pos">${esc(ch.label)}</span>
       <span class="list-name">${esc(p.name)} <span class="list-num">#${esc(p.jersey || "--")}</span></span>
-      ${badge}${depth}
+      ${ovr}${badge}${depth}
     `;
-    btn.addEventListener("click", () => openDepth(`${sideLabel} — ${ch.label}`, ch.players));
+    btn.addEventListener("click", () => activateChip(ch.players, `${rowLabel} — ${ch.label}`, sideKey, teamName, p, `${posPrefix}.${i}`));
     sec.appendChild(btn);
-  }
+  });
   return sec;
 }
 
@@ -368,12 +418,15 @@ function stSection(data) {
     const p = players[0];
     const btn = document.createElement("button");
     btn.className = "list-row";
+    btn.dataset.name = (p.name || "").toLowerCase(); // [A] search filters on this
     btn.setAttribute("aria-label", `${p.name}, ${label}. Open depth chart.`);
     const depth = players.length - 1 > 0 ? `<span class="list-depth">+${players.length - 1}</span>` : "";
+    const ovr = p.overall != null ? `<span class="list-ovr">${esc(p.overall)}</span>` : "";
     btn.innerHTML = `
+      ${listPhoto(p.id)}
       <span class="list-pos">${esc(label)}</span>
       <span class="list-name">${esc(p.name)} <span class="list-num">#${esc(p.jersey || "--")}</span></span>
-      ${depth}
+      ${ovr}${depth}
     `;
     btn.addEventListener("click", () => openDepth(`${data.teamAbbr} ST — ${label}`, players));
     sec.appendChild(btn);
@@ -389,6 +442,8 @@ const popoverTitle = document.getElementById("popover-title");
 const popoverList = document.getElementById("popover-list");
 const popoverNote = document.querySelector(".popover-note");
 const popoverClose = document.getElementById("popover-close");
+const popoverPrev = document.getElementById("popover-prev");
+const popoverNext = document.getElementById("popover-next");
 const backdrop = document.createElement("div");
 backdrop.className = "backdrop hidden";
 document.body.appendChild(backdrop);
@@ -403,8 +458,14 @@ function setBackgroundInert(on) {
 
 function openDepth(title, players) {
   const gen = ++popoverGen;
+  // Reset the prev/next stepping + deep-link by default; openAt() re-enables them when the
+  // popover is opened as part of a sequence. A direct open (e.g. special teams) has no nav.
+  popoverSeq = null; popoverIdx = -1;
+  if (popoverPrev) popoverPrev.hidden = true;
+  if (popoverNext) popoverNext.hidden = true;
+  setPosParam(null);
   const season = players[0] && players[0].season;
-  const now = window.currentNflSeason();
+  const now = currentNflSeason();
   popoverTitle.textContent = season ? `${title} · ${season}` : title;
 
   if (season && season !== now) {
@@ -449,7 +510,26 @@ function openDepth(title, players) {
       ${bio ? `<div class="p-bio">${bio}</div>` : ""}
     `;
     popoverList.appendChild(li);
-    if (i === 0 && p.id) loadPlayerStats(li.querySelector(".p-stats"), p.id, season, gen);
+    if (i === 0 && p.id) {
+      loadPlayerStats(li.querySelector(".p-stats"), p.id, season, gen);
+    } else if (p.id) {
+      // [E] Every non-starter row is tap/keyboard-expandable for its own stat line — loaded
+      // lazily at most once. Clicking the ESPN ↗ link is ignored (it opens the profile).
+      li.classList.add("p-expandable");
+      li.tabIndex = 0;
+      li.setAttribute("role", "button");
+      let loaded = false;
+      const toggle = () => {
+        if (loaded || li.querySelector(".p-stats")) return;
+        loaded = true;
+        const s = document.createElement("div");
+        s.className = "p-stats"; s.setAttribute("data-loading", ""); s.textContent = "…";
+        li.querySelector(".p-main").insertAdjacentElement("afterend", s);
+        loadPlayerStats(s, p.id, season, gen);
+      };
+      li.addEventListener("click", (e) => { if (e.target.closest("a")) return; toggle(); });
+      li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+    }
   });
 
   lastFocused = document.activeElement;
@@ -464,7 +544,7 @@ function openDepth(title, players) {
 async function loadPlayerStats(el, id, season, gen) {
   if (!el) return;
   try {
-    const now = window.currentNflSeason();
+    const now = currentNflSeason();
     const yr = season && season !== now ? season : "";
     const d = await (await fetch(`/api/player-stats?sport=nfl&id=${encodeURIComponent(id)}${yr ? `&year=${yr}` : ""}`, { signal: AbortSignal.timeout(12000) })).json();
     if (gen !== popoverGen || !el.isConnected) return;
@@ -502,14 +582,51 @@ function closeDepth() {
   popover.classList.add("hidden");
   backdrop.classList.add("hidden");
   setBackgroundInert(false);
+  popoverSeq = null; popoverIdx = -1;
+  if (popoverPrev) popoverPrev.hidden = true;
+  if (popoverNext) popoverNext.hidden = true;
+  setPosParam(null);
   if (lastFocused && lastFocused.focus) lastFocused.focus();
 }
+// ---------------------------------------------------------------------------
+// [D] POPOVER PREV/NEXT STEPPING + ?pos= DEEP-LINK
+// The open sequence for the current matchup: defense chips then offense chips (list order),
+// each with a stable posId so a shared ?pos= reopens the exact position on load.
+// ---------------------------------------------------------------------------
+function buildSeq(st) {
+  const seq = [];
+  st.defChips.forEach((ch, i) => seq.push({ title: `${st.defData.teamAbbr} D — ${ch.label}`, players: ch.players, posId: `def.${i}` }));
+  st.offChips.forEach((ch, i) => seq.push({ title: `${st.offData.teamAbbr} O — ${ch.label}`, players: ch.players, posId: `off.${i}` }));
+  return seq;
+}
+// Update ONLY the "pos" query param (leave every other param untouched) so an open
+// position is shareable without disturbing the team/season/view state writeState() owns.
+function setPosParam(id) {
+  try {
+    const u = new URLSearchParams(location.search);
+    if (id) u.set("pos", id); else u.delete("pos");
+    history.replaceState(null, "", "?" + u.toString());
+  } catch {}
+}
+function openAt(seq, i) {
+  if (!seq || i < 0 || i >= seq.length) return;
+  openDepth(seq[i].title, seq[i].players); // resets nav; we re-enable it below
+  popoverSeq = seq; popoverIdx = i;
+  if (popoverPrev) popoverPrev.hidden = i <= 0;
+  if (popoverNext) popoverNext.hidden = i >= seq.length - 1;
+  setPosParam(seq[i].posId);
+}
+if (popoverPrev) popoverPrev.addEventListener("click", () => { if (popoverSeq) openAt(popoverSeq, popoverIdx - 1); });
+if (popoverNext) popoverNext.addEventListener("click", () => { if (popoverSeq) openAt(popoverSeq, popoverIdx + 1); });
 popoverClose.addEventListener("click", closeDepth);
 backdrop.addEventListener("click", closeDepth);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDepth(); });
 // Keep focus in the dialog as a wrap-around cycle so the in-popover ESPN links are
 // keyboard-reachable (the popover now has interactive content beyond Close).
 popover.addEventListener("keydown", (e) => {
+  // [D] Left/Right arrows step through the matchup's positions (when opened as a sequence).
+  if (e.key === "ArrowLeft" && popoverSeq && popoverIdx > 0) { e.preventDefault(); openAt(popoverSeq, popoverIdx - 1); return; }
+  if (e.key === "ArrowRight" && popoverSeq && popoverIdx < popoverSeq.length - 1) { e.preventDefault(); openAt(popoverSeq, popoverIdx + 1); return; }
   if (e.key !== "Tab") return;
   const f = [...popover.querySelectorAll('button, a[href], select, [tabindex]:not([tabindex="-1"])')]
     .filter((el) => !el.disabled && el.offsetParent !== null);
@@ -518,6 +635,107 @@ popover.addEventListener("keydown", (e) => {
   if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
+
+// ---------------------------------------------------------------------------
+// [A] PLAYER SEARCH — dim non-matching field chips / hide non-matching list rows.
+// ---------------------------------------------------------------------------
+function applySearch() {
+  const q = searchQuery;
+  document.querySelectorAll(".chip").forEach((c) => c.classList.toggle("chip-dim", !!q && !(c.dataset.name || "").includes(q)));
+  document.querySelectorAll(".list-row").forEach((r) => r.classList.toggle("search-hidden", !!q && !(r.dataset.name || "").includes(q)));
+}
+
+// ---------------------------------------------------------------------------
+// [C] COMPARE MODE — tap one player on each side (offense=A, defense=B) to line
+// their stat lines up side by side. Ported from the surface app.
+// ---------------------------------------------------------------------------
+function flashStatus(msg) {
+  const s = document.getElementById("status");
+  if (!s) return;
+  s.textContent = msg;
+  clearTimeout(flashStatus._t);
+  flashStatus._t = setTimeout(() => { if (s.textContent === msg) s.textContent = ""; }, 2500);
+}
+function setCompareMode(on) {
+  compareMode = on;
+  const btn = document.getElementById("compare");
+  if (btn) { btn.classList.toggle("active", on); btn.setAttribute("aria-pressed", String(on)); }
+  if (!on) { pinned.A = null; pinned.B = null; }
+  const d = document.getElementById("compare-drawer");
+  if (d) d.classList.toggle("hidden", !on);
+  document.body.classList.toggle("cmp-open", on); // reserve bottom space so the fixed drawer never hides the last players (phones)
+  if (on) { renderCompare(); flashStatus("Compare: tap a player on each side"); }
+}
+function pinPlayer(face, teamName, side) {
+  pinned[side] = { face, teamName };
+  renderCompare();
+}
+function compareCol(pin, sideLabel) {
+  if (!pin) return `<div class="cmp-col cmp-empty"><span>Tap ${sideLabel === "top" ? "an offense" : "a defense"} player</span></div>`;
+  const p = pin.face;
+  const src = p.id ? sized(`https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`, 120) : "";
+  const photo = src ? `<img class="cmp-photo" src="${esc(src)}" alt="" width="56" height="56" decoding="async">` : `<span class="cmp-photo"></span>`;
+  const ovr = p.overall != null ? `<span class="cmp-ovr">${p.overall}<i>OVR</i></span>` : "";
+  const now = currentNflSeason();
+  const yr = p.season && p.season !== now ? p.season : "";
+  const bits = [p.age != null ? `${p.age} yrs` : "", p.height, p.weight].filter(Boolean).join(" · ");
+  return `<div class="cmp-col" data-id="${esc(p.id || "")}" data-year="${esc(yr)}">
+      ${photo}
+      <div class="cmp-name">${esc(p.name)}</div>
+      <div class="cmp-team">${esc(pin.teamName || "")}</div>
+      ${ovr}
+      <div class="cmp-bio">${esc(bits)}</div>
+      <div class="cmp-stats" data-loading>…</div>
+    </div>`;
+}
+async function renderCompare() {
+  const d = document.getElementById("compare-drawer");
+  if (!d) return;
+  if (!compareMode) { d.classList.add("hidden"); return; }
+  d.classList.remove("hidden");
+  d.innerHTML = `<button class="cmp-close" aria-label="Close compare">✕</button>
+    <div class="cmp-grid">${compareCol(pinned.A, "top")}<div class="cmp-vs">vs</div>${compareCol(pinned.B, "bottom")}</div>`;
+  d.querySelector(".cmp-close").addEventListener("click", () => setCompareMode(false));
+  // Fetch both stat lines, then bold the better value on each shared stat.
+  const cols = d.querySelectorAll(".cmp-col[data-id]");
+  const lines = await Promise.all([...cols].map(async (col) => {
+    const id = col.getAttribute("data-id"); const yr = col.getAttribute("data-year"); const el = col.querySelector(".cmp-stats");
+    if (!id) { el.remove(); return null; }
+    try {
+      const r = await (await fetch(`/api/player-stats?sport=nfl&id=${encodeURIComponent(id)}${yr ? `&year=${yr}` : ""}`, { signal: AbortSignal.timeout(12000) })).json();
+      if (r && r.line && r.line.length) { el.removeAttribute("data-loading"); el.dataset.done = "1"; return { el, line: r.line }; }
+      el.remove(); return null;
+    } catch { el.remove(); return null; }
+  }));
+  const [a, b] = lines;
+  const paint = (mine, other) => {
+    if (!mine) return;
+    mine.el.innerHTML = mine.line.map((s) => {
+      const o = other && other.line.find((x) => x.k === s.k);
+      const better = o && parseFloat(String(s.v).replace(/[^0-9.-]/g, "")) > parseFloat(String(o.v).replace(/[^0-9.-]/g, ""));
+      return `<span class="stat${better ? " better" : ""}"><b>${esc(s.v)}</b> ${esc(s.k)}</span>`;
+    }).join("");
+  };
+  paint(a, b); paint(b, a);
+}
+
+// ---------------------------------------------------------------------------
+// [G] SKELETON PLACEHOLDERS — shown on a cold first load (user-initiated, no prior
+// render._state). buildActiveView's innerHTML="" clears them when the real data lands.
+// ---------------------------------------------------------------------------
+function showSkeleton() {
+  if (viewMode === "field") {
+    ["defense-players", "offense-players"].forEach((id) => {
+      const c = document.getElementById(id); if (!c) return;
+      c.innerHTML = "";
+      for (let i = 0; i < 4; i++) { const dchip = document.createElement("div"); dchip.className = "chip skeleton"; c.appendChild(dchip); }
+    });
+  } else {
+    const el = document.getElementById(viewMode === "special" ? "st-view" : "list-view"); if (!el) return;
+    el.innerHTML = "";
+    for (let i = 0; i < 8; i++) { const row = document.createElement("div"); row.className = "list-row skeleton"; el.appendChild(row); }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // MAIN
@@ -575,21 +793,21 @@ function nflUpdatedLabel() {
 function buildActiveView() {
   const st = render._state; if (!st) return;
   if (viewMode === "field") {
-    if (st.builtField) return;
-    decorateHalf(st.defenseId, "DEFENSE", DEFENSE_FORMATION[st.formation].short, st.defData.season, st.defData.record, st.defData.next,
-      document.getElementById("defense-formation"), document.getElementById("defense-tint"));
-    decorateHalf(st.offenseId, "OFFENSE", OFFENSE_PERSONNEL[st.personnel].short, st.offData.season, st.offData.record, st.offData.next,
-      document.getElementById("offense-formation"), document.getElementById("offense-tint"));
-    renderSide(document.getElementById("defense-players"), st.defChips, `${st.defData.teamAbbr} D`, st.defSig, st.defColor);
-    renderSide(document.getElementById("offense-players"), st.offChips, `${st.offData.teamAbbr} O`, st.offSig, st.offColor);
-    st.builtField = true;
+    if (!st.builtField) {
+      decorateHalf(st.defenseId, "DEFENSE", DEFENSE_FORMATION[st.formation].short, st.defData.season, st.defData.record, st.defData.next,
+        document.getElementById("defense-formation"), document.getElementById("defense-tint"));
+      decorateHalf(st.offenseId, "OFFENSE", OFFENSE_PERSONNEL[st.personnel].short, st.offData.season, st.offData.record, st.offData.next,
+        document.getElementById("offense-formation"), document.getElementById("offense-tint"));
+      renderSide(document.getElementById("defense-players"), st.defChips, `${st.defData.teamAbbr} D`, st.defSig, st.defColor, "B", (TEAM_BY_ID.get(st.defenseId) || {}).name, "def");
+      renderSide(document.getElementById("offense-players"), st.offChips, `${st.offData.teamAbbr} O`, st.offSig, st.offColor, "A", (TEAM_BY_ID.get(st.offenseId) || {}).name, "off");
+      st.builtField = true;
+    }
   } else if (viewMode === "list") {
-    if (st.builtList) return;
-    renderList(st.offChips, st.defChips, st.offTitle, st.defTitle); st.builtList = true;
+    if (!st.builtList) { renderList(st); st.builtList = true; }
   } else if (viewMode === "special") {
-    if (st.builtSpecial) return;
-    renderSpecialTeams(st.offData, st.defData); st.builtSpecial = true;
+    if (!st.builtSpecial) { renderSpecialTeams(st.offData, st.defData); st.builtSpecial = true; }
   }
+  applySearch(); // [A] re-apply the active player filter after any (re)build
 }
 // render(fresh) — user-initiated (loading UI, rebuild). render(true,true) — the 4-min
 // auto-refresh: silent, and when the data is unchanged it only refreshes the timestamp.
@@ -598,6 +816,7 @@ async function render(fresh, auto) {
   closeDepth();
   const fieldEl = document.getElementById("field");
   if (!auto) { statusEl.textContent = fresh ? "⟳ Refreshing…" : "⟳ Loading latest lineups…"; fieldEl.classList.add("loading"); }
+  if (!auto && !render._state) showSkeleton(); // [G] cold first load — placeholders while we fetch
   const offenseId = offenseSelect.value, defenseId = defenseSelect.value;
   const personnel = personnelSelect.value, formation = formationSelect.value;
   const offenseYear = offenseSeasonSelect.value, defenseYear = defenseSeasonSelect.value;
@@ -624,9 +843,16 @@ async function render(fresh, auto) {
       offenseId, defenseId, personnel, formation, stamp, builtField: false, builtList: false, builtSpecial: false,
     };
     render._sigs = [render._state.offSig, render._state.defSig];
+    render._state.seq = buildSeq(render._state); // [D] ordered open sequence for prev/next + deep-link
     buildActiveView(); // build only the visible view; the others build on switch
     nflUpdatedLabel();
     statusEl.textContent = "";
+    // [D] Deep-link: if the URL carried ?pos=, open that position once after the first render.
+    if (pendingPos) {
+      const idx = render._state.seq.findIndex((s) => s.posId === pendingPos);
+      if (idx >= 0) openAt(render._state.seq, idx);
+      pendingPos = null;
+    }
   } catch (err) {
     if (!auto) {
       statusEl.textContent = "Couldn't load right now. ";
@@ -675,6 +901,7 @@ function writeState() {
 }
 function readState() {
   const url = new URLSearchParams(location.search);
+  pendingPos = url.get("pos"); // [D] deep-link only from the URL (never localStorage)
   let saved = new URLSearchParams();
   try { saved = new URLSearchParams(localStorage.getItem("nfl.controls") || ""); } catch {}
   const get = (k) => url.get(k) ?? saved.get(k) ?? null;
@@ -694,13 +921,13 @@ function readState() {
 // Dropdown fillers
 // ---------------------------------------------------------------------------
 function fillDropdown(sel) {
-  const teams = [...window.NFL_TEAMS].sort((a, b) => a.name.localeCompare(b.name)); // alphabetical
+  const teams = [...NFL_TEAMS].sort((a, b) => a.name.localeCompare(b.name)); // alphabetical
   for (const team of teams) {
     const opt = document.createElement("option");
     opt.value = team.id; opt.textContent = team.name;
     sel.appendChild(opt);
   }
-  sel.value = String(window.DEFAULT_TEAM_ID);
+  sel.value = String(DEFAULT_TEAM_ID);
 }
 function fillOptions(sel, order, cfgMap, def) {
   for (const key of order) {
@@ -711,8 +938,8 @@ function fillOptions(sel, order, cfgMap, def) {
   sel.value = def;
 }
 function fillSeasons(sel) {
-  const cur = window.currentNflSeason();
-  for (let y = cur; y >= window.SEASON.OLDEST; y--) {
+  const cur = currentNflSeason();
+  for (let y = cur; y >= SEASON.OLDEST; y--) {
     const opt = document.createElement("option");
     opt.value = y; opt.textContent = y === cur ? `${y} (current)` : `${y}`;
     sel.appendChild(opt);
@@ -746,6 +973,17 @@ document.getElementById("reset").addEventListener("click", () => {
 [offenseSelect, defenseSelect, personnelSelect, formationSelect, offenseSeasonSelect, defenseSeasonSelect]
   .forEach((sel) => sel.addEventListener("change", () => render(false)));
 document.querySelectorAll(".view-toggle button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
+// [A] Player search — filter the active view as the user types.
+(function () {
+  const input = document.getElementById("player-search");
+  if (!input) return;
+  input.addEventListener("input", () => { searchQuery = input.value.trim().toLowerCase(); applySearch(); });
+})();
+// [C] Compare mode toggle.
+(function () {
+  const btn = document.getElementById("compare");
+  if (btn) btn.addEventListener("click", () => setCompareMode(!compareMode));
+})();
 
 // ---- start up ----
 fillDropdown(offenseSelect);

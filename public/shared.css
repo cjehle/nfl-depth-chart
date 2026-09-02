@@ -76,6 +76,18 @@ body.landing {
 .landing-hero h1 { font-size: 34px; margin: 0 0 10px; }
 .landing-hero p { color: var(--nav-muted); font-size: 15px; margin: 0 auto; max-width: 560px; line-height: 1.5; }
 .sport-grid { max-width: 900px; margin: 26px auto 30px; padding: 0 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+/* ---- "Recently viewed" strip (deep-links back to a sport's saved matchup) ---- */
+/* nav.js fills this in and unhides it only when at least one sport has saved state. */
+.resume-strip { max-width: 900px; margin: 18px auto 0; padding: 0 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.resume-strip[hidden] { display: none; }
+.resume-strip .resume-label { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--nav-muted); }
+.resume-card {
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+  color: var(--nav-ink); background: #0f2a1a; border: 1px solid #1c3b28;
+  border-radius: 999px; padding: 6px 13px; font-size: 13px; font-weight: 700;
+  transition: transform 0.08s ease, background 0.12s ease;
+}
+.resume-card:hover { transform: translateY(-1px); background: #123522; }
 .section-title { max-width: 900px; margin: 30px auto 0; padding: 0 20px; font-size: 20px; color: var(--nav-ink); border-top: 1px solid #1c3b28; padding-top: 26px; }
 .sport-card {
   display: block; text-decoration: none; color: var(--nav-ink);

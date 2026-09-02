@@ -14,6 +14,36 @@
     }
     document.addEventListener("click", function (e) { if (!folder.contains(e.target)) folder.open = false; });
   });
+  // Landing page only: build a "Recently viewed" strip that deep-links back to
+  // each sport the visitor has an open team saved for (from localStorage).
+  if (document.body.classList.contains("landing")) {
+    var strip = document.getElementById("resume-strip");
+    if (strip) {
+      // slug, label + emoji, and the localStorage read for each sport. NFL keeps
+      // its own key/param (ot=); every surface sport uses sdc.<sport>.state (a=).
+      var SPORTS = [
+        ["nfl", "🏈 NFL"], ["mlb", "⚾ MLB"], ["nba", "🏀 NBA"], ["nhl", "🏒 NHL"],
+        ["mls", "⚽ MLS"], ["wnba", "🏀 WNBA"], ["cfb", "🎓 CFB"], ["cbb", "🎓 CBB"],
+        ["mch", "🎓 CHky"], ["epl", "Premier League"], ["laliga", "La Liga"],
+        ["bundesliga", "Bundesliga"], ["seriea", "Serie A"], ["ligue1", "Ligue 1"],
+        ["ligamx", "Liga MX"], ["nwsl", "NWSL"], ["ucl", "Champions League"]
+      ];
+      var any = false;
+      SPORTS.forEach(function (s) {
+        var slug = s[0], label = s[1], saved = null;
+        try { saved = localStorage.getItem(slug === "nfl" ? "nfl.controls" : "sdc." + slug + ".state"); }
+        catch (e) { saved = null; }
+        if (!saved) return;
+        var a = document.createElement("a");
+        a.className = "resume-card";
+        a.href = "/" + slug + "?" + saved;
+        a.textContent = label;
+        strip.appendChild(a);
+        any = true;
+      });
+      if (any) strip.hidden = false;
+    }
+  }
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("/sw.js").catch(function () { /* offline support is best-effort */ });

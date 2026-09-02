@@ -27,6 +27,12 @@ const ratings = require("./lib/ratings.js"); // coverageSnapshot() for /healthz 
 // disabled but the rest of the site still runs.
 let nfl = null;
 try { nfl = require("./lib/nfl.js"); } catch (e) { console.error("NFL engine failed to load (NFL routes disabled):", e && e.message); }
+// lib/nfl.js re-exports NFL_TEAMS/SEASON/currentNflSeason but NOT DEFAULT_TEAM_ID, so
+// read it straight from the teams module (the same source nfl.js uses) for the NFL data
+// island + preload. Defensive: if it ever fails to load, fall back to Buffalo (2) so the
+// island/preload still emit rather than throwing during head injection.
+let DEFAULT_TEAM_ID = 2;
+try { ({ DEFAULT_TEAM_ID } = require("./public/nfl/teams.js")); } catch (e) { console.error("teams.js load failed (DEFAULT_TEAM_ID=2 fallback):", e && e.message); }
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -185,6 +191,31 @@ const MIME = {
   ".ico": "image/x-icon", ".png": "image/png", ".svg": "image/svg+xml",
   ".webmanifest": "application/manifest+json; charset=utf-8",
 };
+// ---- Critical (above-the-fold) CSS, inlined in <head> for the app routes ----
+// A small, self-contained sheet (NOT read from the stylesheets) that paints the dark
+// background, top nav, topbar, view toggle, and the surface/field aspect box before the
+// full stylesheet arrives — so a cold load doesn't flash white or reflow the field in.
+// The full <link rel=stylesheet> sheets still load and override these; this is only the
+// first-paint layer. Keep it hand-written and ~1.5-3KB. It's injected as an inline
+// <style>, so to satisfy the strict style-src CSP its sha256 is computed here at module
+// load and ADDED to the style-src directive below — the hash is DERIVED from this exact
+// string and so can never drift from what's actually served.
+const CRITICAL_CSS = `
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0b1f12;color:#eaf2ec}
+.site-nav{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#081109;border-bottom:1px solid #1c3b28}
+.site-nav .site-brand{color:#eaf2ec;font-weight:800;text-decoration:none;font-size:15px}
+.site-nav .site-links{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.topbar{max-width:900px;margin:0 auto;padding:18px 16px 6px}
+.topbar h1{margin:0 0 4px;font-size:22px}
+.view-toggle-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.view-toggle{display:flex;flex:1;background:#0c2416;border:1px solid #1c3b28;border-radius:10px;overflow:hidden}
+.view-toggle button{flex:1;padding:10px 8px;background:transparent;color:#9fbcac;border:0;font-size:14px;font-weight:600}
+.surface{position:relative;width:100%;min-width:520px;aspect-ratio:.82;border-radius:14px;background:#0f2a1a}
+.field{position:relative;max-width:900px;margin:8px auto 40px;border:4px solid #ffffff33;border-radius:10px;background:#1b6e37}
+`.trim();
+const CRITICAL_CSS_HASH = "sha256-" + crypto.createHash("sha256").update(CRITICAL_CSS).digest("base64");
 const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
@@ -195,7 +226,9 @@ const SECURITY_HEADERS = {
   "Content-Security-Policy": [
     "default-src 'self'",
     "img-src 'self' data: https://*.espncdn.com",
-    "style-src 'self'", "script-src 'self' https://static.cloudflareinsights.com", "connect-src 'self' https://cloudflareinsights.com",
+    // 'self' keeps the linked stylesheets working; the hash whitelists the single inline
+    // <style> block (CRITICAL_CSS) injected per app route — derived from the same constant.
+    "style-src 'self' '" + CRITICAL_CSS_HASH + "'", "script-src 'self' https://static.cloudflareinsights.com", "connect-src 'self' https://cloudflareinsights.com",
     "base-uri 'none'", "frame-ancestors 'none'", "form-action 'none'",
   ].join("; "),
 };
@@ -317,6 +350,32 @@ function headFor(key) {
     // Structured data (not executed, so it's exempt from script-src CSP).
     `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", name: "Depth Charts", url: SITE + o.path, description: o.desc })}</script>`,
   ];
+  // Critical CSS: inline the small above-the-fold sheet on the app routes (NFL + every
+  // surface sport) so the first paint has the dark background, nav, topbar, view toggle
+  // and the field/surface aspect box before the full stylesheet loads. Whitelisted in CSP
+  // by CRITICAL_CSS_HASH (derived from the same constant, so it can never drift).
+  if (key === "nfl" || SURFACE[key]) parts.push(`<style>${CRITICAL_CSS}</style>`);
+  // Preload the first data request the client will make, so the fetch starts during HTML
+  // parse instead of after app.js runs. The href must byte-match the client's exact URL
+  // (same params, same order) or the browser warms a response the app never reuses.
+  // Same-origin fetch preload → NO crossorigin attribute.
+  if (SURFACE[key]) {
+    const cfg = SURFACE[key], d = cfg.defaults || {};
+    // Client side-A request order: sport, team, fresh, then unit (only for dual-unit sports).
+    const unit = cfg.dualUnit && cfg.units && cfg.units[0] ? cfg.units[0] : null;
+    const href = `/api/lineup?sport=${key}&team=${d.a}&fresh=1${unit ? `&unit=${unit}` : ""}`;
+    parts.push(`<link rel="preload" as="fetch" href="${escHtml(href)}">`);
+  }
+  if (key === "nfl" && nfl) {
+    // Client NFL request order: team, year, fresh. year is server-computed here (the same
+    // value the client will ask for) so the preload matches without a redeploy each fall.
+    const href = `/api/depth?team=${DEFAULT_TEAM_ID}&year=${nfl.currentNflSeason()}&fresh=1`;
+    parts.push(`<link rel="preload" as="fetch" href="${escHtml(href)}">`);
+    // Non-executed JSON data island so nfl/app.js reads its team list + defaults + season
+    // synchronously at startup (mirrors the surface #sdc-config island), letting the NFL
+    // shell drop the /nfl/teams.js <script>. Escape "<" so a value can't break out.
+    parts.push(`<script type="application/json" id="sdc-nfl-teams">${JSON.stringify({ teams: nfl.NFL_TEAMS, defaultId: DEFAULT_TEAM_ID, season: nfl.SEASON }).replace(/</g, "\\u003c")}</script>`);
+  }
   // Inline the per-sport config as a non-executed JSON data island so the client can
   // read it synchronously at startup — this removes the serial config round-trip
   // (HTML → run app.js → fetch /api/config → then fetch lineup) from every surface

@@ -55,6 +55,7 @@
           <button data-view="special" aria-pressed="false" title="Special teams">Special</button>
         </div>
         <span class="updated" id="updated" aria-live="polite"></span>
+        <input id="player-search" class="player-search" type="search" inputmode="search" autocomplete="off" placeholder="Find a player…" aria-label="Find a player in this matchup" />
       </div>
 
       <div class="controls">
@@ -73,6 +74,7 @@
         <div class="control-row actions">
           <button id="refresh" title="Fetch the latest data from ESPN">↻ Refresh</button>
           <button id="share" title="Copy a link to this matchup">↗ Share</button>
+          <button id="compare" title="Compare a player from each side" aria-pressed="false">⚖ Compare</button>
           <button id="reset" title="Put players back to their starting spots">↺ Reset positions</button>
         </div>
       </div>
@@ -108,9 +110,13 @@
     <div id="list-view" class="list-view hidden"></div>
     <div id="st-view" class="list-view hidden"></div>
 
+    <div id="compare-drawer" class="compare-drawer hidden" aria-live="polite"></div>
+
     <div id="depth-popover" class="popover hidden" role="dialog" aria-modal="true" aria-labelledby="popover-title">
       <div class="popover-head">
+        <button id="popover-prev" class="popover-nav" aria-label="Previous position" hidden>‹</button>
         <span id="popover-title"></span>
+        <button id="popover-next" class="popover-nav" aria-label="Next position" hidden>›</button>
         <button id="popover-close" aria-label="Close depth chart">✕</button>
       </div>
       <ol id="popover-list"></ol>
@@ -119,7 +125,6 @@
 
     <script src="/nav.js" defer></script>
     <script src="/common.js" defer></script>
-    <script src="/nfl/teams.js" defer></script>
     <script src="/nfl/app.js" defer></script>
   </body>
 </html>

@@ -46,7 +46,7 @@ function sized(url, px) {
 // handles it for every popover/compare image (error events don't bubble → capture).
 addEventListener("error", (e) => {
   const t = e.target;
-  if (t instanceof HTMLImageElement && /\b(p-photo|cmp-photo)\b/.test(t.className)) t.style.visibility = "hidden";
+  if (t instanceof HTMLImageElement && /\b(p-photo|cmp-photo|list-photo)\b/.test(t.className)) t.style.visibility = "hidden";
 }, true);
 
 // "Updated N ago" relative time from an ISO timestamp.

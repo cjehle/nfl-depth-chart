@@ -54,6 +54,7 @@
         <label class="season-picker hidden"><span>Season</span><select id="season" aria-label="Season"></select></label>
         <label class="season-picker formation-picker hidden"><span id="formation-label">Formation</span><select id="formation" aria-label="Formation"></select></label>
         <span class="updated" id="updated" aria-live="polite"></span>
+        <input id="player-search" class="player-search" type="search" inputmode="search" autocomplete="off" placeholder="Find a player…" aria-label="Find a player in this matchup" />
       </div>
 
       <div class="controls">
@@ -74,6 +75,7 @@
           <button id="compare" title="Compare a player from each team" aria-pressed="false">⚖ Compare</button>
           <button id="share" title="Copy a link to this matchup">↗ Share</button>
           <button id="refresh" title="Fetch the latest lineups">↻ Refresh</button>
+          <button id="reset" title="Put players back to their starting spots">↺ Reset</button>
         </div>
       </div>
 
@@ -111,7 +113,9 @@
 
     <div id="depth-popover" class="popover hidden" role="dialog" aria-modal="true" aria-labelledby="popover-title">
       <div class="popover-head">
+        <button id="popover-prev" class="popover-nav" aria-label="Previous position" hidden>‹</button>
         <span id="popover-title"></span>
+        <button id="popover-next" class="popover-nav" aria-label="Next position" hidden>›</button>
         <button id="popover-close" aria-label="Close depth chart">✕</button>
       </div>
       <ol id="popover-list"></ol>
