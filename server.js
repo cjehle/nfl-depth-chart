@@ -61,14 +61,30 @@ function publicConfig(sport) {
 // the background. Keeps the cold Render origin + ESPN off most requests' critical
 // path; the client still auto-refreshes every 4 min, so users stay current.
 const LINEUP_CACHE = "public, s-maxage=120, stale-while-revalidate=600";
-// Weak content ETag from stable parts only (NOT the volatile `updated`/`fetchedAt`
-// timestamps), so a no-op rebuild yields the same tag and the client's 4-min refresh /
-// a CDN revalidation gets a 304 (headers only) instead of re-downloading identical JSON.
-const weakEtag = (parts) => 'W/"' + crypto.createHash("sha1").update(JSON.stringify(parts)).digest("hex").slice(0, 20) + '"';
-// Serve JSON with an ETag + 304 support. Returns the status actually sent.
-function sendJsonEtag(req, res, data, etag, headers) {
-  if (req.headers["if-none-match"] === etag) { res.writeHead(304, { ETag: etag, ...SECURITY_HEADERS, ...headers }); res.end(); return 304; }
-  sendJson(req, res, 200, data, { ...headers, ETag: etag }); return 200;
+// Per-generation JSON memo: serialize + hash + compress a lineup/depth payload ONCE,
+// keyed by the cached data object itself (WeakMap → GC'd with the object, bounded by
+// the existing store caps, never extends a lifetime). Repeat sends of the same
+// generation are a lookup + buffer write — no re-stringify, no re-hash, no sync gzip.
+// The ETag hashes stable parts only (NOT volatile `updated`/`fetchedAt`), so a no-op
+// rebuild yields the same tag and the client's 4-min refresh / a CDN revalidation gets
+// a 304 (headers only) instead of re-downloading identical JSON. Brotli-11 lands async
+// (gzip serves the first hit) so no request blocks on it — same pattern as static/pages.
+const jsonMemo = new WeakMap();
+function sendCachedJson(req, res, data, parts, headers) {
+  let m = jsonMemo.get(data);
+  if (!m) {
+    const buf = Buffer.from(JSON.stringify(data));
+    const etag = 'W/"' + crypto.createHash("sha1").update(JSON.stringify(parts)).digest("hex").slice(0, 20) + '"';
+    m = { etag, buf, gz: undefined, br: undefined };
+    if (buf.length > 512) {
+      m.gz = zlib.gzipSync(buf, { level: 9 });
+      zlib.brotliCompress(buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } }, (err, b) => { if (!err) m.br = b; });
+    }
+    jsonMemo.set(data, m);
+  }
+  if (req.headers["if-none-match"] === m.etag) { res.writeHead(304, { ETag: m.etag, ...SECURITY_HEADERS, ...headers }); res.end(); return 304; }
+  respond(req, res, 200, m.buf, MIME[".json"], { ...headers, ETag: m.etag, gz: m.gz, br: m.br });
+  return 200;
 }
 // Surface lineup cache (TTL + single-flight + disk last-good), keyed by sport+team.
 const lineupStore = new Map();
@@ -291,9 +307,12 @@ function headFor(key) {
     `<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">`,
     `<link rel="manifest" href="/manifest.webmanifest">`,
     // SEO + faster first paint: canonical URL, and pre-warm the connection to
-    // ESPN's logo CDN so team crests appear sooner.
+    // ESPN's logo CDN so team crests appear sooner. No `crossorigin`: the headshots/
+    // logos are plain credentialed <img> loads, and browsers partition socket reuse by
+    // credentials mode — an anonymous (crossorigin) preconnect would warm a socket the
+    // images can never reuse. dns-prefetch stays as a fallback for browsers ignoring preconnect.
     `<link rel="canonical" href="${SITE}${o.path}">`,
-    `<link rel="preconnect" href="https://a.espncdn.com" crossorigin>`,
+    `<link rel="preconnect" href="https://a.espncdn.com">`,
     `<link rel="dns-prefetch" href="https://a.espncdn.com">`,
     // Structured data (not executed, so it's exempt from script-src CSP).
     `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "WebSite", name: "Depth Charts", url: SITE + o.path, description: o.desc })}</script>`,
@@ -444,7 +463,7 @@ const server = http.createServer(async (req, res) => {
         const cur = nfl.currentNflSeason();
         let year = Number(params.get("year")) || cur;
         year = Math.min(cur, Math.max(nfl.SEASON.OLDEST, year));
-        try { const d = await nfl.getTeamData(teamId, year, params.get("fresh") === "1"); const et = weakEtag([d.offense, d.defense, d.specialTeams, d.team, d.season]); return done(sendJsonEtag(req, res, d, et, { "Cache-Control": LINEUP_CACHE })); }
+        try { const d = await nfl.getTeamData(teamId, year, params.get("fresh") === "1"); return done(sendCachedJson(req, res, d, [d.offense, d.defense, d.specialTeams, d.team, d.season], { "Cache-Control": LINEUP_CACHE })); }
         catch (err) { console.error("depth error:", err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }
       if (urlPath === "/api/ages") {
@@ -480,7 +499,7 @@ const server = http.createServer(async (req, res) => {
         const cfgS = SURFACE[sport];
         const validForm = !!fp && ((cfgS.formations || []).includes(fp) || !!(cfgS.packages && cfgS.packages[unit] && cfgS.packages[unit][fp]));
         const formation = validForm ? fp : null;
-        try { const d = await getLineup(sport, teamId, params.get("fresh") === "1", unit, year, formation); const et = weakEtag([d.chips, d.team, d.formation, d.subtitle, d.season, unit]); return done(sendJsonEtag(req, res, d, et, { "Cache-Control": LINEUP_CACHE })); }
+        try { const d = await getLineup(sport, teamId, params.get("fresh") === "1", unit, year, formation); return done(sendCachedJson(req, res, d, [d.chips, d.team, d.formation, d.subtitle, d.season, unit], { "Cache-Control": LINEUP_CACHE })); }
         catch (err) { console.error(`[${sport}] lineup error:`, err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
       }
       if (urlPath === "/api/player-stats") {
@@ -540,8 +559,13 @@ server.headersTimeout = 66000;
 // the aggregate degraded-rate would never cross the global 50% threshold to reveal).
 const prewarmStatus = {};
 async function prewarm() {
+  // Thunks, NOT started until a pool worker picks one up. Starting all ~19 builds in one
+  // tick fans out each build's up-to-10 concurrent summary fetches simultaneously —
+  // ~100-140 in-flight response buffers + JSON.parse trees at the peak, on a 512MB,
+  // CPU-throttled cold boot. Draining through a small pool caps that transient spike and
+  // the chance ESPN rate-limits the burst into degraded builds. Same idiom as statScores.
   const jobs = [];
-  if (nfl) jobs.push(nfl.getTeamData("2", nfl.currentNflSeason(), false).catch(() => {}));
+  if (nfl) jobs.push(() => nfl.getTeamData("2", nfl.currentNflSeason(), false).catch(() => {}));
   const rec = (sport, p) => p.then((data) => {
     if (data && Array.isArray(data.chips)) {
       const chips = data.chips.length, expected = data.expectedSlots || chips || 1;
@@ -550,15 +574,39 @@ async function prewarm() {
   }).catch(() => {});
   for (const [sport, cfg] of Object.entries(SURFACE)) {
     const d = cfg.defaults || {};
-    if (d.a) jobs.push(rec(sport, getLineup(sport, d.a, false, cfg.units ? cfg.units[0] : null)));
-    if (cfg.dualUnit && d.b) jobs.push(getLineup(sport, d.b, false, cfg.units ? cfg.units[1] : null).catch(() => {}));
+    if (d.a) jobs.push(() => rec(sport, getLineup(sport, d.a, false, cfg.units ? cfg.units[0] : null)));
+    if (cfg.dualUnit && d.b) jobs.push(() => getLineup(sport, d.b, false, cfg.units ? cfg.units[1] : null).catch(() => {}));
   }
-  await Promise.allSettled(jobs);
-  console.log(`prewarm complete (${jobs.length} default lineups)`);
+  const total = jobs.length;
+  let i = 0;
+  const worker = async () => { while (i < jobs.length) await jobs[i++](); }; // each thunk self-catches
+  const CONCURRENCY = 6; // pool size; each build itself fans out up to ~10 summaries
+  await Promise.allSettled(Array.from({ length: Math.min(CONCURRENCY, total) }, worker));
+  console.log(`prewarm complete (${total} default lineups)`);
 }
 
 server.listen(PORT, () => {
   console.log(`\n🏟️  All-Sports Depth Charts running!  Open  http://localhost:${PORT}`);
   console.log(`   sports loaded: NFL${nfl ? "" : "(disabled)"}, ${Object.keys(SURFACE).join(", ")}\n`);
+  // Prime the in-memory caches SYNCHRONOUSLY from committed seeds/last-good before any
+  // request can be dispatched, so the first hit after a Render spin-down serves a ~0ms
+  // local copy (with the fresh build landing in the background via SWR) instead of
+  // blocking on a cold multi-second ESPN fetch — or 502-ing if ESPN is slow. A few ms of
+  // readFileSync, once. prewarm() below still refreshes/repairs; this just closes the
+  // very-first-request window prewarm's +800ms timer can't cover. Best-effort.
+  try {
+    if (nfl) nfl.primeTeamData("2", nfl.currentNflSeason());
+    for (const [sport, cfg] of Object.entries(SURFACE)) {
+      const d = cfg.defaults || {};
+      const seed = (teamId, unit) => {
+        const key = lineupKey(sport, teamId, unit, null, null); // matches getLineup's key for a default request
+        if (lineupStore.has(key)) return;
+        const hit = readDisk(key);
+        if (hit) lineupStore.set(key, { time: 0, value: { ...hit.data, stale: true, source: hit.source } });
+      };
+      if (d.a) seed(d.a, cfg.units ? cfg.units[0] : null);
+      if (cfg.dualUnit && d.b) seed(d.b, cfg.units ? cfg.units[1] : null);
+    }
+  } catch (e) { console.error("seed prime skipped:", e && e.message); }
   setTimeout(() => { prewarm().catch(() => {}); }, 800); // don't block startup
 });
