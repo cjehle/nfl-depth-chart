@@ -1,0 +1,59 @@
+/* dashboard/style.css — metrics dashboard. Matches the site's dark-green palette. */
+:root {
+  --dash-bg: #0b1f12; --card: #0e2618; --card2: #102a1b; --line: #29513a;
+  --ink: #eaf2ec; --muted: #a9c3b3; --accent: #3ea06a; --accent2: #7fd4a1;
+  --good: #3ea06a; --ni: #e0a327; --poor: #e0533b;
+}
+body.dash { background: var(--dash-bg); color: var(--ink); }
+.dash-head { max-width: 1100px; margin: 0 auto; padding: 18px 16px 6px; }
+.dash-head h1 { margin: 0 0 4px; font-size: 26px; }
+.dash-sub { margin: 0; color: var(--muted); font-size: 13.5px; }
+.realtime { color: var(--accent2); font-weight: 700; margin-left: 6px; white-space: nowrap; }
+.dash-meta { margin-top: 6px; color: var(--muted); font-size: 12px; }
+.dash-main { max-width: 1100px; margin: 0 auto; padding: 8px 16px 40px; }
+.dash-section { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 22px 0 10px; font-weight: 800; }
+.dash-hint { text-transform: none; letter-spacing: 0; font-weight: 500; opacity: 0.8; }
+.dash-empty { color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; text-align: center; }
+.dash-foot { max-width: 1100px; margin: 0 auto; padding: 0 16px 30px; color: var(--muted); font-size: 12px; text-align: center; }
+.dash-foot a, .site-links a { color: var(--accent2); }
+
+/* KPI + vitals tiles */
+.tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; position: relative; }
+.tile-val { font-size: 26px; font-weight: 800; line-height: 1.1; }
+.tile-label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 700; }
+.tile-sub { font-size: 11px; color: var(--muted); margin-top: 6px; opacity: 0.85; }
+.vitals-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.vital { border-left: 4px solid var(--line); }
+.vital.good { border-left-color: var(--good); }
+.vital.needs-improvement { border-left-color: var(--ni); }
+.vital.poor { border-left-color: var(--poor); }
+.vital-badge { display: inline-block; margin-top: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 999px; background: #0006; color: var(--muted); }
+.vital.good .vital-badge { background: #17442a; color: var(--accent2); }
+.vital.needs-improvement .vital-badge { background: #3a2f0e; color: #f0cd8a; }
+.vital.poor .vital-badge { background: #3a170e; color: #f3a58f; }
+
+/* Trend chart */
+.chart-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.trend-svg { width: 100%; height: auto; display: block; }
+.trend-svg .grid { stroke: #ffffff14; stroke-width: 1; }
+.trend-svg .axis { fill: var(--muted); font-size: 10px; }
+.trend-svg .axis.end { text-anchor: end; }
+.trend-svg .bar-views { fill: #2f7d51; }
+.trend-svg .line-sessions { fill: none; stroke: var(--accent2); stroke-width: 2; }
+.legend-row { display: flex; gap: 16px; justify-content: center; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.legend-row .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 2px; }
+.sw-views { background: #2f7d51; }
+.sw-sessions { background: var(--accent2); }
+
+/* Breakdown bars */
+.dash-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 24px; }
+.bars { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.bar-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 13px; }
+.bar-label { flex: 0 0 34%; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-track { flex: 1 1 auto; background: #ffffff10; border-radius: 6px; height: 12px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, #2f7d51, var(--accent2)); border-radius: 6px; }
+.bar-val { flex: 0 0 auto; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+
+.hidden { display: none !important; }
+@media (max-width: 760px) { .tile-val { font-size: 22px; } .dash-head h1 { font-size: 22px; } }

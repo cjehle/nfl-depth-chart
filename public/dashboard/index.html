@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1f12" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="stylesheet" href="/shared.css" />
+    <link rel="stylesheet" href="/dashboard/style.css" />
+    <!--HEAD-->
+  </head>
+  <body class="dash">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <nav class="site-nav">
+      <a href="/" class="site-brand">🏟️ Depth Charts</a>
+      <div class="site-links"><a href="/">← Back to site</a></div>
+    </nav>
+
+    <header class="dash-head" id="main" tabindex="-1">
+      <h1>📊 Site Metrics</h1>
+      <p class="dash-sub">First-party, privacy-preserving analytics — aggregate only, no cookies, no PII.
+        <span id="realtime" class="realtime" aria-live="polite"></span>
+      </p>
+      <div class="dash-meta">
+        <span id="updated" aria-live="polite"></span>
+        <span id="range-note"></span>
+      </div>
+    </header>
+
+    <main class="dash-main">
+      <p id="empty" class="dash-empty hidden">No data yet — metrics appear as visitors load pages. (This dashboard doesn't count itself.)</p>
+
+      <section aria-labelledby="kpi-h">
+        <h2 id="kpi-h" class="dash-section">Audience · last 30 days</h2>
+        <div id="kpis" class="tile-grid"></div>
+      </section>
+
+      <section aria-labelledby="vitals-h">
+        <h2 id="vitals-h" class="dash-section">Core Web Vitals <span class="dash-hint">(p75 · Google thresholds)</span></h2>
+        <div id="vitals" class="tile-grid vitals-grid"></div>
+      </section>
+
+      <section aria-labelledby="trend-h">
+        <h2 id="trend-h" class="dash-section">Views &amp; sessions · daily</h2>
+        <div id="trend" class="chart-card"></div>
+      </section>
+
+      <div class="dash-cols">
+        <section aria-labelledby="pages-h">
+          <h2 id="pages-h" class="dash-section">Top pages</h2>
+          <div id="pages" class="bars"></div>
+        </section>
+        <section aria-labelledby="src-h">
+          <h2 id="src-h" class="dash-section">Traffic sources</h2>
+          <div id="sources" class="bars"></div>
+        </section>
+        <section aria-labelledby="dev-h">
+          <h2 id="dev-h" class="dash-section">Devices</h2>
+          <div id="devices" class="bars"></div>
+        </section>
+        <section aria-labelledby="conn-h">
+          <h2 id="conn-h" class="dash-section">Connection</h2>
+          <div id="conns" class="bars"></div>
+        </section>
+      </div>
+
+      <section aria-labelledby="load-h">
+        <h2 id="load-h" class="dash-section">Load timing <span class="dash-hint">(p50 · p75 · p95, ms)</span></h2>
+        <div id="timing" class="tile-grid"></div>
+      </section>
+    </main>
+
+    <p class="dash-foot">Auto-refreshes every 30s · <a href="/api/metrics-summary" id="raw-link">raw JSON</a></p>
+
+    <script src="/dashboard/app.js" defer></script>
+  </body>
+</html>

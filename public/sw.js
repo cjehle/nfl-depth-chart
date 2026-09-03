@@ -2,11 +2,11 @@
 // Strategy: precache the static shell; navigations (HTML) network-first with a
 // cached fallback; /api/* and static assets stale-while-revalidate (instant from
 // cache, refreshed in the background). Bump VERSION to force a clean rollover.
-const VERSION = "v10-2026-09-02";
+const VERSION = "v11-2026-09-02";
 const STATIC = `static-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 const PRECACHE = [
-  "/shared.css", "/nav.js", "/common.js",
+  "/shared.css", "/nav.js", "/common.js", "/metrics.js",
   "/surface/style.css", "/surface/app.js",
   "/nfl/style.css", "/nfl/app.js",
   "/manifest.webmanifest",
@@ -80,6 +80,10 @@ self.addEventListener("fetch", (e) => {
     );
     return;
   }
+
+  // Analytics endpoints are never cached: the beacon (POST) is skipped above anyway, and
+  // the dashboard summary must always be live — let both go straight to the network.
+  if (url.pathname === "/api/metric" || url.pathname === "/api/metrics-summary") return;
 
   // Lineup/config APIs: stale-while-revalidate → instant last-known lineup offline.
   if (url.pathname.startsWith("/api/")) { e.respondWith(staleWhileRevalidate(req, RUNTIME)); return; }

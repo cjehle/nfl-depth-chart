@@ -23,6 +23,7 @@ const zlib = require("zlib");
 const crypto = require("crypto");
 const { stats, cached, buildLineup, writeDisk, readDisk, cacheStats, fetchJson, lineupKey, recentUpstream } = require("./lib/espn.js");
 const ratings = require("./lib/ratings.js"); // coverageSnapshot() for /healthz staleness
+const metrics = require("./lib/metrics.js"); // first-party privacy-preserving analytics (ingest + dashboard summary)
 // Load the NFL engine defensively: if it ever fails to load, the NFL routes are
 // disabled but the rest of the site still runs.
 let nfl = null;
@@ -36,6 +37,10 @@ try { ({ DEFAULT_TEAM_ID } = require("./public/nfl/teams.js")); } catch (e) { co
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
+// Optional gate for the analytics dashboard + its summary API. Empty (the default) = the
+// dashboard is PUBLIC (aggregate, no PII). Set METRICS_TOKEN to require ?key=<token> and
+// 404 without it. The ingest endpoint (/api/metric) is always open — it must accept beacons.
+const METRICS_TOKEN = process.env.METRICS_TOKEN || "";
 const LINEUP_TTL = (Number(process.env.LINEUP_TTL_HOURS) || 12) * 3600e3;
 
 // Surface sports (rink/court/pitch/diamond/field). Loaded one-by-one so a single
@@ -304,6 +309,7 @@ const SITE = process.env.SITE_URL || "https://billsdepthchart.com";
 const escHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const OG = {
   home: { title: "Depth Charts — every team's starting lineup", desc: "Starting lineups for the NFL, MLB, NBA, NHL, WNBA, MLS, college football, hoops & hockey, plus Europe's top soccer leagues — click any player for the full depth chart.", img: "/og/home.png", path: "/all" },
+  dashboard: { title: "Site Metrics — Depth Charts", desc: "First-party, privacy-preserving analytics for the depth-chart site.", img: "/og/home.png", path: "/dashboard" },
   nfl: { title: "NFL Depth Charts — starters on the field", desc: "Any NFL team's starting offense vs defense on a field. Personnel, formations, past seasons, Madden ratings. Live from ESPN.", img: "/og/nfl.png", path: "/nfl" },
   nhl: { title: "NHL Starting Lineups on the Ice", desc: "Two teams' starting lines on the rink — click any player for the depth chart. Live from ESPN.", img: "/og/nhl.png", path: "/nhl" },
   nba: { title: "NBA Starting Fives on the Court", desc: "Two teams' starting fives + full depth chart at every position. Live from ESPN.", img: "/og/nba.png", path: "/nba" },
@@ -463,6 +469,7 @@ const PAGE_ROUTES = {
   "/bundesliga": { rel: "surface/index.html", og: "bundesliga" }, "/seriea": { rel: "surface/index.html", og: "seriea" },
   "/ligue1": { rel: "surface/index.html", og: "ligue1" }, "/ligamx": { rel: "surface/index.html", og: "ligamx" },
   "/nwsl": { rel: "surface/index.html", og: "nwsl" }, "/ucl": { rel: "surface/index.html", og: "ucl" },
+  "/dashboard": { rel: "dashboard/index.html", og: "dashboard" }, // analytics dashboard (noindex; excluded from sitemap)
 };
 
 // Health verdict from the ROLLING upstream window (not cumulative-since-boot, so a
@@ -517,6 +524,26 @@ const server = http.createServer(async (req, res) => {
         lineupAgeSec: lineups,
       });
       return done(res.statusCode);
+    }
+
+    // ---- analytics ingest (POST beacon) — handled before the GET-only /api guard ----
+    if (urlPath === "/api/metric") {
+      if (req.method !== "POST") { res.writeHead(405, SECURITY_HEADERS); return res.end(); }
+      if (rateLimited(clientIp(req))) { stats.rateLimited++; res.writeHead(429, SECURITY_HEADERS); return res.end(); }
+      let body = "", aborted = false;
+      req.on("data", (c) => { body += c; if (body.length > 4096) { aborted = true; req.destroy(); } }); // cap payload
+      req.on("end", () => {
+        if (!aborted) { try { metrics.record(JSON.parse(body)); } catch {} }
+        if (!res.headersSent) { res.writeHead(204, { ...SECURITY_HEADERS, "Cache-Control": "no-store" }); res.end(); }
+      });
+      req.on("error", () => {}); // client abort mid-beacon is fine
+      return; // async; no access-log line for high-volume beacons
+    }
+    // ---- analytics summary (dashboard data) ----
+    if (urlPath === "/api/metrics-summary") {
+      if (req.method !== "GET" && req.method !== "HEAD") { sendJson(req, res, 405, { error: "Method not allowed" }); return done(405); }
+      if (METRICS_TOKEN && new URL(req.url, `http://localhost:${PORT}`).searchParams.get("key") !== METRICS_TOKEN) { sendJson(req, res, 404, { error: "Not found" }); return done(404); }
+      sendJson(req, res, 200, metrics.summary(), { "Cache-Control": "no-store" }); return done(200);
     }
 
     if (urlPath.startsWith("/api/")) {
@@ -592,13 +619,16 @@ const server = http.createServer(async (req, res) => {
       return done(200);
     }
     if (urlPath === "/sitemap.xml") {
-      const urls = ["/", ...Object.keys(PAGE_ROUTES).filter((p) => p !== "/" && p !== "/all")];
+      const urls = ["/", ...Object.keys(PAGE_ROUTES).filter((p) => p !== "/" && p !== "/all" && p !== "/dashboard")];
       const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((p) => `  <url><loc>${SITE}${p}</loc><changefreq>daily</changefreq></url>`).join("\n")}\n</urlset>\n`;
       respond(req, res, 200, xml, "application/xml; charset=utf-8", { "Cache-Control": "public, max-age=86400" });
       return done(200);
     }
 
     // Page routes vs static assets
+    if (urlPath === "/dashboard" && METRICS_TOKEN && new URL(req.url, `http://localhost:${PORT}`).searchParams.get("key") !== METRICS_TOKEN) {
+      respond(req, res, 404, "Not found", "text/plain"); return done(404); // gated dashboard: hide entirely without the key
+    }
     if (PAGE_ROUTES[urlPath]) { renderPage(req, res, PAGE_ROUTES[urlPath].rel, PAGE_ROUTES[urlPath].og); return done(res.statusCode); }
     serveFile(req, res, path.normalize(path.join(PUBLIC_DIR, urlPath)));
     done(res.statusCode);
@@ -656,6 +686,14 @@ async function prewarm() {
   await Promise.allSettled(Array.from({ length: Math.min(CONCURRENCY, total) }, worker));
   console.log(`prewarm complete (${total} default lineups)`);
 }
+
+// Persist analytics across soft restarts. load() rehydrates the last snapshot; a periodic
+// flush + a shutdown flush bound how much a crash/redeploy loses. Ephemeral /tmp still
+// resets on a full free-tier spin-down — point METRICS_DIR at a persistent disk to keep it.
+metrics.load();
+const metricsFlush = setInterval(() => metrics.save(), 60000);
+metricsFlush.unref();
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { try { metrics.save(); } catch {} process.exit(0); });
 
 server.listen(PORT, () => {
   console.log(`\n🏟️  All-Sports Depth Charts running!  Open  http://localhost:${PORT}`);
