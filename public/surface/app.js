@@ -275,8 +275,8 @@ function renderList(dataA, dataB) {
   const el = document.getElementById("list-view");
   el.innerHTML = "";
   el.appendChild(listTeam(dataA, "A"));
-  if (!dataB) return; // single-team sports (baseball) show only one lineup
-  el.appendChild(listTeam(dataB, "B"));
+  if (dataB) el.appendChild(listTeam(dataB, "B")); // single-team sports (baseball) show only one lineup
+  insertFeedAd(el); // in-feed ad after the first team's section (no-op when ads are off)
 }
 function listTeam(data, side) {
   const sec = document.createElement("section");

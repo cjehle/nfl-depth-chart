@@ -49,6 +49,23 @@ addEventListener("error", (e) => {
   if (t instanceof HTMLImageElement && /\b(p-photo|cmp-photo|list-photo)\b/.test(t.className)) t.style.visibility = "hidden";
 }, true);
 
+// In-feed ad slot (List view), shared by both apps. Inserted ONCE per page load after the
+// first list section — only when the server enabled ads (#sdc-ads island present). ads.js
+// reserves + lazily fills it after consent. Once-per-page is deliberate: the 4-min silent
+// auto-refresh rebuilds the list, and re-pushing an ad on a non-user-initiated refresh
+// would violate AdSense's no-auto-refresh policy. If ads are off, this is a no-op.
+let _feedAdInserted = false;
+function insertFeedAd(listEl) {
+  if (_feedAdInserted || !listEl || !document.getElementById("sdc-ads")) return;
+  const ad = document.createElement("div");
+  ad.className = "ad-slot ad-feed";
+  ad.setAttribute("data-ad-slot-name", "feed");
+  const first = listEl.firstElementChild;
+  if (first && first.nextSibling) listEl.insertBefore(ad, first.nextSibling); else listEl.appendChild(ad);
+  _feedAdInserted = true;
+  if (window.__adsScan) window.__adsScan();
+}
+
 // "Updated N ago" relative time from an ISO timestamp.
 function relTime(iso) {
   if (!iso) return "just now";

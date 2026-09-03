@@ -339,6 +339,7 @@ function renderList(st) {
   // and deep-links line up with what the list shows.
   el.appendChild(listSection(st.defTitle, st.defChips, "defense", "B", (TEAM_BY_ID.get(st.defenseId) || {}).name, "def", `${st.defData.teamAbbr} D`));
   el.appendChild(listSection(st.offTitle, st.offChips, "offense", "A", (TEAM_BY_ID.get(st.offenseId) || {}).name, "off", `${st.offData.teamAbbr} O`));
+  insertFeedAd(el); // in-feed ad between defense and offense sections (no-op when ads are off)
 }
 // [F] a round headshot for a list row from the espn id (or a blank placeholder).
 function listPhoto(id) {

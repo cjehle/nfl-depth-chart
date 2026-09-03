@@ -2,11 +2,11 @@
 // Strategy: precache the static shell; navigations (HTML) network-first with a
 // cached fallback; /api/* and static assets stale-while-revalidate (instant from
 // cache, refreshed in the background). Bump VERSION to force a clean rollover.
-const VERSION = "v11-2026-09-02";
+const VERSION = "v12-2026-09-02";
 const STATIC = `static-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 const PRECACHE = [
-  "/shared.css", "/nav.js", "/common.js", "/metrics.js",
+  "/shared.css", "/nav.js", "/common.js", "/metrics.js", "/ads.js",
   "/surface/style.css", "/surface/app.js",
   "/nfl/style.css", "/nfl/app.js",
   "/manifest.webmanifest",

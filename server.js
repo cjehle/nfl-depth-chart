@@ -227,6 +227,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .field{position:relative;max-width:900px;margin:8px auto 40px;border:4px solid #ffffff33;border-radius:10px;background:#1b6e37}
 `.trim();
 const CRITICAL_CSS_HASH = "sha256-" + crypto.createHash("sha256").update(CRITICAL_CSS).digest("base64");
+
+// ---- Display ads (Google AdSense) ----------------------------------------------------
+// Entirely OFF until a valid publisher id is set, so the strict CSP / privacy posture /
+// Web Vitals stay exactly as-is unless you opt in. In Render, set:
+//   ADSENSE_CLIENT=ca-pub-XXXXXXXXXXXXXXXX   (+ ADSENSE_SLOT_FEED / _BANNER / _LANDING from
+// your AdSense ad units). When set, the CSP below is widened for the ad domains, an ads
+// config island is injected, /ads.txt is served, and the client loads ads AFTER consent.
+const ADSENSE_CLIENT = (process.env.ADSENSE_CLIENT || "").trim();
+const ADS_ON = /^ca-pub-\d{10,20}$/.test(ADSENSE_CLIENT);
+const ADSENSE_SLOTS = { feed: (process.env.ADSENSE_SLOT_FEED || "").trim(), banner: (process.env.ADSENSE_SLOT_BANNER || "").trim(), landing: (process.env.ADSENSE_SLOT_LANDING || "").trim() };
+// Ad-network origins added to the CSP ONLY when ADS_ON (kept as tight as AdSense allows).
+const AD_CSP = {
+  script: ["https://pagead2.googlesyndication.com", "https://partner.googleadservices.com", "https://tpc.googlesyndication.com", "https://www.googletagservices.com", "https://adservice.google.com"],
+  frame: ["https://googleads.g.doubleclick.net", "https://tpc.googlesyndication.com", "https://www.google.com"],
+  img: ["https://*.googlesyndication.com", "https://*.g.doubleclick.net", "https://*.google.com", "https://*.gstatic.com"],
+  connect: ["https://pagead2.googlesyndication.com", "https://googleads.g.doubleclick.net", "https://*.google.com"],
+};
+const CSP = (function () {
+  const d = [
+    "default-src 'self'",
+    "img-src 'self' data: https://*.espncdn.com" + (ADS_ON ? " " + AD_CSP.img.join(" ") : ""),
+    // 'self' keeps the linked stylesheets working; the hash whitelists the single inline
+    // <style> block (CRITICAL_CSS) injected per app route — derived from the same constant.
+    "style-src 'self' '" + CRITICAL_CSS_HASH + "'",
+    "script-src 'self' https://static.cloudflareinsights.com" + (ADS_ON ? " " + AD_CSP.script.join(" ") : ""),
+    "connect-src 'self' https://cloudflareinsights.com" + (ADS_ON ? " " + AD_CSP.connect.join(" ") : ""),
+    "base-uri 'none'", "frame-ancestors 'none'", "form-action 'none'",
+  ];
+  if (ADS_ON) d.push("frame-src " + AD_CSP.frame.join(" ")); // AdSense renders ads in iframes
+  return d.join("; ");
+})();
 const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
@@ -234,14 +265,7 @@ const SECURITY_HEADERS = {
   // Tell browsers to stick to HTTPS for a year (safe behind Cloudflare; ignored on plain-http localhost).
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
   "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-  "Content-Security-Policy": [
-    "default-src 'self'",
-    "img-src 'self' data: https://*.espncdn.com",
-    // 'self' keeps the linked stylesheets working; the hash whitelists the single inline
-    // <style> block (CRITICAL_CSS) injected per app route — derived from the same constant.
-    "style-src 'self' '" + CRITICAL_CSS_HASH + "'", "script-src 'self' https://static.cloudflareinsights.com", "connect-src 'self' https://cloudflareinsights.com",
-    "base-uri 'none'", "frame-ancestors 'none'", "form-action 'none'",
-  ].join("; "),
+  "Content-Security-Policy": CSP,
 };
 function respond(req, res, status, body, contentType, extra = {}) {
   const buf = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
@@ -395,6 +419,13 @@ function headFor(key) {
   // the config rides inside the already-brotli'd page. Escape "<" so a value can't break
   // out of the <script>. The client keeps a fetch fallback if the island is ever absent.
   if (SURFACE[key]) parts.push(`<script type="application/json" id="sdc-config">${JSON.stringify(publicConfig(key)).replace(/</g, "\\u003c")}</script>`);
+  // Ads config island (non-executed JSON) + AdSense site-verification meta — only when ads
+  // are enabled AND not on the dashboard. ads.js reads this to know the client + slot ids;
+  // the actual AdSense loader is injected client-side AFTER consent (never pre-consent).
+  if (ADS_ON && key !== "dashboard") {
+    parts.push(`<meta name="google-adsense-account" content="${escHtml(ADSENSE_CLIENT)}">`);
+    parts.push(`<script type="application/json" id="sdc-ads">${JSON.stringify({ client: ADSENSE_CLIENT, slots: ADSENSE_SLOTS }).replace(/</g, "\\u003c")}</script>`);
+  }
   if (process.env.ANALYTICS_TOKEN) parts.push(`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${process.env.ANALYTICS_TOKEN}"}'></script>`);
   return parts.join("\n    ");
 }
@@ -614,6 +645,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== "GET" && req.method !== "HEAD") { respond(req, res, 405, "Method not allowed", "text/plain"); return done(405); }
 
     // SEO: robots + sitemap (generated from the canonical routes, so they can't drift).
+    // AdSense authorized-sellers file (only meaningful when ads are enabled).
+    if (urlPath === "/ads.txt") {
+      if (!ADS_ON) { respond(req, res, 404, "Not found", "text/plain"); return done(404); }
+      respond(req, res, 200, `google.com, ${ADSENSE_CLIENT.replace(/^ca-/, "")}, DIRECT, f08c47fec0942fa0\n`, "text/plain; charset=utf-8", { "Cache-Control": "public, max-age=86400" });
+      return done(200);
+    }
     if (urlPath === "/robots.txt") {
       respond(req, res, 200, `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`, "text/plain; charset=utf-8", { "Cache-Control": "public, max-age=86400" });
       return done(200);

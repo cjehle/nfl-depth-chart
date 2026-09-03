@@ -121,3 +121,31 @@ body.landing {
 .sport-card[href="/nwsl"] { --card: #1a2b5e; }
 .sport-card[href="/ucl"] { --card: #1b1464; }
 .landing-foot { text-align: center; color: var(--nav-muted); font-size: 12px; padding-bottom: 40px; }
+
+/* ---- Display ads (AdSense) — experience-first ------------------------------------ */
+/* A slot is invisible until ads.js reserves it (adds .ad-on) after consent, so when ads
+   are OFF or declined there is zero footprint. Reserved min-height prevents layout shift
+   when the ad fills. Slots are clearly labeled and never overlap the interactive area. */
+.ad-slot { display: none; }
+.ad-slot.ad-on {
+  display: block; position: relative; box-sizing: border-box;
+  max-width: 728px; margin: 16px auto; padding: 16px 8px 4px;
+  min-height: 116px; /* reserve space up front → no CLS when the ad arrives */
+  background: #0c1f14; border: 1px solid #16351f; border-radius: 12px; overflow: hidden;
+}
+.ad-slot.ad-on .adsbygoogle { display: block; }
+.ad-label { position: absolute; top: 4px; left: 10px; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--nav-muted); opacity: 0.65; }
+@media (min-width: 768px) { .ad-slot.ad-on { min-height: 140px; } }
+@media (prefers-reduced-motion: reduce) { .ad-slot .adsbygoogle { animation: none !important; } }
+
+/* First-party consent banner (only shown when ads are enabled and no choice made yet). */
+.ad-consent {
+  position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 400; max-width: 660px; margin: 0 auto;
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  background: #10261a; border: 1px solid #2c5c3d; border-radius: 12px; padding: 12px 14px;
+  box-shadow: 0 8px 30px #0009; color: #eaf2ec; font-size: 13px;
+}
+.ad-consent-msg { flex: 1 1 220px; line-height: 1.4; }
+.ad-consent-btn { border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid #2c5c3d; }
+.ad-consent-btn.accept { background: #3ea06a; color: #06140b; border-color: #3ea06a; }
+.ad-consent-btn.decline { background: transparent; color: #a9c3b3; }
