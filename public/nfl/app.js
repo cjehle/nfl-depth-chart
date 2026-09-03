@@ -708,11 +708,16 @@ async function renderCompare() {
     } catch { el.remove(); return null; }
   }));
   const [a, b] = lines;
+  // Higher is better for NFL stats today (yards/TDs/etc.), but keep the same lower-is-better
+  // guard as the surface app so the two Compare implementations stay identical — harmless
+  // here (these keys don't occur in football) and correct if the stat set ever grows.
+  const LOWER_BETTER = new Set(["GAA", "ERA"]);
   const paint = (mine, other) => {
     if (!mine) return;
     mine.el.innerHTML = mine.line.map((s) => {
       const o = other && other.line.find((x) => x.k === s.k);
-      const better = o && parseFloat(String(s.v).replace(/[^0-9.-]/g, "")) > parseFloat(String(o.v).replace(/[^0-9.-]/g, ""));
+      const mv = parseFloat(String(s.v).replace(/[^0-9.-]/g, "")), ov = o ? parseFloat(String(o.v).replace(/[^0-9.-]/g, "")) : NaN;
+      const better = o && (LOWER_BETTER.has(s.k) ? mv < ov : mv > ov);
       return `<span class="stat${better ? " better" : ""}"><b>${esc(s.v)}</b> ${esc(s.k)}</span>`;
     }).join("");
   };

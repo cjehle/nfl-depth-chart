@@ -297,7 +297,7 @@ function serveFile(req, res, filePath) {
 const SITE = process.env.SITE_URL || "https://billsdepthchart.com";
 const escHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const OG = {
-  home: { title: "Depth Charts — every team's starting lineup", desc: "Starting lineups across the NFL, college football, NBA, college hoops, NHL & MLS — click any player for the full depth chart.", img: "/og/home.png", path: "/all" },
+  home: { title: "Depth Charts — every team's starting lineup", desc: "Starting lineups for the NFL, MLB, NBA, NHL, WNBA, MLS, college football, hoops & hockey, plus Europe's top soccer leagues — click any player for the full depth chart.", img: "/og/home.png", path: "/all" },
   nfl: { title: "NFL Depth Charts — starters on the field", desc: "Any NFL team's starting offense vs defense on a field. Personnel, formations, past seasons, Madden ratings. Live from ESPN.", img: "/og/nfl.png", path: "/nfl" },
   nhl: { title: "NHL Starting Lineups on the Ice", desc: "Two teams' starting lines on the rink — click any player for the depth chart. Live from ESPN.", img: "/og/nhl.png", path: "/nhl" },
   nba: { title: "NBA Starting Fives on the Court", desc: "Two teams' starting fives + full depth chart at every position. Live from ESPN.", img: "/og/nba.png", path: "/nba" },
@@ -313,7 +313,7 @@ const OG = {
   bundesliga: { title: "Bundesliga Starting XIs on the Pitch", desc: "Any Bundesliga team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/bundesliga" },
   seriea: { title: "Serie A Starting XIs on the Pitch", desc: "Any Serie A team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/seriea" },
   ligue1: { title: "Ligue 1 Starting XIs on the Pitch", desc: "Any Ligue 1 team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/ligue1" },
-  ligamx: { title: "Liga MX Starting XIs on the Pitch", desc: "Any Liga MX team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/ligamx" },
+  ligamx: { title: "Liga MX Starting XIs on the Pitch", desc: "Any Liga MX team's typical starting XI in its usual formation. Live from ESPN.", img: "/og/mls.png", path: "/ligamx" },
   nwsl: { title: "NWSL Starting XIs on the Pitch", desc: "Any NWSL team's typical starting XI in its usual formation, with EA FC ratings. Live from ESPN.", img: "/og/mls.png", path: "/nwsl" },
   ucl: { title: "Champions League Starting XIs on the Pitch", desc: "Any UEFA Champions League team's typical starting XI in its usual formation. Live from ESPN.", img: "/og/mls.png", path: "/ucl" },
 };

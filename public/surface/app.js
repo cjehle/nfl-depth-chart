@@ -292,6 +292,20 @@ function listTeam(data, side) {
   sec.appendChild(h);
   const ng = nextGame(t.next);
   if (ng) { const m = document.createElement("div"); m.className = "list-meta"; m.textContent = ng; sec.appendChild(m); }
+  // Empty-state parity: the Field view (renderTeamOnSurface) and the NFL list both show a
+  // friendly "no lineup published yet" message when a team has no chips; the List view used
+  // to render just a bare header. Mirror that copy so a team with no data reads the same in
+  // both views (e.g. Miami-OH college hockey, or any team ESPN hasn't posted yet).
+  if (!data.chips || !data.chips.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-lineup";
+    const strong = document.createElement("strong"); strong.textContent = "No lineup published yet";
+    const span = document.createElement("span");
+    span.textContent = `${(t && t.name) || "This team"} isn't posted by our data source right now — it usually fills in closer to game day. This page updates itself, so check back.`;
+    empty.appendChild(strong); empty.appendChild(span);
+    sec.appendChild(empty);
+    return sec;
+  }
   // group chips by their line, in first-seen order
   const groups = [];
   const byGroup = new Map();
@@ -713,11 +727,16 @@ async function renderCompare() {
     } catch { el.remove(); return null; }
   }));
   const [a, b] = lines;
+  // For most stats a HIGHER number is better, but goalie GAA (goals-against average) and
+  // pitcher ERA (earned-run average) are lower-is-better — so bolding the bigger value
+  // there would highlight the WORSE player. Invert the comparison for those keys.
+  const LOWER_BETTER = new Set(["GAA", "ERA"]);
   const paint = (mine, other) => {
     if (!mine) return;
     mine.el.innerHTML = mine.line.map((s) => {
       const o = other && other.line.find((x) => x.k === s.k);
-      const better = o && parseFloat(String(s.v).replace(/[^0-9.-]/g, "")) > parseFloat(String(o.v).replace(/[^0-9.-]/g, ""));
+      const mv = parseFloat(String(s.v).replace(/[^0-9.-]/g, "")), ov = o ? parseFloat(String(o.v).replace(/[^0-9.-]/g, "")) : NaN;
+      const better = o && (LOWER_BETTER.has(s.k) ? mv < ov : mv > ov);
       return `<span class="stat${better ? " better" : ""}"><b>${esc(s.v)}</b> ${esc(s.k)}</span>`;
     }).join("");
   };

@@ -17,6 +17,7 @@ module.exports = {
   history: true, // past seasons via box scores
   formations: ["Balanced", "Small ball", "Two bigs", "Three guard"], // court alignment sets (client re-places)
   formationMode: "court",
+  seasonEndYear: true, // ESPN labels college-hoops seasons by END year (2027 = 2026-27); roll over in the fall — same as NBA
   classYears: true,
   note: "Typical starting five (recent games), else roster by class · via ESPN",
   defaults: { a: "305", b: "193" }, // DePaul (home) vs Miami (OH)

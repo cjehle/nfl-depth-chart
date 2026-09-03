@@ -17,7 +17,7 @@ module.exports = {
   draftStatus: true, // attach each player's NHL draft status (committed map, data/draft/nhl.json)
   rosterLabel: "roster by position",
   note: "Roster by position + NHL draft status · via ESPN & NHL",
-  defaults: { a: "193", b: "130" }, // Miami (OH) vs Michigan (note: ESPN publishes no Miami OH hockey roster, so that side reads "no lineup")
+  defaults: { a: "130", b: "193" }, // Michigan (populated) vs Miami (OH). Lead with Michigan: ESPN publishes no Miami OH hockey roster, so the known-empty side is team B (shows the "no lineup" empty state) instead of the first thing visitors see.
   teams: TEAMS,
   bucket: (pos) => { const a = (pos || "").toUpperCase(); if (a.startsWith("G")) return "goalie"; if (a.startsWith("D")) return "defense"; return "forward"; },
   bio: (a) => ({ extra: [a.birthPlace?.city, a.birthPlace?.state || a.birthPlace?.country].filter(Boolean).join(", "), pos: a.position?.abbreviation || "" }),

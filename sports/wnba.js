@@ -15,6 +15,8 @@ module.exports = {
   // falls back to roster-by-position if box data is unavailable.
   kind: "boxstart",
   history: true, // past seasons via box scores
+  formations: ["Balanced", "Small ball", "Two bigs", "Three guard"], // court alignment sets (client re-places) — parity with NBA/CBB (same PG/SG/SF/PF/C keys)
+  formationMode: "court",
   rosterLabel: "roster by position",
   note: "Typical starting five (recent games) · via ESPN",
   defaults: { a: "19", b: "5" }, // Chicago Sky vs Indiana Fever
