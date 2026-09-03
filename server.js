@@ -97,7 +97,13 @@ const lineupStore = new Map();
 async function getLineup(sport, teamId, fresh, unit, year, formation) {
   const key = lineupKey(sport, teamId, unit, year, formation);
   const existing = lineupStore.get(key);
-  if (fresh) { if (existing && "value" in existing && Date.now() - existing.time > 60000) lineupStore.delete(key); }
+  // fresh=1 (the client always sends it) drops a >60s-old entry so the next read rebuilds.
+  // EXCEPT a boot-primed seed / last-good, which is inserted with time:0 — deleting that
+  // would defeat the cold-start priming (first hit after a Render spin-down would block on
+  // a full ESPN rebuild instead of serving the seed instantly). Keep time:0 entries so
+  // cached() serves them via stale-while-revalidate and refreshes in the background; a
+  // normal warm entry (real timestamp) still rebuilds as before.
+  if (fresh) { if (existing && "value" in existing && existing.time !== 0 && Date.now() - existing.time > 60000) lineupStore.delete(key); }
   else if (existing && "value" in existing) stats.cacheHits++;
   try {
     return await cached(lineupStore, key, LINEUP_TTL, async () => {

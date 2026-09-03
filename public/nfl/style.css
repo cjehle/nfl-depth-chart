@@ -119,6 +119,7 @@ body {
 .field-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain; /* a sideways swipe on the field stays in the field — no page back-nav / bounce on mobile */
 }
 .field {
   position: relative;
@@ -218,6 +219,7 @@ body {
   box-shadow: 0 6px 16px #000000aa;
   border-color: #ffd47a;
   transition: none; /* transform-drag: don't animate the live translate */
+  will-change: transform; /* promote only the in-flight chip to its own layer so per-frame drag is compositor-only (no surface re-raster on low-end phones) */
 }
 /* Search-dim: chips whose starter doesn't match the query fade back and stop taking taps. */
 .chip.chip-dim { opacity: 0.25; filter: grayscale(1); pointer-events: none; }
@@ -535,4 +537,11 @@ body {
     border-radius: 16px 16px 0 0;
     padding-bottom: env(safe-area-inset-bottom);
   }
+}
+
+/* iOS Safari auto-zooms the viewport when a focused form control is under 16px. Bump the
+   controls (team/personnel/formation/season selects + the player-search input) to 16px on
+   phones so focusing them doesn't yank the layout; pinch-zoom stays allowed. */
+@media (max-width: 760px) {
+  select, input, textarea, .player-search { font-size: 16px !important; }
 }

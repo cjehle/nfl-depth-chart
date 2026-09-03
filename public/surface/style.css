@@ -63,7 +63,7 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 .surface.loading { opacity: 0.5; transition: opacity 0.15s ease; }
 
 /* ---- the surface (two teams: A top, B bottom) ---- */
-.surface-scroll { max-width: 640px; margin: 4px auto 0; padding: 0 12px; overflow-x: auto; }
+.surface-scroll { max-width: 640px; margin: 4px auto 0; padding: 0 12px; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; } /* sideways swipe stays in the surface — no page back-nav / bounce on mobile */
 .surface {
   position: relative;
   width: 100%;
@@ -221,7 +221,7 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
   transition: transform 0.05s ease, box-shadow 0.1s ease;
 }
 .chip:hover, .chip:focus { outline: none; box-shadow: 0 0 0 2px var(--accent), 0 6px 16px #0008; z-index: 20; }
-.chip.dragging { opacity: 0.92; box-shadow: 0 10px 22px #000a; z-index: 30; transition: none; } /* transform-drag: don't animate the live translate */
+.chip.dragging { opacity: 0.92; box-shadow: 0 10px 22px #000a; z-index: 30; transition: none; will-change: transform; } /* transform-drag: don't animate the live translate; will-change promotes only the in-flight chip to its own compositor layer */
 /* Search-dim: chips whose starter doesn't match the query fade back and stop taking taps. */
 .chip.chip-dim { opacity: 0.25; filter: grayscale(1); pointer-events: none; }
 .chip .pos { font-size: 9.5px; letter-spacing: 0.3px; color: var(--muted); font-weight: 700; }
@@ -361,4 +361,11 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 /* Respect users who prefer less motion: drop transitions/animations. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+
+/* iOS Safari auto-zooms the viewport when a focused form control is under 16px. Bump the
+   controls (team/season/formation selects + the player-search input) to 16px on phones so
+   focusing them doesn't yank the layout; pinch-zoom stays allowed (viewport meta unchanged). */
+@media (max-width: 760px) {
+  select, input, textarea, .player-search { font-size: 16px !important; }
 }

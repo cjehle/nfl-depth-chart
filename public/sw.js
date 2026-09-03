@@ -2,7 +2,7 @@
 // Strategy: precache the static shell; navigations (HTML) network-first with a
 // cached fallback; /api/* and static assets stale-while-revalidate (instant from
 // cache, refreshed in the background). Bump VERSION to force a clean rollover.
-const VERSION = "v9-2026-09-02";
+const VERSION = "v10-2026-09-02";
 const STATIC = `static-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 const PRECACHE = [
@@ -26,12 +26,29 @@ self.addEventListener("activate", (e) => {
   })());
 });
 
+// Cap the RUNTIME cache (per-matchup /api responses + navigated routes) so a long-lived
+// install can't accumulate hundreds of entries and blow the origin storage quota — which
+// could trigger a whole-origin eviction that takes the precached app shell with it. FIFO:
+// Cache.keys() is insertion order and put() on an existing key moves it to the tail, so
+// deleting from the front drops the least-recently-written. STATIC is never trimmed.
+const RUNTIME_MAX = 150;
+async function trimCache(cacheName, max) {
+  try {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    for (let i = 0; i < keys.length - max; i++) await cache.delete(keys[i]);
+  } catch {}
+}
+
 // Serve from cache immediately, revalidate in the background.
 function staleWhileRevalidate(req, cacheName) {
   return caches.open(cacheName).then((cache) =>
     cache.match(req).then((cached) => {
       const network = fetch(req)
-        .then((res) => { if (res && res.ok) cache.put(req, res.clone()); return res; })
+        .then(async (res) => {
+          if (res && res.ok) { await cache.put(req, res.clone()); if (cacheName === RUNTIME) await trimCache(RUNTIME, RUNTIME_MAX); }
+          return res;
+        })
         .catch(() => cached);
       return cached || network;
     })
@@ -53,7 +70,10 @@ self.addEventListener("fetch", (e) => {
     e.respondWith(
       caches.open(RUNTIME).then((cache) => cache.match(req).then((cached) => {
         const network = fetch(req)
-          .then((res) => { if (res && res.ok) cache.put(req, res.clone()); return res; })
+          .then(async (res) => {
+            if (res && res.ok) { await cache.put(req, res.clone()); await trimCache(RUNTIME, RUNTIME_MAX); }
+            return res;
+          })
           .catch(() => cached || caches.match("/"));
         return cached || network;
       }))
