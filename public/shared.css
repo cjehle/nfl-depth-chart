@@ -149,3 +149,20 @@ body.landing {
 .ad-consent-btn { border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1px solid #2c5c3d; }
 .ad-consent-btn.accept { background: #3ea06a; color: #06140b; border-color: #3ea06a; }
 .ad-consent-btn.decline { background: transparent; color: #a9c3b3; }
+
+/* Search no-match / count message (announced via role=status aria-live in the shells). */
+.search-empty { max-width: 900px; margin: 4px auto; padding: 0 16px; color: var(--nav-muted, #9fb0a4); font-size: 13px; text-align: center; }
+.legend-sep { opacity: 0.4; }
+
+/* Print / Save-as-PDF: strip the chrome, go ink-light, and show the List view (the useful
+   printable form) — the app JS builds #list-view on 'beforeprint' so it's populated. */
+@media print {
+  .site-nav, .skip-link, .ad-slot, .ad-consent, .backdrop, .popover, .compare-drawer,
+  .view-toggle-row, .controls, .legend, .scroll-hint, .field-scroll, .surface-scroll,
+  #st-view, #stale-banner, #status, #search-empty { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  .topbar { background: #fff !important; border: 0 !important; }
+  h1, .tagline, .back-link, .list-group, .list-meta { color: #000 !important; }
+  #list-view { display: block !important; } /* overrides .hidden {display:none!important} */
+  .list-row, .list-section, .list-team { break-inside: avoid; box-shadow: none !important; }
+}

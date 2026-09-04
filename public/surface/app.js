@@ -34,6 +34,11 @@ const COURT_SETS = {
 // NFL app, loaded via <script src="/common.js" defer> before this file).
 // Jersey number as "#N", or "" when the player has none (avoids a bare "#").
 function jnum(j) { return j ? `#${esc(j)}` : ""; }
+// Headshot + ESPN player-page URLs derived from the athlete id + the sport's web slug
+// (CONFIG.webSlug; soccer→"soccer"). The lineup payload no longer ships these — return the
+// RAW espncdn headshot URL (call sites wrap it with sized() for the combiner), or null.
+function photoFor(id) { return id && CONFIG && CONFIG.webSlug ? `https://a.espncdn.com/i/headshots/${CONFIG.webSlug}/players/full/${id}.png` : null; }
+function espnFor(id) { return id && CONFIG && CONFIG.webSlug ? `https://www.espn.com/${CONFIG.webSlug}/player/_/id/${id}` : null; }
 function expText(exp) {
   if (exp == null) return "";
   if (exp === 0) return "Rookie";
@@ -332,8 +337,9 @@ function listTeam(data, side) {
       const ovr = face.overall != null ? `<span class="list-ovr" title="${esc(ratingLabel || "")} overall rating">${face.overall}</span>` : "";
       const dr = face.draft && face.draft.drafted ? `<span class="list-draft" title="NHL Draft: ${esc(face.draft.label)}">${esc(face.draft.team)} R${face.draft.round}</span>` : "";
       // Player headshot (ESPN combiner-sized to 40px), or a blank placeholder when absent.
-      const photo = face.photo
-        ? `<img class="list-photo" src="${esc(sized(face.photo, 40))}" alt="" width="34" height="34" decoding="async" loading="lazy">`
+      const facePhoto = photoFor(face.id);
+      const photo = facePhoto
+        ? `<img class="list-photo" src="${esc(sized(facePhoto, 40))}" alt="" width="34" height="34" decoding="async" loading="lazy">`
         : `<span class="list-photo list-photo-blank"></span>`;
       btn.innerHTML = `
         ${photo}
@@ -387,8 +393,9 @@ function openDepth(title, players) {
     const bio = bioLine(p);
     const ovr = p.overall != null ? `<span class="p-ovr" title="${esc(ratingLabel || "")} overall rating">${p.overall}<i>OVR</i></span>` : "";
     const draftHtml = draftPill(p.draft);
-    const photo = p.photo ? `<img class="p-photo" src="${esc(sized(p.photo, 96))}" alt="" loading="lazy" width="46" height="46" decoding="async">` : `<span class="p-photo p-photo-blank">${esc(jnum(p.jersey) || "")}</span>`;
-    const link = p.espnUrl ? `<a class="p-espn" href="${esc(p.espnUrl)}" target="_blank" rel="noopener noreferrer" title="Full profile on ESPN" aria-label="${esc(p.name)} on ESPN">↗</a>` : "";
+    const pPhoto = photoFor(p.id), pEspn = espnFor(p.id);
+    const photo = pPhoto ? `<img class="p-photo" src="${esc(sized(pPhoto, 96))}" alt="" loading="lazy" width="46" height="46" decoding="async">` : `<span class="p-photo p-photo-blank">${esc(jnum(p.jersey) || "")}</span>`;
+    const link = pEspn ? `<a class="p-espn" href="${esc(pEspn)}" target="_blank" rel="noopener noreferrer" title="Full profile on ESPN" aria-label="${esc(p.name)} on ESPN">↗</a>` : "";
     // Full injury detail (what + expected return), when ESPN has it.
     const inj = p.injuryDetail && (p.injuryDetail.detail || p.injuryDetail.ret)
       ? `<div class="p-injury">⚕ ${esc(p.injury || "Injured")}${p.injuryDetail.detail ? " · " + esc(p.injuryDetail.detail) : ""}${p.injuryDetail.ret ? " · back " + fmtDate(p.injuryDetail.ret) : ""}</div>` : "";
@@ -545,14 +552,25 @@ function buildActiveView() {
 // non-matching chips. An empty query clears the filter. Names are read from the
 // data-name attribute stamped when each row/chip was built (no DOM re-parse).
 function applySearch() {
+  let total = 0, shown = 0;
+  const tally = (el, hidden) => { total++; if (!hidden) shown++; };
   if (viewMode === "list") {
     document.querySelectorAll(".list-row").forEach((el) => {
-      el.classList.toggle("search-hidden", !!searchQuery && !(el.dataset.name || "").includes(searchQuery));
+      const hide = !!searchQuery && !(el.dataset.name || "").includes(searchQuery);
+      el.classList.toggle("search-hidden", hide); tally(el, hide);
     });
   } else {
     document.querySelectorAll(".chip").forEach((el) => {
-      el.classList.toggle("chip-dim", !!searchQuery && !(el.dataset.name || "").includes(searchQuery));
+      const dim = !!searchQuery && !(el.dataset.name || "").includes(searchQuery);
+      el.classList.toggle("chip-dim", dim); tally(el, dim);
     });
+  }
+  // Announce the result (WCAG 4.1.3) + show a visible message on the zero-match case, so
+  // an empty search doesn't read as "broke". textContent (not innerHTML) keeps it safe.
+  const es = document.getElementById("search-empty");
+  if (es) {
+    es.hidden = !searchQuery;
+    es.textContent = !searchQuery ? "" : (total > 0 && shown === 0 ? `No players match “${searchQuery}”` : `${shown} player${shown === 1 ? "" : "s"} match`);
   }
 }
 // First-load skeletons: on a user-initiated cold render (no prior state) drop a few
@@ -621,6 +639,10 @@ async function render(fresh, auto) {
     const unchanged = auto && prev && prev.stamp === stamp && prev.idA === idA && prev.idB === idB;
 
     ratingLabel = (dataA && dataA.ratingLabel) || (dataB && dataB.ratingLabel) || null;
+    // Explain the gold OVR chip in the legend — only for sports that actually carry a
+    // rating (most don't), and with the correct per-sport label (EA FC / MLB The Show / …).
+    const ovrLegend = document.getElementById("ovr-legend"), ovrLbl = document.getElementById("ovr-legend-label");
+    if (ovrLegend) { if (ratingLabel && ovrLbl) { ovrLbl.textContent = ratingLabel; ovrLegend.hidden = false; } else ovrLegend.hidden = true; }
     draftStatus = !!((dataA && dataA.draftStatus) || (dataB && dataB.draftStatus));
     const sigA = `${CONFIG.sport}:A:${idA}`, sigB = single ? null : `${CONFIG.sport}:B:${idB}`;
     render._sigs = single ? [sigA] : [sigA, sigB];
@@ -696,7 +718,8 @@ function pinPlayer(face, teamName, side) {
 function compareCol(pin, sideLabel) {
   if (!pin) return `<div class="cmp-col cmp-empty"><span>Tap a ${sideLabel} player</span></div>`;
   const p = pin.face;
-  const photo = p.photo ? `<img class="cmp-photo" src="${esc(sized(p.photo, 120))}" alt="" width="56" height="56" decoding="async">` : `<span class="cmp-photo"></span>`;
+  const cmpPhoto = photoFor(p.id);
+  const photo = cmpPhoto ? `<img class="cmp-photo" src="${esc(sized(cmpPhoto, 120))}" alt="" width="56" height="56" decoding="async">` : `<span class="cmp-photo"></span>`;
   const ovr = p.overall != null ? `<span class="cmp-ovr">${p.overall}<i>OVR</i></span>` : "";
   const bits = [p.pos, p.classYear || (p.age != null ? p.age + " yrs" : ""), p.height].filter(Boolean).join(" · ");
   return `<div class="cmp-col" data-id="${esc(p.id || "")}">
@@ -999,6 +1022,10 @@ function fillSeasons(sel) {
   // Live "Find a player" filter (dims chips / hides list rows as you type).
   const searchInput = document.getElementById("player-search");
   if (searchInput) searchInput.addEventListener("input", () => { searchQuery = searchInput.value.trim().toLowerCase(); applySearch(); });
+  // Print / Save-as-PDF: build the (screen-hidden) List DOM so the @media print rules have
+  // something to show even when the user prints from the default Field view. On-screen view
+  // is untouched (applyView isn't called) — only the print stylesheet reveals #list-view.
+  window.addEventListener("beforeprint", () => { const st = render._state; if (st && !st.builtList) { renderList(st.dataA, st.dataB); st.builtList = true; } });
   teamASelect.addEventListener("change", () => { syncConf(confA, teamASelect); render(false); });
   teamBSelect.addEventListener("change", () => { syncConf(confB, teamBSelect); render(false); });
   document.querySelectorAll(".view-toggle button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));

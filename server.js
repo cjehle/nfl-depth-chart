@@ -58,6 +58,9 @@ function publicConfig(sport) {
   const cfg = SURFACE[sport];
   return {
     sport: cfg.key, name: cfg.name, emoji: cfg.emoji, title: cfg.title, tagline: cfg.tagline,
+    // ESPN web slug (soccer leagues all map to "soccer"): lets the client derive headshot +
+    // player-page URLs from an athlete id, so the lineup payload no longer ships them.
+    webSlug: cfg.espn && (cfg.espn.sport === "soccer" ? "soccer" : cfg.espn.league),
     surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit, singleTeam: !!cfg.singleTeam, history: !!cfg.history, seasonEndYear: !!cfg.seasonEndYear, formations: cfg.formations || null, formationMode: cfg.formationMode || null, unitFormations: cfg.unitFormations || null, unitFormationLabels: cfg.unitFormationLabels || null, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
     // Only the fields the client actually reads: id + name (pickers), conf (optgroups +
     // conference filter). The rendered team's abbr/color/logo come from the LINEUP payload,
@@ -84,16 +87,23 @@ const jsonMemo = new WeakMap();
 function sendCachedJson(req, res, data, parts, headers) {
   let m = jsonMemo.get(data);
   if (!m) {
-    const buf = Buffer.from(JSON.stringify(data));
+    // Cheap up front: only the stable-parts ETag (small array stringify + sha1). Body +
+    // gzip + brotli are built lazily below — never on a request that 304s.
     const etag = 'W/"' + crypto.createHash("sha1").update(JSON.stringify(parts)).digest("hex").slice(0, 20) + '"';
-    m = { etag, buf, gz: undefined, br: undefined };
-    if (buf.length > 512) {
-      m.gz = zlib.gzipSync(buf, { level: 9 });
-      zlib.brotliCompress(buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } }, (err, b) => { if (!err) m.br = b; });
-    }
+    m = { etag, buf: undefined, gz: undefined, br: undefined };
     jsonMemo.set(data, m);
   }
+  // Conditional check BEFORE serializing/compressing: a no-op rebuild (same stable parts,
+  // only volatile updated/fetchedAt changed) 304s here with zero stringify/gzip/brotli work
+  // — the steady state for the client's 4-min refresh and CDN revalidations.
   if (req.headers["if-none-match"] === m.etag) { res.writeHead(304, { ETag: m.etag, ...SECURITY_HEADERS, ...headers }); res.end(); return 304; }
+  if (m.buf === undefined) {
+    m.buf = Buffer.from(JSON.stringify(data));
+    if (m.buf.length > 512) {
+      m.gz = zlib.gzipSync(m.buf, { level: 9 });
+      zlib.brotliCompress(m.buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } }, (err, b) => { if (!err) m.br = b; });
+    }
+  }
   respond(req, res, 200, m.buf, MIME[".json"], { ...headers, ETag: m.etag, gz: m.gz, br: m.br });
   return 200;
 }

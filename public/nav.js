@@ -41,7 +41,16 @@
         strip.appendChild(a);
         any = true;
       });
-      if (any) strip.hidden = false;
+      if (any) {
+        // Prepend the "Jump back in" label (the .resume-strip .resume-label rule already
+        // exists in shared.css but nothing was populating it) so the pills read as a resume
+        // strip, not a second nav row. insertBefore keeps it left of the already-added pills.
+        var label = document.createElement("span");
+        label.className = "resume-label";
+        label.textContent = "Jump back in";
+        strip.insertBefore(label, strip.firstChild);
+        strip.hidden = false;
+      }
     }
   }
   if ("serviceWorker" in navigator) {

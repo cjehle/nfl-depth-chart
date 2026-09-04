@@ -91,7 +91,7 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
   position: absolute; left: 0; right: 0; z-index: 4;
   display: flex; align-items: center; gap: 8px;
   padding: 4px 9px; font-size: 11px; font-weight: 700; color: #fff;
-  text-shadow: 0 1px 2px #0009; backdrop-filter: blur(1px);
+  text-shadow: 0 1px 2px #0009; /* backdrop-filter removed: a GPU blur layer that janked the sideways scroll on low-end phones; the 0.92-opaque band + text-shadow carry legibility */
 }
 .half.top .team-band { top: 0; }
 .half.bottom .team-band { bottom: 0; }
@@ -239,6 +239,7 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 
 /* ---- list view ---- */
 .list-view { max-width: 720px; margin: 8px auto 40px; padding: 0 14px; display: grid; gap: 18px; }
+.list-team { content-visibility: auto; contain-intrinsic-size: auto 700px; } /* skip layout/paint of the offscreen (team B) section at first paint */
 .list-team h2 { font-size: 15px; margin: 0 0 2px; padding-left: 10px; border-left: 4px solid #666; }
 .list-meta { font-size: 12px; color: var(--muted); margin: 0 0 8px; padding-left: 14px; }
 .list-group { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 12px 0 4px; }
@@ -368,4 +369,11 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
    focusing them doesn't yank the layout; pinch-zoom stays allowed (viewport meta unchanged). */
 @media (max-width: 760px) {
   select, input, textarea, .player-search { font-size: 16px !important; }
+}
+
+/* Print: surface list rows are dark on screen — flip them ink-light so a Save-as-PDF is
+   readable (shared.css handles the rest of the print chrome-stripping). */
+@media print {
+  .list-row { background: #fff !important; color: #000 !important; border-color: #999 !important; }
+  .list-pos, .list-meta, .list-num, .list-team h2 { color: #333 !important; }
 }

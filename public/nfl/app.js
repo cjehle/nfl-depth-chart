@@ -90,6 +90,8 @@ let lastFocused = null;              // element to restore focus to when the mod
 // Small helpers
 // ---------------------------------------------------------------------------
 function logoUrl(abbr) { return `https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png`; }
+// Short "Aug 12" date for an injury's expected-return (parity with the surface app).
+function fmtDate(iso) { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" }); }
 
 // esc(), hexToRgba(), injuryClass(), relTime() now live in /common.js (shared with the
 // surface app, loaded via <script src="/common.js" defer> before this file).
@@ -497,6 +499,10 @@ function openDepth(title, players) {
       ? `<img class="p-photo" src="${esc(sized(`https://a.espncdn.com/i/headshots/nfl/players/full/${p.id}.png`, 96))}" alt="" loading="lazy" width="46" height="46" decoding="async">`
       : `<span class="p-photo p-photo-blank">#${esc(p.jersey || "")}</span>`;
     const link = p.id ? `<a class="p-espn" href="https://www.espn.com/nfl/player/_/id/${esc(p.id)}" target="_blank" rel="noopener noreferrer" title="Full profile on ESPN" aria-label="${esc(p.name)} on ESPN">↗</a>` : "";
+    // Richer injury line (what + expected return), when ESPN populated it — parity with the
+    // surface app. Gated on detail||ret so a bare status shows just the badge, no empty line.
+    const inj = p.injuryDetail && (p.injuryDetail.detail || p.injuryDetail.ret)
+      ? `<div class="p-injury">⚕ ${esc(p.injury || "Injured")}${p.injuryDetail.detail ? " · " + esc(p.injuryDetail.detail) : ""}${p.injuryDetail.ret ? " · back " + fmtDate(p.injuryDetail.ret) : ""}</div>` : "";
     li.innerHTML = `
       <div class="p-main">
         <span class="rank">${i + 1}</span>
@@ -508,6 +514,7 @@ function openDepth(title, players) {
         ${link}
       </div>
       ${i === 0 ? `<div class="p-stats" data-loading>…</div>` : ""}
+      ${inj}
       ${bio ? `<div class="p-bio">${bio}</div>` : ""}
     `;
     popoverList.appendChild(li);
@@ -644,6 +651,14 @@ function applySearch() {
   const q = searchQuery;
   document.querySelectorAll(".chip").forEach((c) => c.classList.toggle("chip-dim", !!q && !(c.dataset.name || "").includes(q)));
   document.querySelectorAll(".list-row").forEach((r) => r.classList.toggle("search-hidden", !!q && !(r.dataset.name || "").includes(q)));
+  // Announce + show a zero-match message so an empty search doesn't read as broken (WCAG
+  // 4.1.3). Count only the ACTIVE view (NFL renders .chip for field AND .list-row for
+  // list/special into the DOM), so a match in the hidden view isn't miscounted.
+  const rows = viewMode === "field" ? document.querySelectorAll(".chip") : document.querySelectorAll(".list-row");
+  let total = 0, shown = 0;
+  rows.forEach((el) => { total++; const cls = viewMode === "field" ? "chip-dim" : "search-hidden"; if (!el.classList.contains(cls)) shown++; });
+  const es = document.getElementById("search-empty");
+  if (es) { es.hidden = !q; es.textContent = !q ? "" : (total > 0 && shown === 0 ? `No players match “${q}”` : `${shown} player${shown === 1 ? "" : "s"} match`); }
 }
 
 // ---------------------------------------------------------------------------
@@ -985,6 +1000,9 @@ document.querySelectorAll(".view-toggle button").forEach((b) => b.addEventListen
   if (!input) return;
   input.addEventListener("input", () => { searchQuery = input.value.trim().toLowerCase(); applySearch(); });
 })();
+// Print / Save-as-PDF: build the screen-hidden List DOM so the @media print rules have
+// content even when printing from the default Field view (on-screen view is untouched).
+window.addEventListener("beforeprint", () => { const st = render._state; if (st && !st.builtList) { renderList(st); st.builtList = true; } });
 // [C] Compare mode toggle.
 (function () {
   const btn = document.getElementById("compare");

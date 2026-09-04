@@ -328,6 +328,7 @@ body {
 }
 .popover .p-main { display: flex; align-items: center; gap: 8px; }
 .popover .p-bio { font-size: 11px; color: #8fb0a0; padding-left: 28px; } /* height · weight · college · exp */
+.popover .p-injury { font-size: 11px; color: #f0b37e; padding-left: 42px; margin-top: 2px; } /* ⚕ what + expected return */
 .popover li.starter { background: #16351f; }
 .popover .rank {
   width: 20px;
@@ -426,7 +427,7 @@ body {
 
 /* ---------- List view ---------- */
 .list-view { max-width: 640px; margin: 8px auto 40px; padding: 0 12px; }
-.list-section { margin-bottom: 18px; }
+.list-section { margin-bottom: 18px; content-visibility: auto; contain-intrinsic-size: auto 600px; } /* skip layout/paint of the offscreen (offense) section at first paint */
 .list-section h2 {
   font-size: 14px;
   margin: 0 0 8px;
