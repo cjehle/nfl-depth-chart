@@ -22,9 +22,9 @@ Click any player for the **full depth chart** behind them. One small Node server
 | `/wnba` | 🏀 WNBA | Starting five on the court |
 | `/nhl`  | 🏒 NHL | Starting lines on the rink (ranked by last season's production) |
 | `/mls`  | ⚽ MLS | Real starting XI in its most recent formation, on the pitch |
-| `/cfb`  | 🎓 College FB | Offense vs defense (ESPN's CFB depth page) |
-| `/cbb`  | 🎓 College BB | Starting five |
-| `/mch`  | 🎓 College Hockey | Starting lines |
+| `/cfb`  | 🎓 College FB | Roster by position (offense vs defense), ordered by class — **not** verified starters |
+| `/cbb`  | 🎓 College BB | Roster by position on the court, ordered by class — **not** verified starters |
+| `/mch`  | 🎓 College Hockey | Roster by position on the rink — **not** verified lines |
 | soccer  | ⚽ EPL · La Liga · Bundesliga · Serie A · Ligue 1 · Liga MX · NWSL · Champions League | Starting XI + formation, under the **Intl Soccer** nav folder |
 
 Each sport is one small config in `sports/*.js`; adding a sport is a config file plus a
@@ -77,12 +77,18 @@ monthly data refresh are in **[OPERATIONS.md](OPERATIONS.md)**.
 
 ## Data notes
 
-All data is ESPN's public JSON (no key). Honest caveats:
-- **NBA/WNBA/MLS/soccer** — real starters (depth chart / last-match XI).
-- **NHL / College Hockey** — ESPN's hockey depth feed returns retired players, so lines
-  are **projected from last season's production**; real players + stats, labeled as such.
-- **CFB/CBB** — ESPN's college depth pages, tested from Render (the dev machine's
-  corporate proxy blocks `cdn.espn.com`). A sport ships only when it builds a real
-  lineup — never a fabricated one — otherwise it falls back to its committed seed.
-- **OVR badges** — video-game overalls (Madden / MLB The Show / EA FC), refreshed
-  monthly and matched by name; a badge is shown only when the match is unambiguous.
+All data is ESPN's public JSON (no key). The site never fabricates a lineup — where a
+real ordered depth chart doesn't exist, it says so and shows a roster-by-position view
+instead. Honest caveats:
+- **NBA / MLB / MLS / soccer** — real: ESPN's ranked depth chart (NBA/MLB) or each team's
+  most-recent-match starting XI + formation (soccer).
+- **NHL** — ESPN's hockey depth feed returns retired players, so lines are **projected
+  from last season's production** (skaters by points, goalies by games); real players +
+  stats, labeled "Projected lines."
+- **WNBA / College (CFB, CBB, College Hockey)** — no public depth chart exists, so these
+  are **roster-by-position ordered by class/experience — NOT verified starters/lines**,
+  and labeled that way in the UI. College players show class year (FR/SO/JR/SR) instead of
+  age. (CFB verified depth was confirmed impossible via ESPN, tested from Render, not just
+  the dev proxy — don't re-probe it.)
+- **OVR badges** — video-game overalls (Madden / MLB The Show / EA FC), refreshed monthly
+  and matched by name; shown only when the match is unambiguous. College carries no OVR.
