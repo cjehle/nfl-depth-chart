@@ -100,11 +100,26 @@ Ads are fully built but inert (strict CSP stays strict, no slots, no requests) u
 - EEA/UK note: the built consent gate is a privacy baseline, not an IAB-TCF-certified CMP. For
   personalized ads to EEA users, add Google Funding Choices (or another certified CMP).
 
-## 5. Cloudflare "Cache Everything" rule (activates the HTML edge-cache)
-Pages are sent with `s-maxage=300, stale-while-revalidate=86400`, **but Cloudflare does not
-edge-cache HTML by default.** To let the edge absorb cold-start Render hits: Cloudflare →
-Rules → Cache Rules → match the site's HTML routes → "Eligible for cache / Cache Everything"
-(respect origin TTL). Until this rule exists, that optimization is inert (harmless).
+## 5. Cloudflare "Cache Everything" rule — edge-cache + hides the free-tier cold-start splash
+On Render's free tier the service spins down after ~15 min idle; the next visitor gets Render's
+"waking up…" holding page for ~30–60s. Cloudflare hides that from real users: the origin sends
+`Cache-Control: s-maxage=300, stale-while-revalidate=86400` on pages (and `s-maxage=120, swr=600`
+on `/api`), so with a Cache Rule in place Cloudflare serves the cached copy — including a STALE
+copy during a cold origin, via stale-while-revalidate — instead of the splash. But **Cloudflare
+does not edge-cache HTML by default**, so the rule is required.
+
+Set it up: Cloudflare → the `billsdepthchart.com` zone → **Caching → Cache Rules → Create rule**:
+- **When incoming requests match:** `Hostname equals billsdepthchart.com` (i.e. everything).
+- **Then / Cache eligibility:** **Eligible for cache** (Cache Everything).
+- **Edge TTL:** **Use cache-control header if present** (respect origin). **Save / Deploy.**
+
+**Safe hostname-wide** because the origin sets the right per-route TTLs itself: pages 5 min, `/api`
+2 min, and the endpoints that must stay live — `/healthz`, `/healthz?strict=1`, `/api/metrics-summary`
+— send `Cache-Control: no-store`, so Cloudflare never caches them (a cached `/healthz` would blind
+the uptime monitor / keep-warm in §8/§12). `POST /api/metric` is never edge-cached; `?fresh=1` is a
+distinct cache key so a forced refresh still bypasses any cached lineup; `sw.js`/JS/CSS send
+`max-age=0, must-revalidate` so a deploy is never served stale from the edge. Until the rule exists
+this is all inert (harmless).
 
 ## 6. Analytics dashboard (`/dashboard`)
 First-party, privacy-preserving, no cookies/PII. Beacon `public/metrics.js` → `POST /api/metric`
@@ -177,10 +192,18 @@ do only one thing, do **#1**: it turns a silent multi-month failure into an emai
 
 1. **[Highest priority] Put an external uptime monitor on `/healthz?strict=1`.** This is the one
    alarm that catches silent ESPN drift *and* a cron pause. Any free monitor works (UptimeRobot,
-   Cloudflare Health Checks, BetterStack, or a cron on another machine): GET
-   `https://billsdepthchart.com/healthz?strict=1` every ~15–30 min, alert on any non-200. Without
+   Cloudflare Health Checks, BetterStack, or a cron on another machine): HTTP(s) monitor on
+   `https://billsdepthchart.com/healthz?strict=1`, **interval 5 min**, alert on any non-200. Without
    it the site can degrade for months with no signal. (The daily `refresh.yml` also emails on
    failure — but only while that cron is still enabled; see the 60-day caveat in §7.)
+   - **Doubles as keep-warm (kills the cold-start splash from §5).** The endpoint is `no-store`, so
+     the monitor's request always reaches the origin — a 5-min ping (< Render's ~15-min idle
+     spin-down) keeps the instance warm, so real visitors stop hitting the "waking up…" page. One
+     monitor = alerting **and** no splash, free.
+   - ⚠️ Free-hours caveat: keeping a free Render service warm 24/7 ≈ 730 of the ~750 free
+     instance-hours/month — it fits for this single service but sits near the cap. If that's too
+     tight, ping only waking hours (e.g. every 10 min 07:00–01:00) for ~500 hrs/month with only
+     dead-of-night cold starts, or move to Render Starter (~$7/mo) to drop spin-down entirely.
 2. **Keep the crons from auto-disabling (§7).** Pick one, most durable first:
    - Add an **external monthly trigger** you control (another server's cron, a Cloudflare Worker
      Cron, etc.) that calls the GitHub API to `workflow_dispatch` / `repository_dispatch` the repo.
