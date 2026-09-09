@@ -573,7 +573,7 @@ const server = http.createServer(async (req, res) => {
         memoryMB: { rss: mb(mem.rss), heapUsed: mb(mem.heapUsed) },
         caches: { lineups: lineupStore.size, buckets: buckets.size, static: staticCache.size, pages: pageCache.size, ...cacheStats() },
         lineupAgeSec: lineups,
-      });
+      }, { "Cache-Control": "no-store" }); // health must NEVER be edge-cached — a stale cached 200 would blind an uptime monitor / a Cloudflare "Cache Everything" rule
       return done(res.statusCode);
     }
 
