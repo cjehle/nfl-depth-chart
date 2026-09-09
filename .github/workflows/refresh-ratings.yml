@@ -1,9 +1,18 @@
-# Monthly auto-refresh of the committed video-game rating maps so OVR badges stay
-# current without anyone running gen-ratings by hand. Safe by construction: the
-# generators self-guard (refuse to overwrite a good map with an empty/<80% one and exit
-# non-zero), the test suite gates the commit, and a refused pull FAILS the run so GitHub
-# emails you — a bad month is a no-op + an alert, never a bad commit. Committing also
-# resets GitHub's 60-day scheduled-workflow disable clock, keeping this and refresh.yml alive.
+# Monthly auto-refresh of the committed video-game rating maps AND the default-lineup
+# seeds (the only durable cold-start fallback) so both stay current without anyone
+# running the generators by hand — otherwise the seeds freeze at deploy-time rosters and
+# drift stale over a multi-year unattended run. Safe by construction: every generator
+# self-guards (gen-ratings refuses an empty/<80% map; gen-seeds refuses a SMALLER build
+# than the committed one — each exits non-zero on refusal), the test suite gates the
+# commit, and a refusal FAILS the run so GitHub emails you — a bad month is a no-op + an
+# alert, never a bad commit.
+#
+# CAVEAT (durability): a push made here authenticates as github-actions[bot] via
+# GITHUB_TOKEN, and GitHub does NOT count bot/GITHUB_TOKEN pushes as the "repo activity"
+# that resets the 60-day scheduled-workflow auto-disable clock. So this workflow's own
+# monthly commit will NOT keep the schedules alive on its own — see OPERATIONS.md
+# "Known limitations": an external monthly trigger (or an occasional real-user / PAT push)
+# is what actually keeps this and refresh.yml from being auto-disabled.
 name: Refresh ratings
 
 on:
@@ -23,33 +32,34 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Regenerate rating maps (self-guarded; refusal → non-zero)
+      - name: Regenerate rating maps + default seeds (self-guarded; refusal → non-zero)
         id: gen
         run: |
           set +e
           npm run gen-ratings;         R1=$?
           npm run gen-ratings-history; R2=$?
-          if [ "$R1" -ne 0 ] || [ "$R2" -ne 0 ]; then echo "refused=yes" >> "$GITHUB_OUTPUT"; else echo "refused=no" >> "$GITHUB_OUTPUT"; fi
-          exit 0   # keep going: good maps written, refused ones kept last-good; we alert at the end
+          npm run gen-seeds;           R3=$?
+          if [ "$R1" -ne 0 ] || [ "$R2" -ne 0 ] || [ "$R3" -ne 0 ]; then echo "refused=yes" >> "$GITHUB_OUTPUT"; else echo "refused=no" >> "$GITHUB_OUTPUT"; fi
+          exit 0   # keep going: good outputs written, refused ones kept last-good; we alert at the end
 
       - name: Test gate (blocks committing a broken/collapsed map)
         run: npm test
 
-      - name: Commit refreshed maps if anything changed
+      - name: Commit refreshed maps + seeds if anything changed
         run: |
           git config user.name "depthchart-bot"
           git config user.email "depthchart-bot@users.noreply.github.com"
-          git add data/ratings
+          git add data/ratings data/seed
           if git diff --cached --quiet; then
-            echo "No rating changes this month."
+            echo "No rating/seed changes this month."
           else
-            git commit -m "chore(ratings): monthly auto-refresh"
+            git commit -m "chore(data): monthly auto-refresh (ratings + seeds)"
             git push
-            echo "Committed refreshed rating maps."
+            echo "Committed refreshed rating maps + seeds."
           fi
 
       - name: Alert if a pull was refused (kept last-good)
         if: steps.gen.outputs.refused == 'yes'
         run: |
-          echo "::error::gen-ratings refused a write (flaky EA/Sony pull kept last-good) — inspect the logs above."
+          echo "::error::A generator refused a write (flaky EA/Sony/ESPN pull kept last-good) — inspect the logs above."
           exit 1

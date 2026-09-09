@@ -2,7 +2,7 @@
 // Strategy: precache the static shell; navigations (HTML) network-first with a
 // cached fallback; /api/* and static assets stale-while-revalidate (instant from
 // cache, refreshed in the background). Bump VERSION to force a clean rollover.
-const VERSION = "v13-2026-09-02";
+const VERSION = "v14-2026-09-08";
 const STATIC = `static-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 const PRECACHE = [
@@ -22,6 +22,13 @@ self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(keys.filter((k) => k !== STATIC && k !== RUNTIME).map((k) => caches.delete(k)));
+    // [P5] Navigation preload: let the browser start the shell request in PARALLEL with
+    // the SW booting, so a cache-miss navigation (first visit / after a VERSION bump) no
+    // longer pays "SW startup THEN fetch" serially. The fetch handler consumes the result
+    // as its network branch, so this adds no extra request on repeat (cache-hit) visits.
+    if (self.registration.navigationPreload) {
+      try { await self.registration.navigationPreload.enable(); } catch {}
+    }
     await self.clients.claim();
   })());
 });
@@ -69,12 +76,17 @@ self.addEventListener("fetch", (e) => {
   if (req.mode === "navigate") {
     e.respondWith(
       caches.open(RUNTIME).then((cache) => cache.match(req).then((cached) => {
-        const network = fetch(req)
-          .then(async (res) => {
+        const network = (async () => {
+          // [P5] Prefer the browser's parallel navigation-preload response (started while
+          // the SW booted); fall back to a normal fetch if preload is off/failed.
+          let res = null;
+          try { res = await e.preloadResponse; } catch { res = null; }
+          try {
+            if (!res) res = await fetch(req);
             if (res && res.ok) { await cache.put(req, res.clone()); await trimCache(RUNTIME, RUNTIME_MAX); }
             return res;
-          })
-          .catch(() => cached || caches.match("/"));
+          } catch { return cached || caches.match("/"); }
+        })();
         return cached || network;
       }))
     );

@@ -501,7 +501,13 @@ popoverClose.addEventListener("click", closeDepth);
 if (popoverPrev) popoverPrev.addEventListener("click", () => openAt(popoverSeq, popoverIdx - 1));
 if (popoverNext) popoverNext.addEventListener("click", () => openAt(popoverSeq, popoverIdx + 1));
 backdrop.addEventListener("click", closeDepth);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDepth(); });
+document.addEventListener("keydown", (e) => {
+  // [U4] Escape closes the open popover first; if nothing's open but Compare is on, it
+  // exits Compare (so one key backs out of either overlay).
+  if (e.key !== "Escape") return;
+  if (!popover.classList.contains("hidden")) closeDepth();
+  else if (compareMode) setCompareMode(false);
+});
 // Keep focus inside the dialog, but as a proper WRAP-AROUND cycle so every control —
 // including each player's ESPN ↗ link — is keyboard-reachable (the old trap slammed
 // focus back to Close on every Tab, hiding those links from keyboard/AT users).
@@ -658,6 +664,14 @@ async function render(fresh, auto) {
       buildActiveView(); // build the visible view now; the other builds on switch
     }
     updateUpdatedLabel(dataA, dataB);
+    // [U5] Reflect the current selection in the tab title / history / share text.
+    const nmA = (dataA && dataA.team && (dataA.team.name || dataA.team.abbr)) || "";
+    const nmB = (dataB && dataB.team && (dataB.team.name || dataB.team.abbr)) || "";
+    // Collapse to a single-team title when there's no B side OR both sides are the same
+    // team (dual-UNIT sports like NHL show two lines of one team → not "X vs X").
+    document.title = (single || !nmB || nmA === nmB)
+      ? `${nmA} · ${CONFIG.name}`
+      : `${nmA} vs ${nmB} · ${CONFIG.name}`;
     statusEl.textContent = "";
     // Deep-link: after the first render builds a sequence, auto-open the ?pos= position
     // once (if it still exists in this matchup), then forget it.
@@ -722,7 +736,7 @@ function compareCol(pin, sideLabel) {
   const photo = cmpPhoto ? `<img class="cmp-photo" src="${esc(sized(cmpPhoto, 120))}" alt="" width="56" height="56" decoding="async">` : `<span class="cmp-photo"></span>`;
   const ovr = p.overall != null ? `<span class="cmp-ovr">${p.overall}<i>OVR</i></span>` : "";
   const bits = [p.pos, p.classYear || (p.age != null ? p.age + " yrs" : ""), p.height].filter(Boolean).join(" · ");
-  return `<div class="cmp-col" data-id="${esc(p.id || "")}">
+  return `<div class="cmp-col cmp-selected" data-id="${esc(p.id || "")}">
       ${photo}
       <div class="cmp-name">${esc(p.name)}</div>
       <div class="cmp-team">${esc(pin.teamName || "")}</div>

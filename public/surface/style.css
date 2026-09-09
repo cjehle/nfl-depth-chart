@@ -298,6 +298,12 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 .popover .p-stats { display: flex; flex-wrap: wrap; gap: 14px; padding: 3px 0 2px 52px; font-size: 12px; color: var(--muted); }
 .popover .p-stats[data-loading] { opacity: 0.55; font-style: italic; }
 .popover .p-stats .stat b { color: var(--ink); font-size: 15px; font-weight: 800; margin-right: 3px; }
+/* [U1] Non-starter rows expand to reveal a stat line; a caret + pointer signal it. */
+.popover li.p-expandable { cursor: pointer; }
+.popover li.p-expandable:hover .p-name { color: var(--ink); }
+.popover li.p-expandable:hover .p-main::after { opacity: 1; }
+.popover li.p-expandable .p-main::after { content: "\25B8"; color: var(--muted); opacity: 0.7; font-size: 11px; flex: none; transition: transform 0.15s ease; }
+.popover li.p-expandable[aria-expanded="true"] .p-main::after { transform: rotate(90deg); color: #7fd4a1; opacity: 1; }
 .popover .p-draft { font-size: 11px; font-weight: 700; padding: 2px 8px 2px 24px; margin-top: 2px; }
 .popover .p-draft.drafted { color: #7fd4a1; }
 .popover .p-draft.undrafted { color: #8fb0a0; font-weight: 500; }
@@ -357,6 +363,8 @@ h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.2px; }
 .cmp-stats[data-loading] { opacity: 0.55; font-style: italic; }
 .cmp-stats .stat b { color: var(--ink); font-weight: 800; margin-right: 2px; }
 .cmp-stats .stat.better b { color: #7fd4a1; }
+/* [U3] A pinned player reads as "locked in" — the photo gets a green ring. */
+.cmp-col.cmp-selected .cmp-photo { border-color: #7fd4a1; box-shadow: 0 0 0 2px rgba(127, 212, 161, 0.45); }
 #compare.active { color: #06140b; background: #3ea06a; border-color: #3ea06a; }
 
 /* Respect users who prefer less motion: drop transitions/animations. */

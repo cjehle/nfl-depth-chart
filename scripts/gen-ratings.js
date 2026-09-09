@@ -87,24 +87,37 @@ async function fcSoccer() {
 }
 
 async function theShowMLB() {
-  const map = {}; let page = 1, totalPages = 1, failed = 0;
-  while (page <= totalPages && page <= 300) {
-    let d = null;
-    for (let attempt = 0; attempt < 4 && !d; attempt++) {           // retry a flaky page, don't abandon the run
-      try { d = await j(`https://mlb26.theshow.com/apis/items.json?type=mlb_card&page=${page}`); }
-      catch (e) { await sleep(600 * (attempt + 1)); }
+  const map = {}; let failed = 0;
+  // mlbNN.theshow.com hosts the 20NN edition; a new one ships ~late March. DERIVE the
+  // likely-current edition (calendar year once past Q1, else prior year) and fall back to
+  // the prior edition if the current one isn't live yet — so a new game (e.g. The Show 27
+  // in 2027) never silently freezes ratings on a hardcoded host. Mirrors the per-year
+  // derivation in gen-ratings-history.js. (Was hardcoded `mlb26` — a silent time-bomb.)
+  const now = new Date(), y = now.getUTCFullYear();
+  const curEd = now.getUTCMonth() >= 3 ? y : y - 1;
+  for (const ed of [curEd, curEd - 1]) {
+    const host = `mlb${String(ed).slice(2)}.theshow.com`;
+    let page = 1, totalPages = 1;
+    while (page <= totalPages && page <= 300) {
+      let d = null;
+      for (let attempt = 0; attempt < 4 && !d; attempt++) {         // retry a flaky page, don't abandon the run
+        try { d = await j(`https://${host}/apis/items.json?type=mlb_card&page=${page}`); }
+        catch (e) { await sleep(600 * (attempt + 1)); }
+      }
+      if (!d) { console.error(`    Show(${host}) page ${page} failed after retries — skipping`); failed++; page++; continue; }
+      totalPages = d.total_pages || totalPages;
+      for (const it of (d.items || [])) {
+        if (it.series !== "Live") continue; // Live series = the player's current real rating
+        if (it.ovr == null) continue;
+        const nm = normName(it.name);
+        if (nm && (map[nm] == null || it.ovr > map[nm])) map[nm] = it.ovr;
+      }
+      page++; if (page % 25 === 0) console.error(`    …Show ${page}/${totalPages}`); await sleep(150);
     }
-    if (!d) { console.error(`    Show page ${page} failed after retries — skipping`); failed++; page++; continue; }
-    totalPages = d.total_pages || totalPages;
-    for (const it of (d.items || [])) {
-      if (it.series !== "Live") continue; // Live series = the player's current real rating
-      if (it.ovr == null) continue;
-      const nm = normName(it.name);
-      if (nm && (map[nm] == null || it.ovr > map[nm])) map[nm] = it.ovr;
-    }
-    page++; if (page % 25 === 0) console.error(`    …Show ${page}/${totalPages}`); await sleep(150);
+    if (Object.keys(map).length) { console.error(`  MLB The Show edition host: ${host}`); break; }
+    console.error(`  ${host} returned no cards — trying the prior edition`);
   }
-  if (guardedWrite("mlb", map)) console.error(`  mlb.json: ${Object.keys(map).length} MLB players (scanned ${page - 1} Show pages${failed ? `, ${failed} skipped` : ""})`);
+  if (guardedWrite("mlb", map)) console.error(`  mlb.json: ${Object.keys(map).length} MLB players${failed ? ` (${failed} pages skipped)` : ""}`);
 }
 
 // EA Sports College Football (CFB). EA exposes the same drop-api shape as Madden/

@@ -84,26 +84,36 @@ const LINEUP_CACHE = "public, s-maxage=120, stale-while-revalidate=600";
 // a 304 (headers only) instead of re-downloading identical JSON. Brotli-11 lands async
 // (gzip serves the first hit) so no request blocks on it — same pattern as static/pages.
 const jsonMemo = new WeakMap();
+const jsonEtag = (parts) => 'W/"' + crypto.createHash("sha1").update(JSON.stringify(parts)).digest("hex").slice(0, 20) + '"';
+// Build (once) the body + gzip + brotli for a data object. Uses gzip-6 / brotli-6, NOT the
+// 9/11 used for static assets + rendered pages: those compress once-per-mtime (per deploy),
+// but this JSON path recomputes per data GENERATION across hundreds of team/season/formation
+// combos, so lighter compression keeps the throttled free-tier core free. Output is only a
+// few % larger and these responses are edge-cached (s-maxage) + brotli-dedup-friendly.
+function fillJsonBody(m, data) {
+  if (m.buf !== undefined) return m;
+  m.buf = Buffer.from(JSON.stringify(data));
+  if (m.buf.length > 512) {
+    m.gz = zlib.gzipSync(m.buf, { level: 6 });
+    zlib.brotliCompress(m.buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 6 } }, (err, b) => { if (!err) m.br = b; });
+  }
+  return m;
+}
+// Warm the send-memo for a data object BEFORE the first request (called from prewarm), so
+// the first visitor after a cold start doesn't pay serialize+hash+gzip on the request path
+// and is served brotli immediately instead of the gzip fallback. Keyed by object identity;
+// the route later gets the same cached object → memo hit.
+function primeJsonMemo(data, parts) {
+  try { if (!data || jsonMemo.has(data)) return; const m = { etag: jsonEtag(parts), buf: undefined, gz: undefined, br: undefined }; fillJsonBody(m, data); jsonMemo.set(data, m); } catch {}
+}
 function sendCachedJson(req, res, data, parts, headers) {
   let m = jsonMemo.get(data);
-  if (!m) {
-    // Cheap up front: only the stable-parts ETag (small array stringify + sha1). Body +
-    // gzip + brotli are built lazily below — never on a request that 304s.
-    const etag = 'W/"' + crypto.createHash("sha1").update(JSON.stringify(parts)).digest("hex").slice(0, 20) + '"';
-    m = { etag, buf: undefined, gz: undefined, br: undefined };
-    jsonMemo.set(data, m);
-  }
+  // Cheap up front: only the stable-parts ETag (small array stringify + sha1).
+  if (!m) { m = { etag: jsonEtag(parts), buf: undefined, gz: undefined, br: undefined }; jsonMemo.set(data, m); }
   // Conditional check BEFORE serializing/compressing: a no-op rebuild (same stable parts,
-  // only volatile updated/fetchedAt changed) 304s here with zero stringify/gzip/brotli work
-  // — the steady state for the client's 4-min refresh and CDN revalidations.
+  // only volatile updated/fetchedAt changed) 304s here with zero stringify/gzip/brotli work.
   if (req.headers["if-none-match"] === m.etag) { res.writeHead(304, { ETag: m.etag, ...SECURITY_HEADERS, ...headers }); res.end(); return 304; }
-  if (m.buf === undefined) {
-    m.buf = Buffer.from(JSON.stringify(data));
-    if (m.buf.length > 512) {
-      m.gz = zlib.gzipSync(m.buf, { level: 9 });
-      zlib.brotliCompress(m.buf, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11 } }, (err, b) => { if (!err) m.br = b; });
-    }
-  }
+  fillJsonBody(m, data); // no-op if prewarm already warmed it
   respond(req, res, 200, m.buf, MIME[".json"], { ...headers, ETag: m.etag, gz: m.gz, br: m.br });
   return 200;
 }
@@ -601,7 +611,8 @@ const server = http.createServer(async (req, res) => {
         const teamId = params.get("team") || "2";
         if (!isNumericId(teamId) || !nfl.TEAM_BY_ID.has(teamId)) { sendJson(req, res, 400, { error: "Unknown team" }); return done(400); }
         const cur = nfl.currentNflSeason();
-        let year = Number(params.get("year")) || cur;
+        let year = parseInt(params.get("year"), 10); // floor + integer-guard: a crafted year=2025.5 must not build depth_charts_2025.5.csv → 502
+        if (!Number.isInteger(year)) year = cur;
         year = Math.min(cur, Math.max(nfl.SEASON.OLDEST, year));
         try { const d = await nfl.getTeamData(teamId, year, params.get("fresh") === "1"); return done(sendCachedJson(req, res, d, [d.offense, d.defense, d.specialTeams, d.team, d.season], { "Cache-Control": LINEUP_CACHE })); }
         catch (err) { console.error("depth error:", err.message); sendJson(req, res, 502, { error: "Couldn't load lineup data right now. Please try again." }); return done(502); }
@@ -714,17 +725,25 @@ async function prewarm() {
   // CPU-throttled cold boot. Draining through a small pool caps that transient spike and
   // the chance ESPN rate-limits the burst into degraded builds. Same idiom as statScores.
   const jobs = [];
-  if (nfl) jobs.push(() => nfl.getTeamData("2", nfl.currentNflSeason(), false).catch(() => {}));
+  // Each job also warms the compressed-JSON send-memo (primeJsonMemo) with the SAME `parts`
+  // arrays the routes hash, so the first visitor after a cold start is served instantly +
+  // brotli, not a request-path serialize+gzip. parts must match /api/depth and /api/lineup.
+  if (nfl) jobs.push(() => nfl.getTeamData("2", nfl.currentNflSeason(), false)
+    .then((d) => { if (d) primeJsonMemo(d, [d.offense, d.defense, d.specialTeams, d.team, d.season]); }).catch(() => {}));
   const rec = (sport, p) => p.then((data) => {
     if (data && Array.isArray(data.chips)) {
       const chips = data.chips.length, expected = data.expectedSlots || chips || 1;
       prewarmStatus[sport] = { chips, expected, ok: chips >= 0.6 * expected };
     }
+    return data;
   }).catch(() => {});
   for (const [sport, cfg] of Object.entries(SURFACE)) {
     const d = cfg.defaults || {};
-    if (d.a) jobs.push(() => rec(sport, getLineup(sport, d.a, false, cfg.units ? cfg.units[0] : null)));
-    if (cfg.dualUnit && d.b) jobs.push(() => getLineup(sport, d.b, false, cfg.units ? cfg.units[1] : null).catch(() => {}));
+    const unitA = cfg.units ? cfg.units[0] : null, unitB = cfg.units ? cfg.units[1] : null;
+    if (d.a) jobs.push(() => rec(sport, getLineup(sport, d.a, false, unitA))
+      .then((data) => { if (data) primeJsonMemo(data, [data.chips, data.team, data.formation, data.subtitle, data.season, unitA]); }));
+    if (cfg.dualUnit && d.b) jobs.push(() => getLineup(sport, d.b, false, unitB)
+      .then((data) => { if (data) primeJsonMemo(data, [data.chips, data.team, data.formation, data.subtitle, data.season, unitB]); }).catch(() => {}));
   }
   const total = jobs.length;
   let i = 0;
@@ -738,9 +757,9 @@ async function prewarm() {
 // flush + a shutdown flush bound how much a crash/redeploy loses. Ephemeral /tmp still
 // resets on a full free-tier spin-down — point METRICS_DIR at a persistent disk to keep it.
 metrics.load();
-const metricsFlush = setInterval(() => metrics.save(), 60000);
+const metricsFlush = setInterval(() => metrics.saveAsync(), 60000); // async so the flush never stalls the event loop
 metricsFlush.unref();
-for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { try { metrics.save(); } catch {} process.exit(0); });
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { try { metrics.save(); } catch {} process.exit(0); }); // sync on shutdown
 
 server.listen(PORT, () => {
   console.log(`\n🏟️  All-Sports Depth Charts running!  Open  http://localhost:${PORT}`);

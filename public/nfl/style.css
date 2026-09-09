@@ -366,6 +366,12 @@ body {
 .popover .p-stats { display: flex; flex-wrap: wrap; gap: 14px; padding: 3px 0 2px 42px; font-size: 12px; color: #a9c3b3; }
 .popover .p-stats[data-loading] { opacity: 0.55; font-style: italic; }
 .popover .p-stats .stat b { color: #eaf2ec; font-size: 15px; font-weight: 800; margin-right: 3px; }
+/* [U1] Non-starter rows expand to reveal a stat line; a caret + pointer signal it. */
+.popover li.p-expandable { cursor: pointer; }
+.popover li.p-expandable:hover .p-name { color: #eaf2ec; }
+.popover li.p-expandable:hover .p-main::after { color: #a9c3b3; }
+.popover li.p-expandable .p-main::after { content: "\25B8"; color: #5f7a6c; font-size: 11px; flex: none; transition: transform 0.15s ease; }
+.popover li.p-expandable[aria-expanded="true"] .p-main::after { transform: rotate(90deg); color: #7fd4a1; }
 .popover-note {
   padding: 8px 14px 12px;
   font-size: 10px;
@@ -499,6 +505,8 @@ body {
 .cmp-stats[data-loading] { opacity: 0.55; font-style: italic; }
 .cmp-stats .stat b { color: #eaf2ec; font-weight: 800; margin-right: 2px; }
 .cmp-stats .stat.better b { color: #7fd4a1; }
+/* [U3] A pinned player reads as "locked in" — the photo gets a green ring. */
+.cmp-col.cmp-selected .cmp-photo { border-color: #7fd4a1; box-shadow: 0 0 0 2px rgba(127, 212, 161, 0.45); }
 #compare.active { color: #06140b; background: #3ea06a; border-color: #3ea06a; }
 
 /* ---------- Mobile ---------- */

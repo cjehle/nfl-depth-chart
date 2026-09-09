@@ -1,9 +1,15 @@
 // nav.js — shared across every page. Highlights the current sport in the nav
 // and registers the service worker (offline app-shell + last-lineup caching).
 (function () {
+  // FIRST, before anything that could throw: flip any preloaded stylesheets to apply them.
+  // The shells load the full sheets as <link rel="preload" as="style"> (non-render-blocking)
+  // so the inlined critical CSS paints first; this applies them once parsing reaches nav.js.
+  // (No-op on pages without preloads. A <noscript> in each shell covers JS-off.)
+  try { document.querySelectorAll('link[rel="preload"][as="style"]').forEach(function (l) { l.rel = "stylesheet"; }); } catch (e) {}
+
   var seg = (location.pathname.replace(/\/+$/, "") || "/").split("/").filter(Boolean)[0] || "";
   document.querySelectorAll(".site-nav a[data-s]").forEach(function (a) {
-    if (a.getAttribute("data-s") === seg) a.classList.add("active");
+    if (a.getAttribute("data-s") === seg) { a.classList.add("active"); a.setAttribute("aria-current", "page"); }
   });
   // If the active page is inside the "International Soccer" folder, mark the
   // folder summary active too; and close the folder when clicking outside it.

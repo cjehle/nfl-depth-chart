@@ -526,10 +526,12 @@ function openDepth(title, players) {
       li.classList.add("p-expandable");
       li.tabIndex = 0;
       li.setAttribute("role", "button");
+      li.setAttribute("aria-expanded", "false"); // [U1] affordance state (drives the CSS caret)
       let loaded = false;
       const toggle = () => {
         if (loaded || li.querySelector(".p-stats")) return;
         loaded = true;
+        li.setAttribute("aria-expanded", "true");
         const s = document.createElement("div");
         s.className = "p-stats"; s.setAttribute("data-loading", ""); s.textContent = "…";
         li.querySelector(".p-main").insertAdjacentElement("afterend", s);
@@ -628,7 +630,13 @@ if (popoverPrev) popoverPrev.addEventListener("click", () => { if (popoverSeq) o
 if (popoverNext) popoverNext.addEventListener("click", () => { if (popoverSeq) openAt(popoverSeq, popoverIdx + 1); });
 popoverClose.addEventListener("click", closeDepth);
 backdrop.addEventListener("click", closeDepth);
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDepth(); });
+document.addEventListener("keydown", (e) => {
+  // [U4] Escape closes the open popover first; if nothing's open but Compare is on, it
+  // exits Compare (so one key backs out of either overlay).
+  if (e.key !== "Escape") return;
+  if (!popover.classList.contains("hidden")) closeDepth();
+  else if (compareMode) setCompareMode(false);
+});
 // Keep focus in the dialog as a wrap-around cycle so the in-popover ESPN links are
 // keyboard-reachable (the popover now has interactive content beyond Close).
 popover.addEventListener("keydown", (e) => {
@@ -695,7 +703,7 @@ function compareCol(pin, sideLabel) {
   const now = currentNflSeason();
   const yr = p.season && p.season !== now ? p.season : "";
   const bits = [p.age != null ? `${p.age} yrs` : "", p.height, p.weight].filter(Boolean).join(" · ");
-  return `<div class="cmp-col" data-id="${esc(p.id || "")}" data-year="${esc(yr)}">
+  return `<div class="cmp-col cmp-selected" data-id="${esc(p.id || "")}" data-year="${esc(yr)}">
       ${photo}
       <div class="cmp-name">${esc(p.name)}</div>
       <div class="cmp-team">${esc(pin.teamName || "")}</div>
@@ -867,6 +875,10 @@ async function render(fresh, auto) {
     render._state.seq = buildSeq(render._state); // [D] ordered open sequence for prev/next + deep-link
     buildActiveView(); // build only the visible view; the others build on switch
     nflUpdatedLabel();
+    // [U5] Reflect the current selection in the tab title / history / share text.
+    document.title = String(offenseId) === String(defenseId)
+      ? `${offData.team} Depth Chart · NFL`
+      : `${offData.team} vs ${defData.team} · NFL Depth Charts`;
     statusEl.textContent = "";
     // [D] Deep-link: if the URL carried ?pos=, open that position once after the first render.
     if (pendingPos) {

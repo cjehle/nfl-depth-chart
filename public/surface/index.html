@@ -4,10 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0b1f12" />
-    <!-- Render-blocking CSS first, before the ~12 meta/OG tags + config island, so the
-         preload scanner discovers it in the first bytes (faster FCP on mobile). -->
-    <link rel="stylesheet" href="/shared.css" />
-    <link rel="stylesheet" href="/surface/style.css" />
+    <!-- [P2] Full CSS as non-render-blocking preloads. The inlined critical CSS (added
+         with the head metadata below) paints the shell immediately; nav.js flips these
+         to real stylesheets when it runs. noscript restores blocking links when JS is off. -->
+    <link rel="preload" as="style" href="/shared.css" />
+    <link rel="preload" as="style" href="/surface/style.css" />
+    <noscript>
+      <link rel="stylesheet" href="/shared.css" />
+      <link rel="stylesheet" href="/surface/style.css" />
+    </noscript>
     <!--HEAD-->
   </head>
   <body>
@@ -113,7 +118,7 @@
 
     <div class="ad-slot ad-banner" data-ad-slot-name="banner"></div>
 
-    <div id="compare-drawer" class="compare-drawer hidden" aria-live="polite"></div>
+    <div id="compare-drawer" class="compare-drawer hidden" role="region" aria-label="Player comparison" aria-live="polite"></div>
 
     <div id="depth-popover" class="popover hidden" role="dialog" aria-modal="true" aria-labelledby="popover-title">
       <div class="popover-head">
