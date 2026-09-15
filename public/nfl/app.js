@@ -783,6 +783,25 @@ function setStaleBanner(source) {
   el.textContent = "⚠ Showing a saved lineup — live data is temporarily unavailable. This page keeps retrying and will refresh itself.";
   el.classList.remove("hidden");
 }
+// Accelerated retry while showing a saved lineup: the normal auto-refresh is every 4 min,
+// which is far too long to sit on a stale banner after a Render cold-start (the origin +
+// ESPN usually recover in <1 min). So when a render comes back stale, retry on a short
+// backoff until it's fresh, then stop and let the 4-min cadence resume. Bounded, so a real
+// multi-hour ESPN outage falls back to the slow cadence instead of hammering forever.
+let staleTimer = null, staleTries = 0;
+const STALE_BACKOFF = [4000, 8000, 15000, 30000, 60000];
+function clearStaleRetry() { clearTimeout(staleTimer); staleTimer = null; staleTries = 0; }
+function scheduleStaleRetry() {
+  if (staleTimer || staleTries >= STALE_BACKOFF.length) return; // one in flight, or fast-retry exhausted
+  staleTimer = setTimeout(function retry() {
+    staleTimer = null;
+    // Same idleness guards as the 4-min refresh — never yank a popover/drag out from under the user.
+    if (document.visibilityState !== "visible" || !popover.classList.contains("hidden") || document.querySelector(".chip.dragging")) {
+      staleTimer = setTimeout(retry, 5000); return; // busy: recheck soon without advancing the backoff
+    }
+    render(true, true); // silent; render() re-arms (still stale) or clears (fresh) via setStaleBanner below
+  }, STALE_BACKOFF[staleTries++]);
+}
 let viewMode = "field"; // or "list"
 
 // One half's header band: team logo (built as DOM, no inline handlers), name, etc.
@@ -856,7 +875,9 @@ async function render(fresh, auto) {
       getSideData("defense", defenseId, defenseYear, fresh),
     ]);
     if (gen !== renderGen) return;
-    setStaleBanner((offData.stale && offData.source) || (defData.stale && defData.source) || null);
+    const staleSrc = (offData.stale && offData.source) || (defData.stale && defData.source) || null;
+    setStaleBanner(staleSrc);
+    if (staleSrc) scheduleStaleRetry(); else clearStaleRetry(); // fast-retry a saved lineup until it's fresh
     // Silent auto-refresh with identical data + selections → refresh the label only.
     const stamp = `${offData.fetchedAt || ""}|${defData.fetchedAt || ""}|${offenseId}|${defenseId}|${personnel}|${formation}|${offData.season}|${defData.season}`;
     if (auto && render._state && render._state.stamp === stamp) { nflUpdatedLabel(); statusEl.textContent = ""; return; }
@@ -893,6 +914,8 @@ async function render(fresh, auto) {
       b.className = "retry"; b.textContent = "Retry";
       b.addEventListener("click", () => render(true));
       statusEl.appendChild(b);
+    } else {
+      scheduleStaleRetry(); // background pull threw (e.g. cold origin) — keep retrying on the fast backoff
     }
   } finally {
     fieldEl.classList.remove("loading");

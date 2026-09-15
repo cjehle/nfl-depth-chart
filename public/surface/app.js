@@ -603,6 +603,25 @@ function setStaleBanner(source) {
   el.textContent = "⚠ Showing a saved lineup — live data is temporarily unavailable. This page keeps retrying and will refresh itself.";
   el.classList.remove("hidden");
 }
+// Accelerated retry while showing a saved lineup: the normal auto-refresh is every 4 min,
+// far too long to sit on a stale banner after a Render cold-start (origin + ESPN usually
+// recover in <1 min). On a stale render, retry on a short backoff until fresh, then stop and
+// let the 4-min cadence resume. Bounded, so a real multi-hour outage falls back to the slow
+// cadence rather than hammering forever.
+let staleTimer = null, staleTries = 0;
+const STALE_BACKOFF = [4000, 8000, 15000, 30000, 60000];
+function clearStaleRetry() { clearTimeout(staleTimer); staleTimer = null; staleTries = 0; }
+function scheduleStaleRetry() {
+  if (staleTimer || staleTries >= STALE_BACKOFF.length) return; // one in flight, or fast-retry exhausted
+  staleTimer = setTimeout(function retry() {
+    staleTimer = null;
+    // Same idleness guards as the 4-min refresh — never yank a popover/drag out from under the user.
+    if (document.visibilityState !== "visible" || !popover.classList.contains("hidden") || document.querySelector(".chip.dragging")) {
+      staleTimer = setTimeout(retry, 5000); return; // busy: recheck soon without advancing the backoff
+    }
+    render(true, true); // silent; render() re-arms (still stale) or clears (fresh) via setStaleBanner below
+  }, STALE_BACKOFF[staleTries++]);
+}
 function updateUpdatedLabel(dataA, dataB) {
   const u = document.getElementById("updated");
   if (!u) return;
@@ -635,7 +654,9 @@ async function render(fresh, auto) {
     }
     if (gen !== renderGen) return;
     // Be honest when the server had to fall back to a saved copy (upstream down).
-    setStaleBanner((dataA && dataA.stale && dataA.source) || (dataB && dataB.stale && dataB.source) || null);
+    const staleSrc = (dataA && dataA.stale && dataA.source) || (dataB && dataB.stale && dataB.source) || null;
+    setStaleBanner(staleSrc);
+    if (staleSrc) scheduleStaleRetry(); else clearStaleRetry(); // fast-retry a saved lineup until it's fresh
 
     // Auto-refresh that returns identical data → refresh only the "Updated N ago"
     // label and skip the DOM teardown/rebuild entirely (lineups rarely change
@@ -687,6 +708,8 @@ async function render(fresh, auto) {
       b.className = "retry"; b.textContent = "Retry";
       b.addEventListener("click", () => render(true));
       statusEl.appendChild(b);
+    } else {
+      scheduleStaleRetry(); // background pull threw (e.g. cold origin) — keep retrying on the fast backoff
     }
   } finally {
     surfaceEl.classList.remove("loading");
