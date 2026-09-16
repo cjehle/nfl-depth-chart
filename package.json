@@ -14,6 +14,7 @@
     "gen-seeds": "node scripts/gen-seeds.js",
     "gen-ratings": "node scripts/gen-ratings.js",
     "gen-draft": "node scripts/gen-draft.js",
-    "gen-ratings-history": "node scripts/gen-ratings-history.js"
+    "gen-ratings-history": "node scripts/gen-ratings-history.js",
+    "gen-nfl-history": "node scripts/gen-nfl-history.js"
   }
 }

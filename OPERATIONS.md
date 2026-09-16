@@ -82,7 +82,7 @@ ads.js, surface/style.css, surface/app.js, nfl/style.css, nfl/app.js, manifest, 
 | `LINEUP_TTL_HOURS` | Surface-sport lineup cache TTL | 12 | server.js |
 | `MAX_UPSTREAM` | Global cap on concurrent outbound ESPN fetches | 24 | lib/espn.js |
 | `TRUST_PROXY` | Honor `X-Forwarded-For` for rate-limit IP (only behind a proxy you control) | off | server.js |
-| `ANALYTICS_TOKEN` | If set, injects the Cloudflare Web Analytics beacon | off | server.js |
+| `ANALYTICS_TOKEN` | If set, injects the Cloudflare Web Analytics beacon **and** adds its two `cloudflareinsights` origins to the CSP; unset = beacon off AND zero CSP footprint (gated like ads on `ADS_ON`) | off | server.js |
 | `METRICS_TOKEN` | If set, gates `/dashboard` + `/api/metrics-summary` behind `?key=<token>` (404 without). Empty = public. | "" (public) | server.js |
 | `METRICS_DIR` | Where first-party analytics snapshots to disk | os.tmpdir | lib/metrics.js |
 | `ADSENSE_CLIENT` | `ca-pub-…` publisher id. Ads stay OFF until this is a valid id. | off | server.js |
@@ -135,10 +135,12 @@ Three GitHub Actions in the **Deploy** repo (they live ONLY there — never rsyn
   `fresh=1` across every sport (so the origin re-pulls ESPN even with zero visitors), then fails
   the run — emailing you — if the site is unreachable, or if `/healthz?strict=1` is degraded on
   all three spaced checks. A free uptime + drift alarm.
-- `refresh-ratings.yml` — monthly (1st, 09:00 UTC) — regenerates the video-game rating maps **and
-  the default-lineup seeds**, `npm test`-gated, and commits both if they changed. Every generator
-  self-guards (refuses to overwrite good data with a smaller/empty pull → non-zero exit), and a
-  refusal fails the run so you're emailed. A bad month is a no-op + an alert, never a bad commit.
+- `refresh-ratings.yml` — monthly (1st, 09:00 UTC) — regenerates the video-game rating maps, the
+  default-lineup seeds, **and pre-baked NFL history** (`gen-nfl-history` bakes any newly-completed
+  season into `data/seed/nfl_<team>_<year>.json`; a no-op once a season is baked, so it only does
+  work the month after a season ends). `npm test`-gated, commits `data/ratings` + `data/seed` if
+  changed. Every generator self-guards (refuses to overwrite good data with a smaller/empty pull →
+  non-zero exit), and a refusal fails the run so you're emailed. A bad month is a no-op + an alert.
 - `ci.yml` — runs `npm test` on push.
 
 **GitHub auto-disables scheduled workflows after ~60 days of no repo activity — this is the site's
@@ -234,10 +236,14 @@ as "bugs":
   risky for a possibly-final deploy. Compression (gzip level 6 / brotli quality 6) already absorbs
   most of the repetition on the wire. Revisit only with the ability to test + redeploy.
 - **Held perf — face-object de-duplication:** same reasoning, smaller payoff.
-- **Held perf — streaming the ~52 MB nflverse history file:** currently read + parsed in memory in
-  `lib/nfl.js` (guarded, single-pass CSV, and only for past-season NFL requests). A streaming parse
-  would cut peak memory but adds complexity; act on it only if Render memory pressure actually
-  appears.
+- **~~Held perf — streaming the ~52 MB nflverse history file~~ — RESOLVED (2026-09-15).** Completed
+  NFL seasons are now **pre-baked** into committed `data/seed/nfl_<team>_<year>.json` by
+  `scripts/gen-nfl-history.js`, and `getTeamData` serves those immutable snapshots for past seasons
+  instead of the runtime ~50 MB nflverse fetch+parse (`lib/nfl.js`). This removed the biggest
+  free-tier memory spike AND the hardcoded `github.com/nflverse` dependency from the request path.
+  The live nflverse build remains as a fallback for any season that isn't baked yet (zero
+  regression), and the monthly cron auto-bakes each new season the month after it completes. A
+  streaming parse is now only relevant to that fallback path, which normal traffic never hits.
 - **NFL low-severity audit findings left as-is:** NFL is "final," so several low-severity findings
   were logged and judged not worth churning a finalized surface. If you reopen NFL, **re-run the
   audit** rather than trusting a stale list here.

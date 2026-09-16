@@ -257,6 +257,10 @@ const CRITICAL_CSS_HASH = "sha256-" + crypto.createHash("sha256").update(CRITICA
 const ADSENSE_CLIENT = (process.env.ADSENSE_CLIENT || "").trim();
 const ADS_ON = /^ca-pub-\d{10,20}$/.test(ADSENSE_CLIENT);
 const ADSENSE_SLOTS = { feed: (process.env.ADSENSE_SLOT_FEED || "").trim(), banner: (process.env.ADSENSE_SLOT_BANNER || "").trim(), landing: (process.env.ADSENSE_SLOT_LANDING || "").trim() };
+// Cloudflare Web Analytics beacon: OFF unless ANALYTICS_TOKEN is set. Gate its CSP origins on
+// the same flag (like the ad origins are gated on ADS_ON) so a dormant beacon leaves ZERO
+// always-on CSP footprint — the default posture is a tight, third-party-free policy.
+const CF_ANALYTICS = !!(process.env.ANALYTICS_TOKEN || "").trim();
 // Ad-network origins added to the CSP ONLY when ADS_ON (kept as tight as AdSense allows).
 const AD_CSP = {
   script: ["https://pagead2.googlesyndication.com", "https://partner.googleadservices.com", "https://tpc.googlesyndication.com", "https://www.googletagservices.com", "https://adservice.google.com"],
@@ -271,8 +275,8 @@ const CSP = (function () {
     // 'self' keeps the linked stylesheets working; the hash whitelists the single inline
     // <style> block (CRITICAL_CSS) injected per app route — derived from the same constant.
     "style-src 'self' '" + CRITICAL_CSS_HASH + "'",
-    "script-src 'self' https://static.cloudflareinsights.com" + (ADS_ON ? " " + AD_CSP.script.join(" ") : ""),
-    "connect-src 'self' https://cloudflareinsights.com" + (ADS_ON ? " " + AD_CSP.connect.join(" ") : ""),
+    "script-src 'self'" + (CF_ANALYTICS ? " https://static.cloudflareinsights.com" : "") + (ADS_ON ? " " + AD_CSP.script.join(" ") : ""),
+    "connect-src 'self'" + (CF_ANALYTICS ? " https://cloudflareinsights.com" : "") + (ADS_ON ? " " + AD_CSP.connect.join(" ") : ""),
     "base-uri 'none'", "frame-ancestors 'none'", "form-action 'none'",
   ];
   if (ADS_ON) d.push("frame-src " + AD_CSP.frame.join(" ")); // AdSense renders ads in iframes
@@ -446,7 +450,7 @@ function headFor(key) {
     parts.push(`<meta name="google-adsense-account" content="${escHtml(ADSENSE_CLIENT)}">`);
     parts.push(`<script type="application/json" id="sdc-ads">${JSON.stringify({ client: ADSENSE_CLIENT, slots: ADSENSE_SLOTS }).replace(/</g, "\\u003c")}</script>`);
   }
-  if (process.env.ANALYTICS_TOKEN) parts.push(`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${process.env.ANALYTICS_TOKEN}"}'></script>`);
+  if (CF_ANALYTICS) parts.push(`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"${(process.env.ANALYTICS_TOKEN || "").trim()}"}'></script>`);
   return parts.join("\n    ");
 }
 const pageCache = new Map();

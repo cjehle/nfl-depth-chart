@@ -39,7 +39,8 @@ jobs:
           npm run gen-ratings;         R1=$?
           npm run gen-ratings-history; R2=$?
           npm run gen-seeds;           R3=$?
-          if [ "$R1" -ne 0 ] || [ "$R2" -ne 0 ] || [ "$R3" -ne 0 ]; then echo "refused=yes" >> "$GITHUB_OUTPUT"; else echo "refused=no" >> "$GITHUB_OUTPUT"; fi
+          npm run gen-nfl-history;     R4=$?   # bakes any newly-completed NFL season (no-op once baked)
+          if [ "$R1" -ne 0 ] || [ "$R2" -ne 0 ] || [ "$R3" -ne 0 ] || [ "$R4" -ne 0 ]; then echo "refused=yes" >> "$GITHUB_OUTPUT"; else echo "refused=no" >> "$GITHUB_OUTPUT"; fi
           exit 0   # keep going: good outputs written, refused ones kept last-good; we alert at the end
 
       - name: Test gate (blocks committing a broken/collapsed map)
