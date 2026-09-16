@@ -159,7 +159,15 @@ yourself).
 `GET /healthz` always returns 200 (so Render's liveness probe never kills a serving-but-degraded
 instance). Point an external uptime monitor at **`/healthz?strict=1`** — that returns 503 only
 when the rolling window shows a real problem (upstream error rate, empty/degraded builds, or a
-rating map >400 days old). That is the single alarm that catches silent ESPN drift.
+rating map >400 days old). As of 2026-09-15 the NFL engine also feeds the empty/degraded-build
+ring (it previously did not), so strict=1 now catches NFL-only drift too, not just the surface
+sports. **Caveat (be honest):** the empty/degraded-build signal only fires when the server is
+actually *building* lineups — i.e. under real visitor traffic or a cold-start prewarm. Under the
+recommended keep-warm monitor with near-zero traffic, few builds happen, so that particular signal
+can go quiet; the always-on backstops that still work are (a) the committed seed / last-good
+fallback (users keep seeing plausible data through any drift) and (b) the rating-map >400-day
+staleness 503. So strict=1 is the best single alarm, not a complete one — the seed fallback is what
+actually keeps the site *serving* correctly through provider drift.
 
 ## 9. Add a new sport
 1. Add `sports/<key>.js` (or, for a soccer league, `require('./_soccer.js')(…)`).
@@ -249,4 +257,40 @@ as "bugs":
   audit** rather than trusting a stale list here.
 - **AdSense consent gate is a baseline, not an IAB-TCF-certified CMP** (§4) — fine for non-EEA;
   add a certified CMP before serving personalized ads to EEA/UK users.
+
+### 13a. Pre-handoff durability pass (2026-09-15)
+A 4-dimension adversarial audit (time-bombs, external-dep drift, resource leaks, latent
+correctness) ran before the owner lost edit access. **Fixed** (safe, reversible, verified):
+- **NFL silent-drift guard** — an ESPN field-rename that still returns HTTP 200 used to yield an
+  empty NFL envelope that got cached as *fresh* and overwrote last-good, invisibly. `getTeamData`
+  now refuses to persist/serve an all-null build (serves the committed seed instead) and feeds the
+  drift ring so `/healthz?strict=1` can flag it (`lib/nfl.js`, `lib/espn.js`).
+- **All 32 NFL teams seeded** (was only the Bills) so any team page degrades to a committed
+  last-good on an ESPN outage + cold start instead of a hard 502 (`scripts/gen-seeds.js` + committed
+  `data/seed/nfl_<id>.json`). All committed baselines (seeds + ratings) were also refreshed to
+  freshest state on this date.
+- **Honest historical labels** — soccer/WNBA/CBB past-season views that ESPN lacks data for now
+  read "current roster · no <year> data" instead of silently presenting today's squad as that
+  season (`lib/espn.js`).
+- **gen-draft time-bomb + guard** — its draft window now derives from the clock (was hardcoded
+  `END=2025`) and it won't overwrite the committed map with an empty/decimated pull.
+
+**Documented, intentionally NOT changed** (real but low-impact, and a wrong edit is unrecoverable
+now that the site is unpatchable — doing nothing is safer):
+- **Empty-build drift alarm is traffic-dependent** — see §8; the seed fallback + ratings-staleness
+  503 are the durable backstops.
+- **NFL seasons completed after 2025 aren't pre-baked** — no one will run `gen-nfl-history` post-
+  handoff unless the monthly cron stays alive (§7). Such a year falls back to a live nflverse fetch:
+  works when nflverse is up (a transient ~50 MB spike), or returns an isolated 502 for that one
+  season if nflverse has moved. Current-season NFL + all other sports are unaffected.
+- **Ratings-staleness alarm depends on `data/ratings/.manifest.json`** being present with a per-sport
+  `generatedAt`; if that file were ever lost, staleness stops being detectable (the site still
+  serves; only OVR badges would silently age). It is git-tracked and rsync-preserved today.
+- **`os.tmpdir()` last-good cache is never pruned** — bounded in practice (deterministic per-key
+  filenames overwrite in place; Render free-tier spin-down wipes `/tmp`), so it plateaus rather than
+  grows. An auto-pruner was rejected as too risky (unrecoverable delete surface) for an unpatchable
+  site.
+- **Historical MLB The Show 2023 ratings** couldn't be captured (old edition host unreachable), so
+  2023 MLB past-season views show no OVR badge (cosmetic). The monthly `gen-ratings-history` will
+  keep skipping it.
 </content>

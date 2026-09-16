@@ -32,16 +32,28 @@ const SPORTS = fs.readdirSync(SPORTS_DIR).filter((f) => f.endsWith(".js") && f !
   const write = (key, data) => {
     const f = safeKey(key), file = path.join(SEED, f);
     const newN = contentCount(data);
+    // Empty-guard: never commit a 0-content seed (a partial ESPN degradation at gen time would
+    // otherwise write a useless fallback). Skip + keep any last-good; do NOT fail the run —
+    // some default teams (e.g. an ESPN roster that's perennially empty) are always 0, and the
+    // monthly cron shouldn't false-alarm on them. The shrink-guard below is the real outage signal.
+    if (newN === 0) { console.error(`  skip seed ${f}: empty build (0) — not writing`); return; }
     let oldN = 0; try { oldN = contentCount(JSON.parse(fs.readFileSync(file, "utf8"))); } catch {}
     if (oldN > 0 && newN < oldN) { console.error(`  skip seed ${f}: ${newN} < committed ${oldN} (transient outage?) — keeping last-good`); process.exitCode = 1; return; }
     fs.writeFileSync(file, JSON.stringify(data));
     console.error(`  seed ${f} (${newN} ${Array.isArray(data.chips) ? "chips" : "slots"})`);
   };
 
-  // NFL: write under the SEASON-AGNOSTIC key (nfl:<team>) that getTeamData reads for
-  // the current season, so the seed keeps matching after every season rollover.
-  try { const y = nfl.currentNflSeason(); const d = await nfl.getTeamData("2", y, false); write("nfl:2", d); }
-  catch (e) { console.error("  nfl seed failed:", e.message); }
+  // NFL: seed EVERY team under the SEASON-AGNOSTIC key (nfl:<team>) getTeamData reads for the
+  // current season, so the seed keeps matching after every rollover. Seeding all 32 (not just
+  // the flagship) means ANY team page degrades to a committed last-good on an ESPN outage +
+  // cold start, instead of a hard 502.
+  {
+    const y = nfl.currentNflSeason();
+    for (const t of nfl.NFL_TEAMS) {
+      try { const d = await nfl.getTeamData(String(t.id), y, false); write(`nfl:${t.id}`, d); }
+      catch (e) { console.error(`  nfl:${t.id} (${t.abbr}) seed failed:`, e.message); }
+    }
+  }
 
   for (const s of SPORTS) {
     let cfg; try { cfg = require(`../sports/${s}.js`); } catch (e) { console.error(`  skip ${s}: ${e.message}`); continue; }

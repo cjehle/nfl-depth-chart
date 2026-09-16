@@ -14,8 +14,11 @@ const j = async (u) => { for (let i = 0; i < 4; i++) { try { const r = await fet
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const map = {};
-  // College players span ~10 draft classes; pull the last 11 completed drafts.
-  const END = 2025, START = 2015;
+  // College players span ~10 draft classes; pull the last 11 COMPLETED drafts. Derive the
+  // window from the clock (NHL draft is late June/early July) instead of a hardcoded year, so
+  // a future manual re-run isn't frozen at a stale ceiling (the mlb26 time-bomb class).
+  const now = new Date();
+  const END = now.getUTCMonth() >= 6 ? now.getUTCFullYear() : now.getUTCFullYear() - 1, START = END - 10;
   let picks = 0;
   for (let y = START; y <= END; y++) {
     const d = await j(`https://api-web.nhle.com/v1/draft/picks/${y}/all`);
@@ -29,6 +32,14 @@ const j = async (u) => { for (let i = 0; i < 4; i++) { try { const r = await fet
     console.error(`  ${y}: ${d.picks.length} picks`);
     await new Promise((r) => setTimeout(r, 120));
   }
-  fs.writeFileSync(path.join(OUT, "nhl.json"), JSON.stringify(map));
+  // Shrink/empty guard (mirrors gen-seeds/gen-ratings): never overwrite the committed map with
+  // an empty or materially smaller one — a flaky NHL API at run time would otherwise gut it.
+  const file = path.join(OUT, "nhl.json");
+  let oldN = 0; try { oldN = Object.keys(JSON.parse(fs.readFileSync(file, "utf8"))).length; } catch {}
+  if (picks === 0 || (oldN > 0 && picks < oldN * 0.8)) {
+    console.error(`  refusing to write: ${picks} picks vs committed ${oldN} (flaky NHL API?) — keeping last-good`);
+    process.exitCode = 1; return;
+  }
+  fs.writeFileSync(file, JSON.stringify(map));
   console.error(`nhl.json: ${picks} drafted players (${START}-${END}). Commit data/draft/.`);
 })();

@@ -4,6 +4,9 @@ Two teams' **starting lineups** on the field / ice / court / pitch, live from ES
 Click any player for the **full depth chart** behind them. One small Node server
 (zero dependencies, no build step) serves every sport by route.
 
+> **⚠️ Taking this over / the owner is stepping away?** Read **[HANDOFF.md](HANDOFF.md)** first —
+> the 3 account-only actions that keep it alive long-term.
+>
 > **Operating, deploying, or handing this site off?** Read **[OPERATIONS.md](OPERATIONS.md)** —
 > it is the authoritative runbook (two-repo topology, deploy steps + no-clobber list,
 > environment variables, crons, monitoring, turning on ads, adding a sport, and the
