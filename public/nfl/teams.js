@@ -56,6 +56,11 @@ const SEASON = { OLDEST: 2020, NEW_FORMAT_FROM: 2025 };
 // Which NFL season we're in right now. A season labelled Y runs Sep Y .. Feb Y+1,
 // so Jan/Feb still belong to the prior year's season; from March on we point at
 // the upcoming season. This avoids hardcoding "2026".
+// NOTE: intentionally LOCAL time (getMonth/getFullYear) — this file is shared with the
+// browser, and a season boundary is month-granular so the ±1-day local-vs-UTC skew at a
+// Feb/Mar rollover is immaterial. Do NOT switch this to UTC to "match" the surface engine's
+// UTC season math (lib/espn.js seasonEndYear, server.js NFL year); they serve different roles
+// and the discrepancy is a documented non-issue (see DURABILITY.md coupling notes).
 function currentNflSeason(now) {
   const d = now || new Date();
   return d.getMonth() < 2 ? d.getFullYear() - 1 : d.getFullYear();

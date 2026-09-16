@@ -167,3 +167,11 @@ wrong trade; instead, know the seams (and let `test/extensibility.test.js` catch
 Steps 1–3 and 5 are asserted by `test/extensibility.test.js`; step 6 by `test/seeds.test.js`. The
 authoritative add-a-sport checklist is [OPERATIONS.md](OPERATIONS.md) §9, the schema is
 [sports/README.md](sports/README.md), and the copy-me starter is `sports/_template.js`.
+
+## A documented non-issue: the season clock is LOCAL time on purpose
+`currentNflSeason()` (`public/nfl/teams.js`) uses **local** time because that file is shared with
+the browser, while the surface engine's season math (`lib/espn.js` `seasonEndYear` rollover,
+`server.js` NFL year) uses UTC. This looks inconsistent but is intentional and immaterial: season
+boundaries are month-granular, so the at-most ±1-day local-vs-UTC skew around a Feb/Mar or Aug/Sep
+rollover never changes which season is shown. **Do not "fix" it by forcing `currentNflSeason` to
+UTC** — it must stay local for the browser, and the two clocks serve different roles.

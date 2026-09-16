@@ -11,6 +11,7 @@ let CROSS_OK = true; // can pills be dragged across the center line? (false for 
 let ratingLabel = null; // video-game ratings source for this sport (e.g. "EA FC"), or null
 let draftStatus = false; // does this sport carry NHL draft status? (college hockey)
 let seasonYear = null;   // selected past season (null = current)
+let defaultVsNextPending = false;        // [defaultVsNext] set on a brand-new visit: swap team B to team A's next opponent once it resolves
 let compareMode = false;                 // tap-two-players-to-compare mode
 const pinned = { A: null, B: null };     // {face, teamName} pinned per side
 let searchQuery = "";                    // live "Find a player" filter (lowercased)
@@ -701,6 +702,18 @@ async function render(fresh, auto) {
       if (i >= 0) openAt(render._state.seq, i);
       pendingPos = null;
     }
+    // [defaultVsNext] Brand-new visit: once we have FRESH data for team A (not a stale seed,
+    // whose next-opponent would be outdated), open it against its real next opponent. One-shot,
+    // gated on !stale so the accelerated stale-retry re-fires it when live data lands. Falls back
+    // silently to the static default when there's no scheduled opponent (offseason).
+    if (defaultVsNextPending && !single && dataA && !dataA.stale) {
+      defaultVsNextPending = false;
+      const oppId = dataA.next && dataA.next.oppId;
+      if (oppId && oppId !== teamASelect.value && [...teamBSelect.options].some((o) => o.value === oppId)) {
+        teamBSelect.value = oppId;
+        teamBSelect.dispatchEvent(new Event("change")); // → syncConf + render(false) with the real opponent
+      }
+    }
   } catch (err) {
     if (!auto) {
       statusEl.textContent = "Couldn't load right now. ";
@@ -844,6 +857,9 @@ function readState() {
   const get = (k) => url.get(k) ?? saved.get(k) ?? null;
   const setSel = (sel, v) => { if (v != null && [...sel.options].some((o) => o.value === v)) sel.value = v; };
   setSel(teamASelect, get("a")); setSel(teamBSelect, get("b"));
+  // [defaultVsNext] On a brand-new visit (no saved/URL opponent), open team A against its REAL
+  // next opponent instead of the static default `b`. A returning visitor's saved `b` wins.
+  defaultVsNextPending = !!CONFIG.defaultVsNext && get("b") == null;
   const seasonSel = document.getElementById("season");
   if (seasonSel) { const s = get("s"); if (s != null && [...seasonSel.options].some((o) => o.value === s)) { seasonSel.value = s; seasonYear = s ? Number(s) : null; } }
   const fSel = document.getElementById("formation");

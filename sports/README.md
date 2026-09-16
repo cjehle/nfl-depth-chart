@@ -43,6 +43,7 @@ see [OPERATIONS.md §9](../OPERATIONS.md). NFL is a separate engine and is **not
 | `dualUnit: true` + `units:[…2…]` + `unitLabels:[…2…]` | Two units on one screen (NHL lines, CFB off/def). |
 | `formations:[…]` + `formationMode` | A formation dropdown; `formationMode` = `court` (client re-places) \| `server` (server re-arranges) \| `unit` (per-unit packages). |
 | `classYears: true` | College — players carry FR/SO/JR/SR instead of age. |
+| `defaultVsNext: true` | On a brand-new visit, open team A against its **next scheduled opponent** (from `next.oppId`) instead of the static `defaults.b`. Falls back to `defaults.b` in the offseason; never overrides a returning visitor's saved matchup. (Two-team sports only.) |
 | `note` / `rosterLabel` | Legend line / honesty label when it's not a verified lineup. |
 
 ## Per-`kind` minimum recipe

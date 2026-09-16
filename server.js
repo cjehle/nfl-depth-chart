@@ -61,7 +61,7 @@ function publicConfig(sport) {
     // ESPN web slug (soccer leagues all map to "soccer"): lets the client derive headshot +
     // player-page URLs from an athlete id, so the lineup payload no longer ships them.
     webSlug: cfg.espn && (cfg.espn.sport === "soccer" ? "soccer" : cfg.espn.league),
-    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, dualUnit: !!cfg.dualUnit, singleTeam: !!cfg.singleTeam, history: !!cfg.history, seasonEndYear: !!cfg.seasonEndYear, formations: cfg.formations || null, formationMode: cfg.formationMode || null, unitFormations: cfg.unitFormations || null, unitFormationLabels: cfg.unitFormationLabels || null, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
+    surface: cfg.surface, note: cfg.note, defaults: cfg.defaults, defaultVsNext: !!cfg.defaultVsNext, dualUnit: !!cfg.dualUnit, singleTeam: !!cfg.singleTeam, history: !!cfg.history, seasonEndYear: !!cfg.seasonEndYear, formations: cfg.formations || null, formationMode: cfg.formationMode || null, unitFormations: cfg.unitFormations || null, unitFormationLabels: cfg.unitFormationLabels || null, units: cfg.units || null, unitLabels: cfg.unitLabels || null,
     // Only the fields the client actually reads: id + name (pickers), conf (optgroups +
     // conference filter). The rendered team's abbr/color/logo come from the LINEUP payload,
     // not here — so dropping them keeps the inlined config data-island small (biggest win
@@ -74,7 +74,7 @@ function publicConfig(sport) {
 // copy for ~2 min and keep serving a stale one for 10 min while it revalidates in
 // the background. Keeps the cold Render origin + ESPN off most requests' critical
 // path; the client still auto-refreshes every 4 min, so users stay current.
-const LINEUP_CACHE = "public, s-maxage=120, stale-while-revalidate=600";
+const LINEUP_CACHE = "public, s-maxage=120, stale-while-revalidate=600, stale-if-error=86400";
 // Per-generation JSON memo: serialize + hash + compress a lineup/depth payload ONCE,
 // keyed by the cached data object itself (WeakMap → GC'd with the object, bounded by
 // the existing store caps, never extends a lifetime). Repeat sends of the same
@@ -234,6 +234,7 @@ const MIME = {
 const CRITICAL_CSS = `
 *{box-sizing:border-box}
 html,body{margin:0}
+.hidden{display:none!important}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0b1f12;color:#eaf2ec}
 .site-nav{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#081109;border-bottom:1px solid #1c3b28}
 .site-nav .site-brand{color:#eaf2ec;font-weight:800;text-decoration:none;font-size:15px}
@@ -349,7 +350,10 @@ function serveFile(req, res, filePath) {
   // (js/css) get revalidated every load so a deploy is picked up immediately.
   const ext = path.extname(filePath);
   const longLived = /\.(png|jpe?g|gif|svg|ico|webp|avif|woff2?)$/i.test(ext);
-  const cc = longLived ? "public, max-age=604800" : "public, max-age=0, must-revalidate";
+  // `immutable` skips revalidation round-trips even on explicit reload (these assets have no
+  // versioned filenames but are the never-changing images/icons/fonts; the SW VERSION handles
+  // the precached ones, and the site is not redeploying assets under the same name).
+  const cc = longLived ? "public, max-age=604800, immutable" : "public, max-age=0, must-revalidate";
   respond(req, res, 200, entry.body, entry.mime, { ETag: entry.etag, "Cache-Control": cc, gz: entry.gz, br: entry.br });
 }
 // ---- Per-route <head> injection: social share cards, icons, PWA, analytics ----
@@ -477,7 +481,7 @@ function renderPage(req, res, rel, ogKey) {
   // edge instead of waking a spun-down origin. NOTE: Cloudflare does not cache text/html
   // by default; this header is inert until a Cache Rule enables it. Bounded staleness is
   // fine here — lineups load via /api, and the SW already SWRs navigations.
-  respond(req, res, 200, entry.body, MIME[".html"], { ETag: entry.etag, "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400", gz: entry.gz, br: entry.br });
+  respond(req, res, 200, entry.body, MIME[".html"], { ETag: entry.etag, "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=86400, stale-if-error=86400", gz: entry.gz, br: entry.br });
 }
 
 // Trusted client IP for rate limiting. Cloudflare sets CF-Connecting-IP to the real

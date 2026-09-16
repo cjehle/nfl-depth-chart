@@ -20,6 +20,10 @@ module.exports = {
   seasonEndYear: true, // ESPN labels NBA seasons by END year (2027 = 2026-27); roll over in the fall
   note: "Typical starting five (recent games) · via ESPN",
   defaults: { a: "4", b: "25" }, // Chicago Bulls (home) vs Oklahoma City Thunder
+  // On a fresh visit, open team A (the Bulls) against their NEXT scheduled opponent instead of
+  // the static `b`. Falls back to `b` in the offseason / when no next game is scheduled, and
+  // never overrides a returning visitor's saved matchup. See surface/app.js + CONTRACTS.md (next.oppId).
+  defaultVsNext: true,
   teams: TEAMS,
   bucket: (pos) => { const a = (pos || "").toUpperCase(); if (a === "C") return "center"; if (a === "G" || a.endsWith("G")) return "guard"; return "forward"; },
   bio: (a) => ({ extra: (a.college && a.college.name) || "", pos: a.position?.abbreviation || "" }),
