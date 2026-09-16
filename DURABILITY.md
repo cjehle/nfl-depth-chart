@@ -140,3 +140,30 @@ Nothing here needs code or Claude — it's account hygiene:
 $0 on the current free tiers (Render + Cloudflare + GitHub Actions). Optional paid
 add-ons only if *you* choose them: Render always-on (no cold start) and an
 `ANALYTICS_TOKEN` (Cloudflare Web Analytics).
+
+## Known coupling when adding a sport (DOCUMENT, don't refactor)
+Adding a sport touches several files, and each of these seams **fails silently** if you miss it —
+a missing route 404s, a broken config is skipped, a new unit name yields no data. A single
+registry would remove the coupling, but refactoring the request path on an unpatchable site is the
+wrong trade; instead, know the seams (and let `test/extensibility.test.js` catch the wiring ones):
+
+1. **`SURFACE` loader list is hardcoded** (`server.js` ~l.49) — a new `sports/<key>.js` is NOT
+   loaded until `<key>` is added to that array. An invalid config is caught and **silently skipped**.
+2. **`PAGE_ROUTES` + `OG` map are hardcoded** (`server.js`) — no `/<key>` route → the page 404s;
+   no `OG` entry → `renderPage` has nothing to inject.
+3. **The nav + landing grid are hardcoded in the HTML shells** (`public/index.html`,
+   `public/nfl/index.html`, `public/surface/index.html`) — a new sport won't appear in the nav or
+   the landing grid until you add its `<a>` by hand in each shell.
+4. **The `/api/lineup` unit whitelist** is `["offense","defense","line1","line2"]`
+   (`server.js` ~l.644) — a dual-unit sport using any OTHER unit names would have `unit` forced to
+   `null`. Reuse those names or extend the whitelist.
+5. **`buildLineup` dispatches on `cfg.kind` with a silent default** (`lib/espn.js` ~l.934) — an
+   unknown/typo'd `kind` falls through to `resolveDepthLineup` instead of erroring, so a mis-typed
+   kind produces wrong (not absent) output. `test/extensibility.test.js` asserts `kind` is one of
+   the five known values.
+6. **A committed seed is per-`sport:team:unit:year:formation` key** (`safeKey`/`lineupKey`) — the
+   new sport's default matchup needs `npm run gen-seeds` or it has no cold-start fallback.
+
+Steps 1–3 and 5 are asserted by `test/extensibility.test.js`; step 6 by `test/seeds.test.js`. The
+authoritative add-a-sport checklist is [OPERATIONS.md](OPERATIONS.md) §9, the schema is
+[sports/README.md](sports/README.md), and the copy-me starter is `sports/_template.js`.

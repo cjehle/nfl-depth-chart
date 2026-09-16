@@ -14,7 +14,7 @@ const nfl = require("../lib/nfl.js");
 const SEED = path.join(__dirname, "..", "data", "seed");
 const SPORTS_DIR = path.join(__dirname, "..", "sports");
 // Every sport config (exclude the shared soccer factory, which isn't a sport itself).
-const SPORTS = fs.readdirSync(SPORTS_DIR).filter((f) => f.endsWith(".js") && f !== "_soccer.js").map((f) => f.slice(0, -3)).sort();
+const SPORTS = fs.readdirSync(SPORTS_DIR).filter((f) => f.endsWith(".js") && !f.startsWith("_")).map((f) => f.slice(0, -3)).sort(); // "_"-prefixed = helper/template, not a sport
 
 (async () => {
   fs.mkdirSync(SEED, { recursive: true });

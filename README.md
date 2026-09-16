@@ -13,6 +13,12 @@ Click any player for the **full depth chart** behind them. One small Node server
 > things only the account owner can do). **[DURABILITY.md](DURABILITY.md)** and
 > **[OPTIMIZATIONS.md](OPTIMIZATIONS.md)** cover the "runs for years untouched" design
 > and the performance work.
+>
+> **Editing or extending the code?** Start at **[CLAUDE.md](CLAUDE.md)** (mental model + hard
+> invariants; auto-loaded by Claude Code), then **[ARCHITECTURE.md](ARCHITECTURE.md)** (data flow),
+> **[CONTRACTS.md](CONTRACTS.md)** (payload shapes), **[CONTRIBUTING.md](CONTRIBUTING.md)** (the
+> pre-edit checklist), **[sports/README.md](sports/README.md)** (config schema) and
+> **[scripts/README.md](scripts/README.md)** (data generators). Copy `sports/_template.js` to add a sport.
 
 ## Sports
 

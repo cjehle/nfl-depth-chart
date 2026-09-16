@@ -15,7 +15,7 @@ const hasSeed = (key) => fs.existsSync(path.join(SEED, safeKey(key)));
 // The sport list is derived the same way gen-seeds derives it (sports/*.js minus the
 // shared soccer factory), so a newly-added sport is automatically covered here too.
 const SPORTS = fs.readdirSync(path.join(__dirname, "..", "sports"))
-  .filter((f) => f.endsWith(".js") && f !== "_soccer.js").map((f) => f.slice(0, -3));
+  .filter((f) => f.endsWith(".js") && !f.startsWith("_")).map((f) => f.slice(0, -3)); // "_"-prefixed = helper/template, not a sport
 
 test("safeKey trims trailing empty segments (stable default-lineup filenames)", () => {
   assert.equal(safeKey("nba:13:::"), "nba_13.json");

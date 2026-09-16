@@ -35,7 +35,7 @@ cd "$SRC" && npm test        # 37 tests, all must pass
 # 3. Sync code dirs (NO --delete) + root files. NOTE: .github is deliberately NOT synced,
 #    so the Deploy-only cron workflows are never touched.
 for d in lib public sports scripts data test; do rsync -a --exclude='.git' "$SRC/$d/" "$DEP/$d/"; done
-for f in server.js package.json render.yaml run-all.sh README.md DURABILITY.md OPERATIONS.md OPTIMIZATIONS.md; do cp "$SRC/$f" "$DEP/$f"; done
+for f in server.js package.json render.yaml run-all.sh *.md; do cp "$SRC/$f" "$DEP/$f"; done  # *.md = all root docs (README, OPERATIONS, HANDOFF, CLAUDE, ARCHITECTURE, CONTRACTS, CONTRIBUTING, …)
 # 4. Restore the no-clobber files in Deploy (see §1a) — the sync above overwrote them.
 #    (Run `git -C "$DEP" fetch origin && git -C "$DEP" rebase origin/main` FIRST if the cron
 #     may have pushed since your last pull, so HEAD holds the freshest ratings/seeds.)
