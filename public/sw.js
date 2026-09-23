@@ -2,7 +2,7 @@
 // Strategy: precache the static shell; navigations (HTML) network-first with a
 // cached fallback; /api/* and static assets stale-while-revalidate (instant from
 // cache, refreshed in the background). Bump VERSION to force a clean rollover.
-const VERSION = "v16-2026-09-15";
+const VERSION = "v17-2026-09-22";
 const STATIC = `static-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 const PRECACHE = [

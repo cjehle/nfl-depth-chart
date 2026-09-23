@@ -113,6 +113,17 @@ function isEdgeBacker(abbr) {
   return /^(WLB|SLB|OLB|LOLB|ROLB|SAM|WILL|EDGE|RUSH)$/.test((abbr || "").toUpperCase());
 }
 
+// Left→center→right ordering key from a position abbr's side prefix. ESPN lists the D-line and
+// corners in an arbitrary order, so we place them by their ACTUAL side (LDE/LE/LCB → left,
+// NT/DT/interior → center, RDE/RE/RCB → right) instead of trusting that list order — otherwise
+// a nose tackle listed last would render on the far edge (and a reorder could move it any time).
+function sideRank(abbr) {
+  const A = (abbr || "").toUpperCase();
+  if (A[0] === "L") return 0; // LDE, LE, LDT, LCB, LOLB…
+  if (A[0] === "R") return 2; // RDE, RE, RDT, RCB, ROLB…
+  return 1;                    // NT, NG, DT, DL, CB, NB… (interior / center)
+}
+
 function wrSpots(pos, n) {
   if (!pos) return [];
   const slots = pos.spots.slice().sort((a, b) => a.players[0].rank - b.players[0].rank).map((s) => s.players);
@@ -191,14 +202,17 @@ function buildDefense(unit, code) {
   const asSpot = (x) => ({ label: x.abbr, players: x.players });
   const backups = (arr) => arr.map((x) => (x.players[1] ? { label: x.abbr, players: x.players.slice(1) } : null)).filter(Boolean);
 
-  const dlPool = [...cats.DL.map(asSpot), ...backups(cats.DL)];
+  // Order the front by ACTUAL side (LDE→left, NT/DT→interior, RDE→right), not ESPN's list
+  // order, then spread left→right — so the nose tackle is always centered.
+  const dlSorted = cats.DL.slice().sort((a, b) => sideRank(a.abbr) - sideRank(b.abbr));
+  const dlPool = [...dlSorted.map(asSpot), ...backups(dlSorted)];
   const dlCount = cats.DL.length + cfg.dlAdd;
 
   const lbSorted = cats.LB.slice().sort((a, b) => (isEdgeBacker(a.abbr) ? 0 : 1) - (isEdgeBacker(b.abbr) ? 0 : 1));
   const lbPool = [...lbSorted.map(asSpot), ...backups(lbSorted)];
   const lbCount = Math.max(0, cats.LB.length - cfg.lbRemove);
 
-  const cbSorted = cats.CB.slice().sort((a, b) => a.abbr.localeCompare(b.abbr)); // LCB before RCB
+  const cbSorted = cats.CB.slice().sort((a, b) => sideRank(a.abbr) - sideRank(b.abbr)); // LCB → left corner, RCB → right
   const dbPool = [...cbSorted.map(asSpot), ...cats.S.map(asSpot), ...cats.NB.map(asSpot), ...backups([...cbSorted, ...cats.S])];
   const dbCount = Math.max(0, 11 - dlCount - lbCount);
 
