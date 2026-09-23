@@ -43,7 +43,7 @@ const OFF = {
   rb2a: { x: 58, y: 49 },  // 21 personnel: two backs
   rb2b: { x: 42, y: 57 },
   wr: [{ x: 7, y: 79 }, { x: 93, y: 79 }, { x: 23, y: 69 }, { x: 77, y: 69 }],
-  te: [{ x: 82, y: 84 }, { x: 18, y: 84 }, { x: 90, y: 76 }],
+  te: [{ x: 82, y: 84 }, { x: 18, y: 84 }, { x: 90, y: 62 }], // 3rd TE (13 personnel) dropped off the ball so it doesn't stack on the inline TE at (82,84)
 };
 const DEF = {
   dlY: 15,
@@ -122,6 +122,19 @@ function sideRank(abbr) {
   if (A[0] === "L") return 0; // LDE, LE, LDT, LCB, LOLB…
   if (A[0] === "R") return 2; // RDE, RE, RDT, RCB, ROLB…
   return 1;                    // NT, NG, DT, DL, CB, NB… (interior / center)
+}
+
+// Left→right ordering for LINEBACKERS specifically. Same problem as the D-line (ESPN lists
+// them arbitrarily), but LB abbrs encode side by weak/strong (WILL=weak/left, SAM=strong/right,
+// MIKE=middle) as well as L/R prefixes (LOLB/LILB/RILB/ROLB) — so first-letter alone isn't
+// enough. Outside/weak backers go to the edges, inside backers to the middle. Unknown → center.
+function lbRank(abbr) {
+  const A = (abbr || "").toUpperCase();
+  if (/^(WLB|WILL|W|LOLB|LOB)$/.test(A)) return 0; // weak-side / left-outside → far left
+  if (/^(SLB|SAM|S|ROLB|ROB)$/.test(A)) return 4;  // strong-side / right-outside → far right
+  if (A[0] === "L") return 1;                       // LILB / other left-inside
+  if (A[0] === "R") return 3;                       // RILB / other right-inside
+  return 2;                                          // MLB, MIKE, ILB, OLB (generic) → center
 }
 
 function wrSpots(pos, n) {
@@ -213,15 +226,30 @@ function buildDefense(unit, code) {
   const lbCount = Math.max(0, cats.LB.length - cfg.lbRemove);
 
   const cbSorted = cats.CB.slice().sort((a, b) => sideRank(a.abbr) - sideRank(b.abbr)); // LCB → left corner, RCB → right
-  const dbPool = [...cbSorted.map(asSpot), ...cats.S.map(asSpot), ...cats.NB.map(asSpot), ...backups([...cbSorted, ...cats.S])];
   const dbCount = Math.max(0, 11 - dlCount - lbCount);
 
   const chips = [];
+  // DL: re-sort the SELECTED front by side. Goal-line appends backups after the side-sorted
+  // starters, so sort the final slice — not just the starter pool — to keep ends on the edges.
+  const dlPlaced = dlPool.slice(0, dlCount).slice().sort((a, b) => sideRank(a.label) - sideRank(b.label));
   const dlXs = spreadX(dlCount, ...(dlCount >= 5 ? DEF.dlBounds.many : DEF.dlBounds.few));
-  dlPool.slice(0, dlCount).forEach((s, i) => chips.push({ ...s, x: dlXs[i], y: DEF.dlY }));
+  dlPlaced.forEach((s, i) => chips.push({ ...s, x: dlXs[i], y: DEF.dlY }));
+  // LB: isEdgeBacker chose WHICH backers to keep in nickel/dime; place the kept subset by SIDE
+  // (lbRank) so MIKE/inside backers sit centrally instead of being thrown to an edge.
+  const lbPlaced = lbPool.slice(0, lbCount).slice().sort((a, b) => lbRank(a.label) - lbRank(b.label));
   const lbXs = spreadX(lbCount, ...(lbCount >= 4 ? DEF.lbBounds.many : DEF.lbBounds.few));
-  lbPool.slice(0, lbCount).forEach((s, i) => chips.push({ ...s, x: lbXs[i], y: DEF.lbY }));
-  dbPool.slice(0, dbCount).forEach((s, i) => { const slot = DEF.db[i] || { x: 50, y: 80 }; chips.push({ ...s, x: slot.x, y: slot.y }); });
+  lbPlaced.forEach((s, i) => chips.push({ ...s, x: lbXs[i], y: DEF.lbY }));
+  // DBs by ROLE, not pool position: the two corners → the corner slots, safeties → the safety
+  // slots, and any extra (nickel back, dime backs, a 3rd corner) → the inner slots. A flat
+  // positional map used to spill a 3rd corner into a safety slot and push a safety off the field.
+  const cornerSlots = DEF.db.slice(0, 2), safetySlots = DEF.db.slice(2, 4), extraSlots = DEF.db.slice(4);
+  const cbSpots = cbSorted.map(asSpot), sSpots = cats.S.map(asSpot);
+  const extraPool = [...cbSpots.slice(2), ...sSpots.slice(2), ...cats.NB.map(asSpot), ...backups([...cbSorted, ...cats.S])];
+  const placeInto = (slots, pool) => pool.forEach((s, i) => { if (slots[i]) chips.push({ ...s, x: slots[i].x, y: slots[i].y }); });
+  let placed = 0;
+  const corners = cbSpots.slice(0, Math.min(2, dbCount)); placeInto(cornerSlots, corners); placed += corners.length;
+  const safeties = sSpots.slice(0, Math.max(0, Math.min(2, dbCount - placed))); placeInto(safetySlots, safeties); placed += safeties.length;
+  placeInto(extraSlots, extraPool.slice(0, Math.max(0, dbCount - placed)));
   return chips;
 }
 

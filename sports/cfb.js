@@ -35,7 +35,7 @@ const DEF = {
   "base": [...DLINE4, P("LB1", "LB", "lb", 1, "Linebackers", 28, 72), P("LB2", "LB", "lb", 2, "Linebackers", 50, 72), P("LB3", "LB", "lb", 3, "Linebackers", 72, 72), ...CB2, P("DB3", "DB", "db", 3, "Secondary", 38, 56), P("DB4", "DB", "db", 4, "Secondary", 62, 56)],
   "nickel": [...DLINE4, P("LB1", "LB", "lb", 1, "Linebackers", 35, 72), P("LB2", "LB", "lb", 2, "Linebackers", 65, 72), ...CB2, P("DB3", "DB", "db", 3, "Secondary", 30, 60), P("DB4", "DB", "db", 4, "Secondary", 70, 60), P("DB5", "DB", "db", 5, "Secondary", 50, 52)],
   "dime": [...DLINE4, P("LB1", "LB", "lb", 1, "Linebackers", 50, 72), ...CB2, P("DB3", "DB", "db", 3, "Secondary", 28, 64), P("DB4", "DB", "db", 4, "Secondary", 72, 64), P("DB5", "DB", "db", 5, "Secondary", 40, 52), P("DB6", "DB", "db", 6, "Secondary", 60, 52)],
-  "3-4": [...DLINE3, P("LB1", "LB", "lb", 1, "Linebackers", 14, 72), P("LB2", "LB", "lb", 2, "Linebackers", 38, 72), P("LB3", "LB", "lb", 3, "Linebackers", 62, 72), P("LB4", "LB", "lb", 4, "Linebackers", 86, 72), ...CB2, P("DB3", "DB", "db", 3, "Secondary", 38, 56), P("DB4", "DB", "db", 4, "Secondary", 62, 56)],
+  "3-4": [...DLINE3, P("LB1", "LB", "lb", 1, "Linebackers", 24, 72), P("LB2", "LB", "lb", 2, "Linebackers", 42, 72), P("LB3", "LB", "lb", 3, "Linebackers", 58, 72), P("LB4", "LB", "lb", 4, "Linebackers", 76, 72), ...CB2, P("DB3", "DB", "db", 3, "Secondary", 38, 56), P("DB4", "DB", "db", 4, "Secondary", 62, 56)],
 };
 
 module.exports = {
